@@ -1445,3 +1445,5 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 .adm-sku-pager button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .adm-sku-pager button:disabled{opacity:.4;cursor:default}
 .adm-sku-ellip{padding:0 .2rem;color:var(--text-dim)}
+
+.adm-sku-table-pro td.adm-sku-dealer{font-weight:700;color:var(--accent);vertical-align:middle}
