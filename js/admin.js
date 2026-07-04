@@ -1274,6 +1274,59 @@ function catDelete(enc){
   try{ showToast('"'+name+'" removed — '+count+' product'+(count===1?'':'s')+' moved to Uncategorized'); }catch(e){}
 }
 
+/* ================= PHASE 6 - Import drag-and-drop wizard ================= */
+function admImportDragOver(ev){ if(ev){ev.preventDefault();ev.stopPropagation();} var z=document.getElementById('adm-dropzone'); if(z)z.classList.add('drag'); }
+function admImportDragLeave(ev){ if(ev){ev.preventDefault();ev.stopPropagation();} var z=document.getElementById('adm-dropzone'); if(z)z.classList.remove('drag'); }
+function admImportBrowse(){ var inp=document.getElementById('excel-upload-input'); if(inp)inp.click(); }
+function admImportDrop(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  var z=document.getElementById('adm-dropzone'); if(z)z.classList.remove('drag');
+  var files=ev&&ev.dataTransfer&&ev.dataTransfer.files;
+  if(!files||!files.length)return;
+  var f=files[0];
+  if(!/\.(xlsx|xls)$/i.test(f.name||'')){ try{showToast('Please drop an .xlsx or .xls file.');}catch(e){} return; }
+  var inp=document.getElementById('excel-upload-input');
+  if(!inp){ try{showToast('Import input missing.');}catch(e){} return; }
+  try{
+    var dt=new DataTransfer(); dt.items.add(f); inp.files=dt.files;
+    if(typeof handleExcelUpload==='function')handleExcelUpload(inp);
+  }catch(e){
+    try{showToast('Drag-drop not supported here — click the box to browse instead.');}catch(_){}
+  }
+}
+function _admTabImportHtml(){
+  var UP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+  var CK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  function chk(t){ return '<div class="imp-check"><span class="imp-check-ico">'+CK+'</span>'+t+'</div>'; }
+  return '<div class="adm-tab" id="tab-import">'+
+    '<div class="adm-panel">'+
+      '<div class="adm-panel-head"><div class="adm-panel-title">Import from Excel</div><div class="adm-panel-sub">Drag &amp; drop an .xlsx — preview and validate before anything changes</div></div>'+
+      '<div class="imp-steps">'+
+        '<div class="imp-step"><span class="imp-step-n">1</span>Drop / choose file</div>'+
+        '<span class="imp-step-arrow">&rarr;</span>'+
+        '<div class="imp-step"><span class="imp-step-n">2</span>Preview &amp; validate</div>'+
+        '<span class="imp-step-arrow">&rarr;</span>'+
+        '<div class="imp-step"><span class="imp-step-n">3</span>Apply changes</div>'+
+      '</div>'+
+      '<div id="adm-dropzone" class="imp-dropzone" ondragover="admImportDragOver(event)" ondragenter="admImportDragOver(event)" ondragleave="admImportDragLeave(event)" ondrop="admImportDrop(event)" onclick="admImportBrowse()">'+
+        '<div class="imp-dz-ico">'+UP+'</div>'+
+        '<div class="imp-dz-title">Drag &amp; drop your Excel file here</div>'+
+        '<div class="imp-dz-sub">or <span class="imp-dz-link">browse</span> &middot; .xlsx or .xls</div>'+
+      '</div>'+
+      '<div class="imp-checks">'+
+        chk('New products are added')+
+        chk('Existing SKUs updated (matched by item code)')+
+        chk('Duplicate &amp; conflict detection')+
+        chk('Field validation before anything applies')+
+      '</div>'+
+      '<div class="imp-foot">'+
+        '<button class="btn-ghost" onclick="closeAdminModal();downloadExcel(\x27recommended\x27)">Not sure of the format? Export current data as a template</button>'+
+        '<button class="btn-ghost" onclick="rollbackUpload()">Undo last import</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
 function renderAdminContent(){
   var el=document.getElementById('adm-content');
   var modal=document.getElementById('adm-modal');
