@@ -1416,3 +1416,32 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 .adm-qa-badge{position:absolute;top:7px;right:7px;font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);background:var(--bg);border:1px solid var(--border);padding:1px 6px;border-radius:10px}
 @media (max-width:900px){.adm-qa-grid{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:560px){.adm-qa-grid{grid-template-columns:repeat(2,1fr)}}
+
+
+/* ===== Phase 3: Airtable-style SKU table ===== */
+.adm-sku-filters{grid-template-columns:2fr 1fr 1fr 1fr 1fr}
+@media (max-width:1100px){.adm-sku-filters{grid-template-columns:1fr 1fr 1fr}}
+@media (max-width:640px){.adm-sku-filters{grid-template-columns:1fr 1fr}}
+.adm-sku-table-pro{min-width:960px}
+.adm-sku-check{width:38px;text-align:center}
+.adm-sku-check input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+.adm-sku-cat{font-size:.72rem;color:var(--text-muted);white-space:nowrap}
+.adm-sku-status-new{color:#b45309;background:rgba(180,83,9,.12)}
+.adm-sku-table-pro tbody tr.sel{background:var(--accent-bg)}
+.adm-sku-menuwrap{position:relative;display:inline-block}
+.adm-sku-menu{position:absolute;right:0;top:calc(100% + 4px);min-width:150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);padding:.3rem;display:none;z-index:50}
+.adm-sku-menu.open{display:block}
+.adm-sku-menu button{display:block;width:100%;text-align:left;border:none;background:transparent;padding:.5rem .6rem;border-radius:7px;font-family:inherit;font-size:.78rem;color:var(--text-muted);cursor:pointer}
+.adm-sku-menu button:hover{background:var(--bg);color:var(--text)}
+.adm-sku-menu button.danger:hover{color:#dc2626}
+.adm-sku-act svg{width:15px;height:15px}
+.adm-sku-bulkbar{display:none;align-items:center;gap:.75rem;padding:.55rem .9rem;background:var(--accent-bg);border:1px solid rgba(0,121,52,.2);border-radius:10px;margin:.2rem 0 .1rem}
+.adm-sku-bulkbar.show{display:flex}
+.adm-sku-bulkcount{font-size:.78rem;font-weight:700;color:var(--accent)}
+.adm-sku-bulkbar .btn-danger,.adm-sku-bulkbar .btn-ghost{padding:.35rem .8rem;font-size:.74rem}
+.adm-sku-pager{display:flex;align-items:center;justify-content:center;gap:.3rem;padding:.8rem .5rem;flex-wrap:wrap}
+.adm-sku-pager button{min-width:32px;height:32px;padding:0 .5rem;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.75rem;color:var(--text-muted)}
+.adm-sku-pager button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.adm-sku-pager button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.adm-sku-pager button:disabled{opacity:.4;cursor:default}
+.adm-sku-ellip{padding:0 .2rem;color:var(--text-dim)}
