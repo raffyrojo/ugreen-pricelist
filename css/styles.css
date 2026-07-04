@@ -303,7 +303,7 @@ aside{display:flex;flex-direction:column}
 .adm-modal.adm-compact{width:min(400px,90vw);max-width:400px}
 #adm-content{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 /* v1.3.17: Admin dashboard (rail + KPIs + chart) */
-.adm-modal.adm-dash{width:96vw;max-width:none;height:92vh;max-height:92vh}
+.adm-modal.adm-dash{width:calc(100vw - 32px);max-width:none;height:calc(100vh - 32px);max-height:none;border-radius:16px}
 .adm-modal.adm-dash #adm-content{overflow:hidden}
 .adm-dash{display:flex;width:100%;height:100%;min-height:0;background:var(--bg)}
 .adm-rail{width:212px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:1rem .7rem}
@@ -396,17 +396,14 @@ aside{display:flex;flex-direction:column}
 @media (max-width:520px){.adm-sku-filters{grid-template-columns:1fr}}
 @media (max-width:980px){.adm-kpi-row{grid-template-columns:repeat(2,1fr)}.adm-ov-2col{grid-template-columns:1fr}}
 @media (max-width:760px){
-  /* Rail becomes a horizontal scrollable top strip so tabs stay reachable */
-  .adm-dash{flex-direction:column}
-  .adm-rail{width:100%;flex-direction:row;align-items:center;gap:.5rem;
-    border-right:none;border-bottom:1px solid var(--border);padding:.45rem .6rem}
-  .adm-rail-brand,.adm-rail-group,.adm-rail-user{display:none}
-  .adm-rail-nav{flex-direction:row;flex:1;min-width:0;gap:.35rem;overflow-x:auto;overflow-y:hidden}
-  .adm-rail-item{flex-shrink:0;white-space:nowrap;padding:.45rem .7rem}
-  .adm-rail-foot{border-top:none;margin-top:0;padding-top:0;flex-shrink:0}
-  .adm-rail-logout,.adm-rail-foot .adm-rail-logoutbtn{width:auto;padding:.45rem .7rem}
+  /* Rail becomes an off-canvas drawer on tablet/mobile */
+  .adm-shell .adm-dash{position:relative}
+  .adm-rail{position:absolute;top:0;left:0;height:100%;z-index:30;transform:translateX(-100%);transition:transform .22s ease;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+  .adm-shell.rail-open .adm-rail{transform:none}
+  .adm-shell.rail-collapsed .adm-rail{width:212px;padding:1rem .7rem}
+  .adm-shell.rail-open .adm-rail-backdrop{display:block;position:absolute;inset:0;z-index:25;background:rgba(15,23,42,.4)}
 }
-@media (max-width:640px){.adm-modal.adm-dash{width:100vw;max-width:100vw;height:94vh;max-height:94vh;border-radius:16px 16px 0 0}.adm-main-top{flex-wrap:wrap}.adm-main-actions{width:100%;justify-content:flex-end}.adm-chart-label{width:96px}}
+@media (max-width:640px){.adm-modal.adm-dash{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0}.adm-main-top{flex-wrap:wrap}.adm-main-actions{width:100%;justify-content:flex-end}.adm-chart-label{width:96px}}
 /* ── v1.3.12: Two-panel Admin Login (UGREEN) ───────────────────────────── */
 .adm-modal.adm-login{width:min(880px,95vw);max-width:880px;padding:0}
 .adm-modal.adm-login #adm-content{flex-direction:row;overflow:hidden}
@@ -1340,14 +1337,64 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 @media(max-width:480px){.nas-promo-modal{width:96%;max-width:none;border-radius:8px}.nas-promo-close{top:4px;right:4px;width:28px;height:28px;font-size:15px}}
 /* ── END: UGREEN NAS Promo Popup ── */
 
-/* v1.2.8: Print stylesheet — hide chrome, optimize for A4 (audit R-4) */
-@media print{
-  .sidebar,.topbar,.admin-panel,#admin-header-btn,#admin-mode-badge,.search-wrap,
-  .view-toggle,.export-section,#back-to-top,.fab-container,.toast,
-  .nas-promo-overlay,.floating-save,.manage-bar{display:none!important}
-  body{background:#fff!important;color:#000!important;font-size:11px}
-  .main{margin-left:0!important;padding:0!important}
-  table{font-size:10px;width:100%!important}
-  .card{break-inside:avoid;box-shadow:none!important;border:1px solid #ddd}
-  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* 
+
+/* ===== Phase 1: Enterprise admin workspace (appbar + collapsible rail) ===== */
+.adm-shell{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;height:100%;background:var(--bg)}
+.adm-shell .adm-dash{flex:1;min-height:0;height:auto;width:100%}
+.adm-appbar{display:flex;align-items:center;gap:.75rem;flex-shrink:0;height:56px;padding:0 .9rem;background:var(--surface);border-bottom:1px solid var(--border)}
+.adm-appbar-burger{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--border);background:var(--surface);border-radius:9px;cursor:pointer;color:var(--text-muted);flex-shrink:0}
+.adm-appbar-burger:hover{border-color:var(--accent);color:var(--accent)}
+.adm-appbar-burger svg{width:18px;height:18px}
+.adm-appbar-logo{height:20px;width:auto;display:block;flex-shrink:0}
+.adm-crumbs{display:flex;align-items:center;gap:.4rem;font-size:.82rem;white-space:nowrap;flex-shrink:0}
+.adm-crumb-root,.adm-crumb-sep{color:var(--text-dim)}
+.adm-crumbs #adm-crumb{color:var(--text);font-weight:700}
+.adm-appbar-search{position:relative;flex:1;max-width:420px;margin-left:.5rem}
+.adm-appbar-search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;display:flex}
+.adm-appbar-search-ico svg{width:15px;height:15px}
+.adm-appbar-search input{width:100%;height:38px;padding:0 .8rem 0 33px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:inherit;font-size:.82rem;outline:none}
+.adm-appbar-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.adm-appbar-actions{display:flex;align-items:center;gap:.4rem;margin-left:auto;flex-shrink:0}
+.adm-ico-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--border);background:var(--surface);border-radius:9px;cursor:pointer;color:var(--text-muted)}
+.adm-ico-btn:hover{border-color:var(--accent);color:var(--accent)}
+.adm-ico-btn svg{width:17px;height:17px}
+.adm-profile{position:relative}
+.adm-profile-btn{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .4rem .2rem .2rem;border:1px solid var(--border);background:var(--surface);border-radius:22px;cursor:pointer;color:var(--text-muted)}
+.adm-profile-btn:hover{border-color:var(--accent)}
+.adm-profile-btn svg{width:14px;height:14px}
+.adm-profile-menu{position:absolute;right:0;top:calc(100% + 8px);width:196px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:.4rem;opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .15s,transform .15s;z-index:60}
+.adm-profile-menu.open{opacity:1;visibility:visible;transform:none}
+.adm-profile-head{padding:.5rem .55rem;border-bottom:1px solid var(--border);margin-bottom:.35rem}
+.adm-profile-name{font-size:.82rem;font-weight:700;color:var(--text)}
+.adm-profile-role{font-size:.66rem;color:var(--text-dim)}
+.adm-profile-item{display:flex;align-items:center;gap:.5rem;width:100%;padding:.5rem .55rem;border:none;background:transparent;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.8rem;color:var(--text-muted);text-align:left}
+.adm-profile-item:hover{background:var(--bg);color:var(--srp)}
+.adm-profile-item svg{width:15px;height:15px;flex-shrink:0}
+.adm-rail-ico{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.adm-rail-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adm-rail-logoutbtn span{white-space:nowrap}
+/* Collapsed (icon) mode - desktop/tablet */
+.adm-shell.rail-collapsed .adm-rail{width:66px;padding:1rem .5rem}
+.adm-shell.rail-collapsed .adm-rail-txt,
+.adm-shell.rail-collapsed .adm-rail-group,
+.adm-shell.rail-collapsed .adm-rail-brand .adm-rail-badge,
+.adm-shell.rail-collapsed .adm-rail-brand .adm-rail-logo,
+.adm-shell.rail-collapsed .adm-rail-foot{display:none}
+.adm-shell.rail-collapsed .adm-rail-item{justify-content:center;padding:.55rem;gap:0}
+.adm-shell.rail-collapsed .adm-rail-brand{justify-content:center;padding-bottom:.4rem}
+.adm-rail-backdrop{display:none}
+/* Placeholder / empty states */
+.adm-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3rem 1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:16px;min-height:320px}
+.adm-empty-ico{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--accent-bg);color:var(--accent);margin-bottom:1rem}
+.adm-empty-ico svg{width:26px;height:26px}
+.adm-empty-title{font-family:'Metropolis',sans-serif;font-weight:800;font-size:1.25rem;color:var(--text)}
+.adm-empty-sub{font-size:.85rem;color:var(--text-muted);margin-top:.25rem}
+.adm-empty-desc{font-size:.8rem;color:var(--text-dim);max-width:460px;line-height:1.6;margin:.85rem 0 1.1rem}
+.adm-soon-badge{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);background:var(--accent-bg);border:1px solid rgba(0,121,52,.2);padding:4px 12px;border-radius:20px}
+.adm-soon-note{font-size:.72rem;color:var(--text-dim);margin-top:.85rem;line-height:1.55}
+@media (max-width:640px){
+  .adm-appbar{gap:.5rem;padding:0 .6rem;height:52px}
+  .adm-appbar-search,.adm-crumbs{display:none}
+  .adm-appbar-logo{height:18px}
 }
