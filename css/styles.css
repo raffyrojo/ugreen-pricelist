@@ -1484,3 +1484,25 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 .cat-card-actions button.danger:hover{border-color:#dc2626;color:#dc2626}
 .cat-card-actions button svg{width:13px;height:13px;flex-shrink:0}
 @media (max-width:520px){.cat-card-actions button span{display:none}}
+
+
+/* ===== Phase 6: Import drag-and-drop wizard ===== */
+.imp-steps{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1.1rem;font-size:.75rem;color:var(--text-muted)}
+.imp-step{display:flex;align-items:center;gap:.4rem;font-weight:600}
+.imp-step-n{width:20px;height:20px;border-radius:50%;background:var(--accent-bg);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700}
+.imp-step-arrow{color:var(--text-dim)}
+.imp-dropzone{border:2px dashed var(--border-strong);border-radius:16px;padding:2.6rem 1.5rem;text-align:center;cursor:pointer;background:var(--bg);transition:border-color .15s,background .15s,box-shadow .15s}
+.imp-dropzone:hover{border-color:var(--accent);background:var(--accent-bg)}
+.imp-dropzone.drag{border-color:var(--accent);background:var(--accent-bg);box-shadow:0 0 0 4px var(--accent-bg)}
+.imp-dz-ico{width:52px;height:52px;border-radius:14px;background:var(--surface);border:1px solid var(--border);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto .85rem}
+.imp-dz-ico svg{width:26px;height:26px}
+.imp-dz-title{font-family:'Metropolis',sans-serif;font-weight:700;font-size:1rem;color:var(--text)}
+.imp-dz-sub{font-size:.78rem;color:var(--text-muted);margin-top:.3rem}
+.imp-dz-link{color:var(--accent);font-weight:700;text-decoration:underline}
+.imp-checks{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .9rem;margin-top:1.15rem}
+.imp-check{font-size:.75rem;color:var(--text-muted);display:flex;align-items:center;gap:.45rem}
+.imp-check-ico{width:18px;height:18px;border-radius:5px;background:var(--accent-bg);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.imp-check-ico svg{width:12px;height:12px}
+.imp-foot{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:space-between;align-items:center;margin-top:1.15rem;border-top:1px solid var(--border);padding-top:.9rem}
+.imp-foot .btn-ghost{font-size:.74rem}
+@media (max-width:560px){.imp-checks{grid-template-columns:1fr}}
