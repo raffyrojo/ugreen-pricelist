@@ -1464,3 +1464,23 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 .ped-hist-row span{color:var(--text-muted)}
 .ped-hist-row b{color:var(--text);font-weight:600;text-align:right}
 .ped-hist-note{font-size:.75rem;color:var(--text-dim);line-height:1.6;margin-top:.9rem;padding:.85rem;background:var(--bg);border:1px solid var(--border);border-radius:10px}
+
+
+/* ===== Phase 5: Category Management cards ===== */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.85rem}
+.cat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem 1.05rem;display:flex;flex-direction:column;gap:.5rem;transition:box-shadow .15s,transform .15s,border-color .15s}
+.cat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);border-color:var(--border-strong)}
+.cat-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
+.cat-card-name{font-family:'Metropolis',sans-serif;font-weight:700;font-size:.95rem;color:var(--text);line-height:1.25;word-break:break-word}
+.cat-card-icon{width:34px;height:34px;border-radius:9px;background:var(--accent-bg);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cat-card-icon svg{width:17px;height:17px}
+.cat-card-stats{display:flex;gap:1.1rem;margin-top:.1rem}
+.cat-card-statv{font-size:1.2rem;font-weight:800;color:var(--accent);font-family:'Metropolis',sans-serif;line-height:1}
+.cat-card-statl{font-size:.6rem;color:var(--text-dim);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;display:block}
+.cat-card-meta{font-size:.68rem;color:var(--text-dim)}
+.cat-card-actions{display:flex;gap:.4rem;margin-top:.4rem;border-top:1px solid var(--border);padding-top:.65rem}
+.cat-card-actions button{flex:1;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:.42rem .3rem;font-family:inherit;font-size:.72rem;font-weight:600;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem}
+.cat-card-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.cat-card-actions button.danger:hover{border-color:#dc2626;color:#dc2626}
+.cat-card-actions button svg{width:13px;height:13px;flex-shrink:0}
+@media (max-width:520px){.cat-card-actions button span{display:none}}
