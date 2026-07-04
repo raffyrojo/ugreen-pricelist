@@ -84,5 +84,9 @@ function saveToGitHub(){
   });
 }
 
-/* Repurpose the admin "Save as New Version" button as the Publish action. */
+/* Repurpose every admin "Save" action as the Publish-to-GitHub action.
+   These override the download-to-file versions in admin.js (this file loads last):
+   - saveCurrentVersion(): the main "Save (vX)" CTA in the header + Version-History tab
+   - saveAsNewVersion():   the "Save as New Version…" buttons in Import/Export + Version-History */
+function saveCurrentVersion(){ saveToGitHub(); }
 function saveAsNewVersion(){ saveToGitHub(); }
