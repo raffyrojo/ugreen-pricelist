@@ -1138,6 +1138,86 @@ function skuRowMenu(ev,code){ if(ev&&ev.stopPropagation)ev.stopPropagation(); va
 function skuView(code){ skuMenuClose(); var p=ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(code);}); if(!p){ try{showToast('Product not found');}catch(e){} return; } closeAdminModal(); if(typeof openModal==='function')openModal(p); }
 if(!window._skuMenuDocBound){ window._skuMenuDocBound=true; document.addEventListener('click',function(e){ if(!(e.target.closest&&e.target.closest('.adm-sku-menuwrap')))skuMenuClose(); }); }
 
+/* ================= PHASE 4 - Tabbed Product Editor ================= */
+function editorTab(el,id){
+  var wrap=el.parentNode; var btns=wrap.querySelectorAll('.ped-tabbtn');
+  for(var i=0;i<btns.length;i++)btns[i].classList.remove('active'); el.classList.add('active');
+  var tabs=document.querySelectorAll('#panel-body .ped-tab');
+  for(var j=0;j<tabs.length;j++)tabs[j].classList.remove('active');
+  var t=document.getElementById(id); if(t)t.classList.add('active');
+  var body=document.querySelector('#panel-body'); if(body)body.scrollTop=0;
+}
+function _pedHistoryHtml(p){
+  var created = p.dateAdded ? new Date(Number(p.dateAdded)).toLocaleString() : 'Not tracked';
+  var isNew = (typeof isNewSku==='function' && isNewSku(p));
+  var status = isNew ? 'New' : (p.item_code ? 'Active' : 'Unsaved draft');
+  function row(l,v){return '<div class="ped-hist-row"><span>'+l+'</span><b>'+v+'</b></div>';}
+  return row('Item Code', esc(p.item_code||'—')) + row('Product', esc(p.product_name||'—')) +
+    row('Status', status) + row('Created', created) +
+    '<div class="ped-hist-note">Detailed per-SKU version history arrives in a later phase. In the meantime, recent adds, edits and removals are recorded in <strong>Dashboard → Activity Log</strong>, and every change is captured when you <strong>Publish to GitHub</strong>.</div>';
+}
+/* Override renderAddForm with a tabbed editor. Field IDs are byte-identical to
+   the original so saveSku()/checkDuplicateLive()/previewImg() keep working. */
+function renderAddForm(prefill) {
+  var p = prefill || {};
+  document.getElementById('panel-title').textContent = prefill ? 'Edit SKU' : 'Add New SKU';
+  var fName='<div class="form-field form-full"><label>Product Name *</label><input id="f-name" value="'+esc(p.product_name||'')+'" placeholder="e.g. HDMI 2.0 Male To Male Cable"></div>';
+  var fIC='<div class="form-field"><label>Item Code *</label><input id="f-ic" value="'+esc(p.item_code||'')+'" placeholder="e.g. 12345" oninput="checkDuplicateLive()"><span class="field-error" id="ic-err"></span></div>';
+  var fCat='<div class="form-field"><label>Category</label><div style="display:flex;gap:4px"><input id="f-cat" list="ug-cat-list" type="text" placeholder="Pick or type new" autocomplete="off" style="flex:1"><button type="button" class="btn-ghost" style="padding:2px 8px;font-size:.65rem;white-space:nowrap;border:1px solid var(--border);border-radius:4px" onclick="renameCategoryInline()" title="Rename this category across all SKUs">Rename</button></div><datalist id="ug-cat-list">'+getCategoryOptions()+'</datalist><span class="form-hint">Type a new name or pick existing. Rename updates all SKUs.</span></div>';
+  var fSheet='<div class="form-field"><label>Section</label><div style="display:flex;gap:4px"><input id="f-sheet" list="ug-sheet-list" type="text" placeholder="Pick or type new" autocomplete="off" style="flex:1"><button type="button" class="btn-ghost" style="padding:2px 8px;font-size:.65rem;white-space:nowrap;border:1px solid var(--border);border-radius:4px" onclick="renameSectionInline()" title="Rename this section across all SKUs">Rename</button></div><datalist id="ug-sheet-list">'+getSheetOptions()+'</datalist><span class="form-hint">Type a new name or pick existing. Rename updates all SKUs.</span></div>';
+  var fModel='<div class="form-field"><label>Model No.</label><input id="f-model" value="'+esc(p.model||'')+'" placeholder="e.g. HD104"></div>';
+  var fColor='<div class="form-field"><label>Color</label><input id="f-color" value="'+esc(p.color||'')+'" placeholder="e.g. Black"></div>';
+  var fLength='<div class="form-field"><label>Length</label><input id="f-length" value="'+esc(p.length||'')+'" placeholder="e.g. 1.5M"></div>';
+  var fUPC='<div class="form-field"><label>UPC</label><input id="f-upc" value="'+esc(p.upc||'')+'" placeholder="Barcode"></div>';
+  var fMat='<div class="form-field"><label>Material Number</label><input id="f-mat" value="'+esc(p.material_number||'')+'" placeholder="Mat. No."></div>';
+  var fSRP='<div class="form-field"><label>SRP &#8369;</label><input id="f-srp" type="number" value="'+esc(String(p.srp||''))+'" placeholder="0.00" step="0.01"></div>';
+  var fDP='<div class="form-field"><label>Dealer Price &#8369;</label><input id="f-dp" type="number" value="'+esc(String(p.dp||''))+'" placeholder="0.00" step="0.01"></div>';
+  var fDPV='<div class="form-field"><label>Volume Price &#8369;</label><input id="f-dpv" type="number" value="'+esc(String(p.dp_volume||''))+'" placeholder="0.00" step="0.01"></div>';
+  var fMOQ='<div class="form-field"><label>MOQ</label><input id="f-moq" type="number" value="'+esc(String(p.moq||''))+'" placeholder="0"></div>';
+  var fDesc='<div class="form-field form-full"><label>Description <span class="form-hint">One bullet point per line</span></label><textarea id="f-desc" rows="4" placeholder="HDMI Cable for 4K displays&#10;Compatible with PS5, Xbox">'+esc(parseBullets(p.description||'').join('\n'))+'</textarea></div>';
+  var fFeats='<div class="form-field form-full"><label>Features <span class="form-hint">One feature per line</span></label><textarea id="f-feats" rows="3" placeholder="4K@60Hz&#10;Gold-plated connectors">'+esc(parseFeats(p.features||'').join('\n'))+'</textarea></div>';
+  var fImg='<div class="form-field form-full"><label>Image URL <span class="form-hint">Paste https:// link</span></label>'+
+    '<input type="text" id="f-img-url" placeholder="https://example.com/product.jpg" value="'+(p.image&&/^https?:\/\//.test(p.image)?esc(p.image):'')+'"><div style="font-size:.6rem;color:var(--srp);margin:.25rem 0;line-height:1.4">⚠ URLs may fail in Excel/PDF exports if the source blocks CORS. <strong>File uploads are more reliable.</strong></div><div style="font-size:.62rem;color:var(--text-dim);margin:.3rem 0">OR upload file:</div>'+
+    '<input type="file" id="f-img" accept="image/*" onchange="previewImg(this)"><div style="font-size:.62rem;color:var(--text-dim);margin-top:.3rem">Images are auto-optimized: max 1000px, ~50–150 KB. Originals stay on your device.</div>'+
+    '<div id="img-preview-wrap">' + (p.image?'<img src="'+(imgSrc(p.image)||'')+'" class="img-preview" style="margin-top:6px">' : '') + '</div></div>';
+
+  document.getElementById('panel-body').innerHTML =
+    '<div class="ped">'+
+      '<nav class="ped-tabs">'+
+        '<button class="ped-tabbtn active" onclick="editorTab(this,\x27ped-general\x27)">General</button>'+
+        '<button class="ped-tabbtn" onclick="editorTab(this,\x27ped-pricing\x27)">Pricing</button>'+
+        '<button class="ped-tabbtn" onclick="editorTab(this,\x27ped-images\x27)">Images</button>'+
+        '<button class="ped-tabbtn" onclick="editorTab(this,\x27ped-specs\x27)">Specifications</button>'+
+        '<button class="ped-tabbtn" onclick="editorTab(this,\x27ped-history\x27)">History</button>'+
+      '</nav>'+
+      '<div class="ped-body">'+
+        '<div class="ped-tab active" id="ped-general">'+
+          '<div class="form-grid">'+fIC+fCat+fName+'</div>'+
+          '<div class="form-grid" style="margin-top:.85rem">'+fDesc+fFeats+'</div>'+
+        '</div>'+
+        '<div class="ped-tab" id="ped-pricing">'+
+          '<p class="ped-note">Volume price applies only when the order meets MOQ.</p>'+
+          '<div class="form-grid">'+fSRP+fDP+fDPV+fMOQ+'</div>'+
+        '</div>'+
+        '<div class="ped-tab" id="ped-images">'+
+          '<div class="form-grid">'+fImg+'</div>'+
+        '</div>'+
+        '<div class="ped-tab" id="ped-specs">'+
+          '<div class="form-grid">'+fModel+fSheet+fColor+fLength+fUPC+fMat+'</div>'+
+        '</div>'+
+        '<div class="ped-tab" id="ped-history">'+_pedHistoryHtml(p)+'</div>'+
+      '</div>'+
+      '<div class="form-actions">'+
+        '<button class="btn-ghost" onclick="closePanel()">Cancel</button>'+
+        '<button id="btn-save-sku" class="btn-primary" onclick="saveSku()">Save SKU</button>'+
+      '</div>'+
+    '</div>';
+  if (p.category) document.getElementById('f-cat').value = p.category;
+  if (p.sheet)    document.getElementById('f-sheet').value = p.sheet;
+  editingCode = p.item_code || null;
+  pendingImgB64 = null;
+}
+
 function renderAdminContent(){
   var el=document.getElementById('adm-content');
   var modal=document.getElementById('adm-modal');
