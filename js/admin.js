@@ -1218,6 +1218,62 @@ function renderAddForm(prefill) {
   pendingImgB64 = null;
 }
 
+/* ================= PHASE 5 - Category Management (cards) ================= */
+function _catMatch(p,name){ return String(p.sheet_display||p.sheet||'Other')===name; }
+function _catCardsInner(){
+  var a=_admSectionCounts().slice().sort(function(x,y){return String(x.k).localeCompare(String(y.k));});
+  if(!a.length) return '<div style="padding:1rem;color:var(--text-dim);font-size:.8rem">No categories yet — add a SKU to create one.</div>';
+  var TAG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+  var EYE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var PEN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+  var TR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+  return a.map(function(x){
+    var name=x.k, enc=encodeURIComponent(name), last=0;
+    for(var i=0;i<ALL_PRODUCTS.length;i++){ if(_catMatch(ALL_PRODUCTS[i],name)){ var d=Number(ALL_PRODUCTS[i].dateAdded)||0; if(d>last)last=d; } }
+    var lastTxt = last ? new Date(last).toLocaleDateString() : '—';
+    return '<div class="cat-card">'+
+      '<div class="cat-card-top"><div class="cat-card-name">'+_admEsc(name)+'</div><div class="cat-card-icon">'+TAG+'</div></div>'+
+      '<div class="cat-card-stats"><div class="cat-card-stat"><span class="cat-card-statv">'+x.v+'</span><span class="cat-card-statl">Products</span></div></div>'+
+      '<div class="cat-card-meta">Last updated: '+lastTxt+'</div>'+
+      '<div class="cat-card-actions">'+
+        '<button onclick="catView(\''+enc+'\')" title="View products">'+EYE+'<span>View</span></button>'+
+        '<button onclick="catRename(\''+enc+'\')" title="Rename across all SKUs">'+PEN+'<span>Edit</span></button>'+
+        '<button class="danger" onclick="catDelete(\''+enc+'\')" title="Remove this category">'+TR+'<span>Delete</span></button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+/* Override: Categories tab now renders as cards (stable #cat-cards for refresh) */
+function renderCategoriesTableHtml(){ return '<div id="cat-cards" class="cat-grid">'+_catCardsInner()+'</div>'; }
+function refreshCategoryCards(){
+  var el=document.getElementById('cat-cards'); if(el)el.innerHTML=_catCardsInner();
+  var sub=document.querySelector('#tab-categories .adm-panel-sub'); if(sub)sub.textContent=_admSectionCounts().length+' sections · auto-derived from products';
+}
+function catView(enc){ var name=decodeURIComponent(enc); if(typeof viewCategory==='function')viewCategory(name); }
+function catRename(enc){
+  var name=decodeURIComponent(enc);
+  var nn=prompt('Rename category "'+name+'" to:\n(All SKUs in this category will be updated)', name);
+  if(!nn || !nn.trim() || nn.trim()===name) return;
+  nn=nn.trim(); var count=0;
+  for(var i=0;i<ALL_PRODUCTS.length;i++){ var p=ALL_PRODUCTS[i]; if(_catMatch(p,name)){ p.sheet_display=nn; p.sheet=nn; count++; } }
+  if(typeof updateAll==='function')updateAll();
+  if(typeof autoSave==='function')autoSave(); if(typeof markUnsaved==='function')markUnsaved();
+  if(typeof logActivity==='function')logActivity('edited',name,'category renamed to '+nn);
+  refreshCategoryCards();
+  try{ showToast('Renamed "'+name+'" → "'+nn+'" ('+count+' SKUs)'); }catch(e){}
+}
+function catDelete(enc){
+  var name=decodeURIComponent(enc), count=0;
+  for(var i=0;i<ALL_PRODUCTS.length;i++){ if(_catMatch(ALL_PRODUCTS[i],name))count++; }
+  if(!confirm('Delete category "'+name+'"?\n\nIts '+count+' product'+(count===1?'':'s')+' will move to "Uncategorized". No products are deleted.')) return;
+  for(var j=0;j<ALL_PRODUCTS.length;j++){ var p=ALL_PRODUCTS[j]; if(_catMatch(p,name)){ p.sheet_display='Uncategorized'; p.sheet='Uncategorized'; } }
+  if(typeof updateAll==='function')updateAll();
+  if(typeof autoSave==='function')autoSave(); if(typeof markUnsaved==='function')markUnsaved();
+  if(typeof logActivity==='function')logActivity('deleted',name,'category removed → Uncategorized');
+  refreshCategoryCards();
+  try{ showToast('"'+name+'" removed — '+count+' product'+(count===1?'':'s')+' moved to Uncategorized'); }catch(e){}
+}
+
 function renderAdminContent(){
   var el=document.getElementById('adm-content');
   var modal=document.getElementById('adm-modal');
