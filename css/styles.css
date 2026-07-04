@@ -1521,3 +1521,9 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 .exp-link{border:none;background:transparent;color:var(--text-muted);font-family:inherit;font-size:.74rem;font-weight:600;cursor:pointer;text-decoration:underline;padding:0}
 .exp-link:hover{color:var(--accent)}
 .exp-soon{opacity:.75;font-size:.76rem}
+
+
+/* ===== Phase 8: Reports analytics ===== */
+#tab-reports .adm-kpi-val-sm{font-size:1.2rem}
+.rep-tablewrap{overflow-x:auto}
+.rep-tablewrap .adm-cat-table{min-width:280px}
