@@ -1447,3 +1447,20 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 .adm-sku-ellip{padding:0 .2rem;color:var(--text-dim)}
 
 .adm-sku-table-pro td.adm-sku-dealer{font-weight:700;color:var(--accent);vertical-align:middle}
+
+
+/* ===== Phase 4: Tabbed Product Editor ===== */
+.ped{display:flex;flex-direction:column}
+.ped-tabs{display:flex;gap:.15rem;border-bottom:1px solid var(--border);margin-bottom:1.1rem;overflow-x:auto}
+.ped-tabbtn{border:none;background:transparent;padding:.6rem .9rem;font-family:inherit;font-size:.82rem;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.ped-tabbtn:hover{color:var(--text)}
+.ped-tabbtn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.ped-tab{display:none}
+.ped-tab.active{display:block;animation:pedIn .18s ease}
+@keyframes pedIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ped-note{font-size:.72rem;color:var(--text-dim);margin:0 0 .75rem}
+.ped-hist-row{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.65rem .1rem;border-bottom:1px solid var(--border);font-size:.82rem}
+.ped-hist-row:last-of-type{border-bottom:none}
+.ped-hist-row span{color:var(--text-muted)}
+.ped-hist-row b{color:var(--text);font-weight:600;text-align:right}
+.ped-hist-note{font-size:.75rem;color:var(--text-dim);line-height:1.6;margin-top:.9rem;padding:.85rem;background:var(--bg);border:1px solid var(--border);border-radius:10px}
