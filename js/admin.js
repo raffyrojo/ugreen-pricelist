@@ -988,7 +988,7 @@ function _admQuickActionsHtml(){
       '<button class="adm-qa" onclick="admBackup()"><span class="adm-qa-ico">'+DL+'</span><span class="adm-qa-label">Backup JSON</span></button>'+
       '<button class="adm-qa adm-qa-accent" onclick="closeAdminModal();saveCurrentVersion()"><span class="adm-qa-ico">'+CLOUD+'</span><span class="adm-qa-label">Publish to GitHub</span></button>'+
       '<button class="adm-qa" onclick="closeAdminModal()"><span class="adm-qa-ico">'+EYE+'</span><span class="adm-qa-label">Open Pricelist</span></button>'+
-      '<button class="adm-qa adm-qa-soon" onclick="admFirebaseSoon()"><span class="adm-qa-ico">'+FIRE+'</span><span class="adm-qa-label">Firebase Sync</span><span class="adm-qa-badge">Soon</span></button>'+
+      
     '</div></div>';
 }
 function _admTabOverviewHtml(){
@@ -1403,6 +1403,38 @@ function _admTabReportsHtml(){
   '</div>';
 }
 
+/* ================= PHASE 9 - Settings sections ================= */
+function _admSettingsExtraHtml(){
+  var C=(window.CONFIG||{}), g=(C.github||{}), be=(C.backend||{});
+  var ls=(typeof _admLastSync==='function')?_admLastSync():{v:'—',s:''};
+  function row(l,v){ return '<div class="set-row"><span>'+l+'</span><b>'+v+'</b></div>'; }
+  function head(t,s){ return '<div class="adm-card-header"><div><div class="adm-card-title">'+t+'</div><div class="adm-card-sub">'+s+'</div></div></div>'; }
+  var general='<div class="adm-card">'+head('General','App overview')+
+    row('Version', _admEsc(APP_VERSION))+
+    row('Total products', ALL_PRODUCTS.length)+
+    row('Categories', _admSectionCounts().length)+
+    row('Hidden / removed', DELETED_PRODUCTS.length)+
+    row('Last sync', _admEsc(ls.v)+(ls.s?' <span style="color:var(--text-dim);font-weight:400">('+_admEsc(ls.s)+')</span>':''))+
+  '</div>';
+  var appearance='<div class="adm-card">'+head('Appearance','Theme &amp; display')+
+    '<div class="set-row"><span>Theme</span><b>Light</b></div>'+
+    '<div class="set-note">Dark mode arrives in the final polish phase. The workspace already uses your UGREEN brand colors throughout.</div>'+
+  '</div>';
+  var github='<div class="adm-card">'+head('GitHub Sync','Where your pricelist publishes')+
+    row('Repository', _admEsc((g.owner||'')+'/'+(g.repo||'')))+
+    row('Branch', _admEsc(g.branch||'—'))+
+    row('Data file', _admEsc(g.productsPath||'—'))+
+    '<div class="set-row"><span>Publish endpoint</span><b style="font-size:.68rem;color:var(--text-muted);font-weight:500;word-break:break-all;max-width:60%">'+_admEsc(be.workerEndpoint||'—')+'</b></div>'+
+    '<button class="btn-primary" style="width:100%;margin-top:.65rem" onclick="closeAdminModal();saveCurrentVersion()">Publish to GitHub now</button>'+
+    '<div class="set-note">Your save password lives in the Cloudflare Worker and is never shown here.</div>'+
+  '</div>';
+  var backup='<div class="adm-card">'+head('Backup','Snapshots &amp; restore points')+
+    '<div class="set-note" style="margin-top:0">Download a full copy of your data and save a restore point to Version History.</div>'+
+    '<button class="btn-secondary" style="width:100%;margin-top:.65rem" onclick="admExportBackup()">Download Backup</button>'+
+  '</div>';
+  return general+appearance+github+backup;
+}
+
 function renderAdminContent(){
   var el=document.getElementById('adm-content');
   var modal=document.getElementById('adm-modal');
@@ -1445,7 +1477,7 @@ function renderAdminContent(){
         '</div>'+
         '<div id="vh-list" style="max-height:160px;overflow-y:auto;margin-bottom:.5rem"></div>'+
         '<button class="btn-ghost" style="width:100%;font-size:.72rem;padding:.4rem" onclick="copyChangelogTemplate()" title="Copy changelog stub for ' + APP_VERSION + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy changelog entry</button>'+
-      '</div>'+'</div>'+'<div class="adm-tab" id="tab-settings">'+'<div id="adm-health-slot">'+renderHealthHtml()+'</div>'+'<div class="adm-card">'+
+      '</div>'+'</div>'+'<div class="adm-tab" id="tab-settings">'+_admSettingsExtraHtml()+'<div id="adm-health-slot">'+renderHealthHtml()+'</div>'+'<div class="adm-card">'+
         '<div class="adm-card-header">'+
           '<span class="adm-card-icon security" id="sec-security"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>'+
           '<div><div class="adm-card-title">Security</div><div class="adm-card-sub">Update your admin PIN</div></div>'+
