@@ -1,0 +1,45 @@
+{
+  "brand": {
+    "name": "UGREEN",
+    "distributor": "Iontech",
+    "tagline": "MORE FOR YOU",
+    "accent": "#007934"
+  },
+  "app": {
+    "title": "UGREEN Pricelist",
+    "dataVersion": "1.3.23",
+    "currency": "PHP",
+    "currencySymbol": "₱"
+  },
+  "images": {
+    "basePath": "images/",
+    "format": "webp"
+  },
+  "exports": {
+    "footer": "Prices are subject to change without prior notice. Volume pricing is applicable only when MOQ is met.",
+    "quickPdf": "Iontech-UGREEN-Pricelist",
+    "styledPdf": "Iontech-UGREEN-Pricelist_Styled",
+    "catalogPdf": "Iontech-UGREEN-Catalog",
+    "excel": "Iontech-UGREEN-Pricelist",
+    "excelFull": "Iontech-UGREEN-Pricelist_Full"
+  },
+  "fields": {
+    "required": [
+      "model",
+      "item_code",
+      "product_name",
+      "srp",
+      "dp",
+      "dp_volume",
+      "moq"
+    ],
+    "priceFields": [
+      "srp",
+      "dp",
+      "dp_volume"
+    ]
+  },
+  "backend": {
+    "note": "configured in config.js — repo, branch, workerEndpoint"
+  }
+}

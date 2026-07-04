@@ -1,0 +1,401 @@
+{
+  "generatedFrom": "v1.3.23",
+  "sections": [
+    {
+      "sheet": "A&V-Audio Adapter",
+      "display": "A&V: Audio Adapter",
+      "count": 5,
+      "categories": [
+        {
+          "name": "Sound Card",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "sheet": "A&V-Audio Cable",
+      "display": "A&V: Audio Cable",
+      "count": 73,
+      "categories": [
+        {
+          "name": "Audio Cable",
+          "count": 73
+        }
+      ]
+    },
+    {
+      "sheet": "A&V-Splitter and Switcher",
+      "display": "A&V: Splitter and Switcher",
+      "count": 7,
+      "categories": [
+        {
+          "name": "Audio/Video Processor",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "sheet": "A&V-Video Adapter and Extender",
+      "display": "A&V: Video Adapter and Extender",
+      "count": 29,
+      "categories": [
+        {
+          "name": "Video Cable",
+          "count": 11
+        },
+        {
+          "name": "Video Converter",
+          "count": 10
+        },
+        {
+          "name": "Webcam",
+          "count": 5
+        },
+        {
+          "name": "Wireless Screen Projector",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "sheet": "A&V-Video Cable",
+      "display": "A&V: Video Cable",
+      "count": 72,
+      "categories": [
+        {
+          "name": "Video Cable",
+          "count": 72
+        }
+      ]
+    },
+    {
+      "sheet": "Flash-Hard Drive Enclosure",
+      "display": "Flash: Hard Drive Enclosure",
+      "count": 20,
+      "categories": [
+        {
+          "name": "Data Cable",
+          "count": 2
+        },
+        {
+          "name": "Hard Drive Enclosure",
+          "count": 18
+        }
+      ]
+    },
+    {
+      "sheet": "Mobile-Car Charger and Accessories",
+      "display": "Mobile: Car Charger and Accessories",
+      "count": 18,
+      "categories": [
+        {
+          "name": "Car Charger",
+          "count": 12
+        },
+        {
+          "name": "Car Mount",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "sheet": "Mobile-Charger",
+      "display": "Mobile: Charger",
+      "count": 40,
+      "categories": [
+        {
+          "name": "Wall Charger/Desk Charger",
+          "count": 31
+        },
+        {
+          "name": "Wireless Charger",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "sheet": "Mobile-Charging Cable",
+      "display": "Mobile: Charging Cable",
+      "count": 119,
+      "categories": [
+        {
+          "name": "Lightning Data Charging Cable",
+          "count": 14
+        },
+        {
+          "name": "USB Charging Cable",
+          "count": 13
+        },
+        {
+          "name": "USB-C Data Charging Cable",
+          "count": 92
+        }
+      ]
+    },
+    {
+      "sheet": "Mobile-Holder",
+      "display": "Mobile: Holder",
+      "count": 15,
+      "categories": [
+        {
+          "name": "Laptop Stand",
+          "count": 5
+        },
+        {
+          "name": "Mobile Phone&Tablet Holder",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "sheet": "Mobile-Phonecase and Film",
+      "display": "Mobile: Phonecase and Film",
+      "count": 6,
+      "categories": [
+        {
+          "name": "Cellphone Protective Case",
+          "count": 2
+        },
+        {
+          "name": "Others",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "sheet": "Mobile-Power Bank",
+      "display": "Mobile: Power Bank",
+      "count": 41,
+      "categories": [
+        {
+          "name": "Power Bank",
+          "count": 41
+        }
+      ]
+    },
+    {
+      "sheet": "Mobile-TypeC and Lightning Converter",
+      "display": "Mobile: TypeC and Lightning Converter",
+      "count": 26,
+      "categories": [
+        {
+          "name": "Audio And Video Capture Card",
+          "count": 1
+        },
+        {
+          "name": "Audio Cable",
+          "count": 3
+        },
+        {
+          "name": "Data Cable",
+          "count": 8
+        },
+        {
+          "name": "Sound Card",
+          "count": 5
+        },
+        {
+          "name": "Video Converter",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "sheet": "Others-Storage and Home life",
+      "display": "Others: Storage and Home life",
+      "count": 19,
+      "categories": [
+        {
+          "name": "Home & Living Supplies",
+          "count": 2
+        },
+        {
+          "name": "Microphone",
+          "count": 1
+        },
+        {
+          "name": "Mobile Phone and Tablet Holder",
+          "count": 1
+        },
+        {
+          "name": "Network Accessories And Tools",
+          "count": 1
+        },
+        {
+          "name": "Notebook Storage Bag",
+          "count": 4
+        },
+        {
+          "name": "Other Digital Product Stand",
+          "count": 1
+        },
+        {
+          "name": "Other Storage Bags",
+          "count": 6
+        },
+        {
+          "name": "Others",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-Bluetooth and Earphone",
+      "display": "Transmission: Bluetooth and Earphone",
+      "count": 55,
+      "categories": [
+        {
+          "name": "Bluetooth Earphone",
+          "count": 29
+        },
+        {
+          "name": "Bluetooth Receiver And Transmitter",
+          "count": 5
+        },
+        {
+          "name": "Smart Finder",
+          "count": 17
+        },
+        {
+          "name": "Stylus Pen",
+          "count": 2
+        },
+        {
+          "name": "Wired Headset",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-Card Reader",
+      "display": "Transmission: Card Reader",
+      "count": 9,
+      "categories": [
+        {
+          "name": "Card Reader",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-Docking and Hub",
+      "display": "Transmission: Docking and Hub",
+      "count": 45,
+      "categories": [
+        {
+          "name": "Docking Station",
+          "count": 33
+        },
+        {
+          "name": "Hub",
+          "count": 12
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-Ethernet Adapter",
+      "display": "Transmission: Ethernet Adapter",
+      "count": 11,
+      "categories": [
+        {
+          "name": "Ethernet Adapter",
+          "count": 8
+        },
+        {
+          "name": "Wireless Ethernet Adapter",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-Lan Cable and Accessories",
+      "display": "Transmission: Lan Cable and Accessories",
+      "count": 76,
+      "categories": [
+        {
+          "name": "Cat Cable",
+          "count": 59
+        },
+        {
+          "name": "Network Accessories And Tools",
+          "count": 5
+        },
+        {
+          "name": "Network Cables",
+          "count": 8
+        },
+        {
+          "name": "Serial Conversion/Expansion Card",
+          "count": 2
+        },
+        {
+          "name": "Switch",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-Mouse and Keyboard",
+      "display": "Transmission: Mouse and Keyboard",
+      "count": 28,
+      "categories": [
+        {
+          "name": "Mouse",
+          "count": 28
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-Serial RS-232 and DB Cable",
+      "display": "Transmission: Serial RS-232 and DB Cable",
+      "count": 5,
+      "categories": [
+        {
+          "name": "Serial Conversion/Expansion Card",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-USB Cable and Adapter",
+      "display": "Transmission: USB Cable and Adapter",
+      "count": 46,
+      "categories": [
+        {
+          "name": "Data Cable",
+          "count": 45
+        },
+        {
+          "name": "Video Converter",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "sheet": "Transmission-USB Switcher",
+      "display": "Transmission: USB Switcher",
+      "count": 3,
+      "categories": [
+        {
+          "name": "Share Switcher",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "sheet": "NAS Storage",
+      "display": "NAS Storage",
+      "count": 6,
+      "categories": [
+        {
+          "name": "DH Series",
+          "count": 2
+        },
+        {
+          "name": "DPX Series",
+          "count": 4
+        }
+      ]
+    }
+  ]
+}
