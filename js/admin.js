@@ -907,7 +907,6 @@ function _admAppbarHtml(){
       '<input id="adm-global-search" type="text" placeholder="Search products, then Enter…" onkeydown="admGlobalSearch(event)" aria-label="Global search"></div>'+
     '<div class="adm-appbar-actions">'+
       '<button class="adm-ico-btn" title="Notifications" onclick="admNotifSoon()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>'+
-      '<button class="adm-ico-btn" title="Theme" onclick="admThemeSoon()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>'+
       '<div class="adm-profile">'+
         '<button class="adm-profile-btn" onclick="admProfileToggle(event)" title="Account"><span class="adm-rail-avatar">RR</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>'+
         '<div class="adm-profile-menu" id="adm-profile-menu">'+
@@ -954,7 +953,6 @@ function _admApplyRailPref(){try{var s=document.getElementById('adm-shell');if(!
 function admGoSku(q){var items=document.querySelectorAll('.adm-rail-item');for(var i=0;i<items.length;i++){items[i].classList.remove('active');if(items[i].getAttribute('data-tab')==='tab-sku')items[i].classList.add('active');}var tabs=document.querySelectorAll('.adm-tab');for(var j=0;j<tabs.length;j++)tabs[j].classList.remove('active');var t=document.getElementById('tab-sku');if(t)t.classList.add('active');var tt=document.getElementById('adm-tab-title');if(tt)tt.textContent='SKU Management';var cr=document.getElementById('adm-crumb');if(cr)cr.textContent='SKU Management';var sel=document.getElementById('sku-search');if(sel)sel.value=q||'';if(typeof renderSkuTable==='function')renderSkuTable();admCloseRail();var sc=document.querySelector('.adm-main-scroll');if(sc)sc.scrollTop=0;}
 function admGlobalSearch(ev){if(ev&&ev.key==='Enter'){admGoSku((ev.target.value||'').trim());}}
 function admNotifSoon(){try{showToast('No new notifications');}catch(e){}}
-function admThemeSoon(){try{showToast('Dark mode is coming in a later phase');}catch(e){}}
 function admProfileToggle(ev){if(ev&&ev.stopPropagation)ev.stopPropagation();var m=document.getElementById('adm-profile-menu');if(m)m.classList.toggle('open');}
 if(!window._admProfileDocBound){window._admProfileDocBound=true;document.addEventListener('click',function(e){var m=document.getElementById('adm-profile-menu');if(m&&m.classList.contains('open')&&!(e.target.closest&&e.target.closest('.adm-profile')))m.classList.remove('open');});}
 
@@ -972,7 +970,6 @@ function _admLastSync(){
   }catch(e){ return {v:'—', s:''}; }
 }
 function admBackup(){ try{ if(typeof _downloadProductsJson==='function'){ _downloadProductsJson(); } else { showToast('Backup unavailable'); } }catch(e){ try{showToast('Backup failed');}catch(_){}} }
-function admFirebaseSoon(){ try{ showToast('Firebase sync is coming in a later phase'); }catch(e){} }
 function _admQuickActionsHtml(){
   var UP=_ADM_ICONS.imp, DN=_ADM_ICONS.exp;
   var PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
@@ -1418,7 +1415,7 @@ function _admSettingsExtraHtml(){
   '</div>';
   var appearance='<div class="adm-card">'+head('Appearance','Theme &amp; display')+
     '<div class="set-row"><span>Theme</span><b>Light</b></div>'+
-    '<div class="set-note">Dark mode arrives in the final polish phase. The workspace already uses your UGREEN brand colors throughout.</div>'+
+    '<div class="set-note">The workspace uses your UGREEN brand colors throughout, tuned for clarity on screen and in exports.</div>'+
   '</div>';
   var github='<div class="adm-card">'+head('GitHub Sync','Where your pricelist publishes')+
     row('Repository', _admEsc((g.owner||'')+'/'+(g.repo||'')))+
