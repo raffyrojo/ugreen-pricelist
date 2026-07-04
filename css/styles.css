@@ -303,7 +303,7 @@ aside{display:flex;flex-direction:column}
 .adm-modal.adm-compact{width:min(400px,90vw);max-width:400px}
 #adm-content{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 /* v1.3.17: Admin dashboard (rail + KPIs + chart) */
-.adm-modal.adm-dash{width:min(1080px,96vw);max-width:1080px;height:min(90vh,780px);max-height:90vh}
+.adm-modal.adm-dash{width:96vw;max-width:none;height:92vh;max-height:92vh}
 .adm-modal.adm-dash #adm-content{overflow:hidden}
 .adm-dash{display:flex;width:100%;height:100%;min-height:0;background:var(--bg)}
 .adm-rail{width:212px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:1rem .7rem}
@@ -395,7 +395,17 @@ aside{display:flex;flex-direction:column}
 @media (max-width:760px){.adm-sku-filters{grid-template-columns:1fr 1fr}}
 @media (max-width:520px){.adm-sku-filters{grid-template-columns:1fr}}
 @media (max-width:980px){.adm-kpi-row{grid-template-columns:repeat(2,1fr)}.adm-ov-2col{grid-template-columns:1fr}}
-@media (max-width:760px){.adm-rail{display:none}}
+@media (max-width:760px){
+  /* Rail becomes a horizontal scrollable top strip so tabs stay reachable */
+  .adm-dash{flex-direction:column}
+  .adm-rail{width:100%;flex-direction:row;align-items:center;gap:.5rem;
+    border-right:none;border-bottom:1px solid var(--border);padding:.45rem .6rem}
+  .adm-rail-brand,.adm-rail-group,.adm-rail-user{display:none}
+  .adm-rail-nav{flex-direction:row;flex:1;min-width:0;gap:.35rem;overflow-x:auto;overflow-y:hidden}
+  .adm-rail-item{flex-shrink:0;white-space:nowrap;padding:.45rem .7rem}
+  .adm-rail-foot{border-top:none;margin-top:0;padding-top:0;flex-shrink:0}
+  .adm-rail-logout,.adm-rail-foot .adm-rail-logoutbtn{width:auto;padding:.45rem .7rem}
+}
 @media (max-width:640px){.adm-modal.adm-dash{width:100vw;max-width:100vw;height:94vh;max-height:94vh;border-radius:16px 16px 0 0}.adm-main-top{flex-wrap:wrap}.adm-main-actions{width:100%;justify-content:flex-end}.adm-chart-label{width:96px}}
 /* ── v1.3.12: Two-panel Admin Login (UGREEN) ───────────────────────────── */
 .adm-modal.adm-login{width:min(880px,95vw);max-width:880px;padding:0}
