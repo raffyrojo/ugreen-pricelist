@@ -1363,6 +1363,46 @@ function _admTabExportHtml(){
   '</div>';
 }
 
+/* ================= PHASE 8 - Reports analytics ================= */
+function _admReportStats(){
+  var n=ALL_PRODUCTS.length, sumSrp=0,cntSrp=0, sumDp=0,cntDp=0, sumMargin=0,cntMargin=0, missing=0, newCount=0;
+  for(var i=0;i<n;i++){ var p=ALL_PRODUCTS[i]; var s=Number(p.srp)||0, d=Number(p.dp)||0;
+    if(s>0){sumSrp+=s;cntSrp++;} else missing++;
+    if(d>0){sumDp+=d;cntDp++;}
+    if(s>0&&d>0&&d<=s){sumMargin+=(s-d)/s*100;cntMargin++;}
+    if(typeof isNewSku==='function'&&isNewSku(p))newCount++;
+  }
+  return {n:n, cats:_admSectionCounts().length, avgSrp:cntSrp?sumSrp/cntSrp:0, avgDp:cntDp?sumDp/cntDp:0, avgMargin:cntMargin?sumMargin/cntMargin:0, missing:missing, newCount:newCount};
+}
+function _admTabReportsHtml(){
+  var st=_admReportStats();
+  function kpi(v,l,sub){ return '<div class="adm-kpi"><div class="adm-kpi-val adm-kpi-val-sm">'+v+'</div><div class="adm-kpi-label">'+l+'</div>'+(sub?'<div class="adm-kpi-sub">'+sub+'</div>':'')+'</div>'; }
+  var bands=[['₱0 – 500',0,500],['₱500 – 2,000',500,2000],['₱2,000 – 5,000',2000,5000],['₱5,000+',5000,Infinity]];
+  var counts=[0,0,0,0], tot=0;
+  for(var i=0;i<ALL_PRODUCTS.length;i++){ var v=Number(ALL_PRODUCTS[i].srp)||0; if(v<=0)continue; tot++; for(var k=0;k<bands.length;k++){ if(v>=bands[k][1]&&v<bands[k][2]){counts[k]++;break;} } }
+  var bandRows=bands.map(function(b,idx){ var c=counts[idx]; var pct=tot?Math.round(c/tot*100):0; return '<tr><td>'+b[0]+'</td><td style="text-align:right;font-weight:700;color:var(--accent)">'+c+'</td><td style="text-align:right;color:var(--text-muted)">'+pct+'%</td></tr>'; }).join('');
+  var recent=ALL_PRODUCTS.filter(function(p){return Number(p.dateAdded)>0;}).sort(function(a,b){return Number(b.dateAdded)-Number(a.dateAdded);}).slice(0,10);
+  var recentRows = recent.length ? recent.map(function(p){ return '<tr><td>'+_admEsc(p.product_name||'')+'</td><td class="adm-sku-cat">'+_admEsc(p.sheet_display||p.sheet||p.category||'')+'</td><td style="text-align:right">'+fmt(p.srp)+'</td><td style="text-align:right;color:var(--text-muted);font-size:.7rem;white-space:nowrap">'+new Date(Number(p.dateAdded)).toLocaleDateString()+'</td></tr>'; }).join('') : '<tr><td colspan="4" style="color:var(--text-dim);padding:1rem;text-align:center">No products added on this device yet.</td></tr>';
+  return '<div class="adm-tab" id="tab-reports">'+
+    '<div class="adm-kpi-row k5">'+
+      kpi(st.n,'Total SKUs','Active catalog')+
+      kpi(st.cats,'Categories','Sections in use')+
+      kpi(fmt(Math.round(st.avgSrp)),'Avg SRP','Priced SKUs')+
+      kpi(st.avgMargin.toFixed(1)+'%','Avg Margin','SRP vs dealer')+
+      kpi(st.missing,'Missing Prices','SKUs without SRP')+
+    '</div>'+
+    '<div class="adm-ov-2col">'+
+      '<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Category Distribution</div><div class="adm-panel-sub">Products per section</div></div><div class="adm-chart">'+renderSectionChartHtml()+'</div></div>'+
+      '<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Price Distribution</div><div class="adm-panel-sub">By SRP range</div></div><div class="adm-chart">'+renderPriceDistHtml()+'</div></div>'+
+    '</div>'+
+    '<div class="adm-ov-2col">'+
+      '<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Price Bands</div><div class="adm-panel-sub">Count &amp; share by SRP range</div></div><div class="rep-tablewrap"><table class="adm-cat-table"><thead><tr><th>Range</th><th style="text-align:right">Count</th><th style="text-align:right">Share</th></tr></thead><tbody>'+bandRows+'</tbody></table></div></div>'+
+      '<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Recently Added</div><div class="adm-panel-sub">Newest SKUs first</div></div><div class="rep-tablewrap"><table class="adm-cat-table"><thead><tr><th>Product</th><th>Category</th><th style="text-align:right">SRP</th><th style="text-align:right">Added</th></tr></thead><tbody>'+recentRows+'</tbody></table></div></div>'+
+    '</div>'+
+    '<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Recent Activity</div><div class="adm-panel-sub">Adds, edits &amp; removals this session</div></div><div style="max-height:260px;overflow-y:auto">'+renderActivityHtml()+'</div></div>'+
+  '</div>';
+}
+
 function renderAdminContent(){
   var el=document.getElementById('adm-content');
   var modal=document.getElementById('adm-modal');
