@@ -1093,7 +1093,7 @@ function renderSkuTable(){
       '<td>'+escAttr(p.model||'')+'</td>'+
       '<td class="adm-sku-cat">'+escAttr(p.sheet_display||p.sheet||p.category||'')+'</td>'+
       '<td class="adm-sku-thr">'+fmt(p.srp)+'</td>'+
-      '<td class="adm-sku-thr adm-sku-dp">'+fmt(p.dp)+'</td>'+
+      '<td class="adm-sku-thr adm-sku-dealer">'+fmt(p.dp)+'</td>'+
       '<td class="adm-sku-thr">'+fmt(p.dp_volume)+'</td>'+
       '<td class="adm-sku-thr">'+escAttr(String(p.moq||''))+'</td>'+
       '<td>'+status+'</td>'+
