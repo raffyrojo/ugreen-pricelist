@@ -1506,3 +1506,18 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 .imp-foot{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:space-between;align-items:center;margin-top:1.15rem;border-top:1px solid var(--border);padding-top:.9rem}
 .imp-foot .btn-ghost{font-size:.74rem}
 @media (max-width:560px){.imp-checks{grid-template-columns:1fr}}
+
+
+/* ===== Phase 7: Export cards ===== */
+.exp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.85rem}
+.exp-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.15rem 1.1rem;display:flex;flex-direction:column;transition:box-shadow .15s,transform .15s,border-color .15s}
+.exp-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);border-color:var(--border-strong)}
+.exp-card-ico{width:44px;height:44px;border-radius:12px;background:var(--accent-bg);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:.75rem}
+.exp-card-ico svg{width:22px;height:22px}
+.exp-card-title{font-family:'Metropolis',sans-serif;font-weight:700;font-size:.95rem;color:var(--text)}
+.exp-card-desc{font-size:.74rem;color:var(--text-muted);line-height:1.5;margin-top:.3rem;flex:1}
+.exp-card-actions{display:flex;align-items:center;gap:.6rem;margin-top:.9rem;flex-wrap:wrap}
+.exp-card-actions .btn-primary,.exp-card-actions .btn-secondary{padding:.45rem .9rem;font-size:.78rem}
+.exp-link{border:none;background:transparent;color:var(--text-muted);font-family:inherit;font-size:.74rem;font-weight:600;cursor:pointer;text-decoration:underline;padding:0}
+.exp-link:hover{color:var(--accent)}
+.exp-soon{opacity:.75;font-size:.76rem}
