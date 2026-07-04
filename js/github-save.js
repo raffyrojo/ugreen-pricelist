@@ -69,6 +69,7 @@ function saveToGitHub(){
       if (typeof updateSaveIndicator === 'function') { try { window.HAS_UNSAVED_CHANGES = false; updateSaveIndicator(); } catch(e){} }
       var short = res.body.commit ? String(res.body.commit).slice(0,7) : '';
       showToast('Published ✓ ' + (short ? '('+short+') ' : '') + 'Live in ~1–2 min.');
+      try{localStorage.setItem('ugreen_last_publish',String(Date.now()));}catch(e){}
     } else if (res.status === 401) {
       showToast('Wrong save password — nothing was published.');
     } else if (res.status === 409) {
@@ -85,8 +86,4 @@ function saveToGitHub(){
 }
 
 /* Repurpose every admin "Save" action as the Publish-to-GitHub action.
-   These override the download-to-file versions in admin.js (this file loads last):
-   - saveCurrentVersion(): the main "Save (vX)" CTA in the header + Version-History tab
-   - saveAsNewVersion():   the "Save as New Version…" buttons in Import/Export + Version-History */
-function saveCurrentVersion(){ saveToGitHub(); }
-function saveAsNewVersion(){ saveToGitHub(); }
+   These override the download-to-file versions in ad
