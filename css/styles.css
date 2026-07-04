@@ -1398,3 +1398,21 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
   .adm-appbar-search,.adm-crumbs{display:none}
   .adm-appbar-logo{height:18px}
 }
+
+
+/* ===== Phase 2: Dashboard polish (KPI subs + quick actions) ===== */
+.adm-kpi{transition:box-shadow .15s,transform .15s,border-color .15s}
+.adm-kpi:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.adm-kpi-sub{font-size:.62rem;color:var(--text-dim);margin-top:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adm-kpi-val-sm{font-size:1.05rem;line-height:1.15}
+.adm-qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}
+.adm-qa{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.55rem;padding:1.05rem .6rem;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;color:var(--text);font-family:inherit;transition:box-shadow .15s,transform .15s,border-color .15s}
+.adm-qa:hover{border-color:var(--accent);box-shadow:var(--shadow-sm);transform:translateY(-1px)}
+.adm-qa-ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--accent-bg);color:var(--accent)}
+.adm-qa-ico svg{width:19px;height:19px}
+.adm-qa-label{font-size:.74rem;font-weight:600;text-align:center}
+.adm-qa-accent .adm-qa-ico{background:var(--accent);color:#fff}
+.adm-qa-soon{opacity:.72}
+.adm-qa-badge{position:absolute;top:7px;right:7px;font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);background:var(--bg);border:1px solid var(--border);padding:1px 6px;border-radius:10px}
+@media (max-width:900px){.adm-qa-grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:560px){.adm-qa-grid{grid-template-columns:repeat(2,1fr)}}
