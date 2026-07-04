@@ -1327,6 +1327,42 @@ function _admTabImportHtml(){
   '</div>';
 }
 
+/* ================= PHASE 7 - Export cards ================= */
+function admExportBackup(){ try{ if(typeof pushVersionSnapshot==='function')pushVersionSnapshot('Manual backup'); }catch(e){} try{ if(typeof _downloadProductsJson==='function')_downloadProductsJson(); }catch(e){} try{ showToast('Backup downloaded — a restore point was also saved to Version History.'); }catch(e){} }
+function admExportImagesSoon(){ try{ showToast('Bulk image export is coming in a later phase.'); }catch(e){} }
+function _admTabExportHtml(){
+  var I={
+    excel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
+    pdf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
+    book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    json:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+    backup:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>',
+    img:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+  };
+  function card(icon,title,desc,actions){ return '<div class="exp-card"><div class="exp-card-ico">'+icon+'</div><div class="exp-card-title">'+title+'</div><div class="exp-card-desc">'+desc+'</div><div class="exp-card-actions">'+actions+'</div></div>'; }
+  return '<div class="adm-tab" id="tab-export">'+
+    '<div class="adm-panel">'+
+      '<div class="adm-panel-head"><div class="adm-panel-title">Export</div><div class="adm-panel-sub">Download your pricelist in any format</div></div>'+
+      '<div class="exp-grid">'+
+        card(I.excel,'Excel Spreadsheet','Full pricelist with every field — SRP, dealer, volume, MOQ, UPC and specs.',
+          '<button class="btn-primary" onclick="closeAdminModal();downloadExcel(\x27recommended\x27)">Export Full</button>'+
+          '<button class="exp-link" onclick="closeAdminModal();downloadExcel(\x27original\x27)">Data only</button>')+
+        card(I.pdf,'Price List PDF','Clean, print-ready price list for dealers and sales.',
+          '<button class="btn-primary" onclick="closeAdminModal();openStyledPdf()">Detailed PDF</button>'+
+          '<button class="exp-link" onclick="closeAdminModal();downloadPDF()">Quick PDF</button>')+
+        card(I.book,'Product Catalog','Sales-ready catalog with product cards, images and sections.',
+          '<button class="btn-primary" onclick="closeAdminModal();openCatalogPdf()">Export Catalog</button>')+
+        card(I.json,'JSON Data','Raw products.json — for developers or re-importing later.',
+          '<button class="btn-secondary" onclick="_downloadProductsJson()">Export JSON</button>')+
+        card(I.backup,'Backup','Save a restore point and download a full snapshot of your data.',
+          '<button class="btn-secondary" onclick="admExportBackup()">Download Backup</button>')+
+        card(I.img,'Images','Bulk export of all product images.',
+          '<button class="btn-ghost exp-soon" onclick="admExportImagesSoon()">Coming soon</button>')+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
 function renderAdminContent(){
   var el=document.getElementById('adm-content');
   var modal=document.getElementById('adm-modal');
