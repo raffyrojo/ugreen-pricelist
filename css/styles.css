@@ -1527,3 +1527,11 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 #tab-reports .adm-kpi-val-sm{font-size:1.2rem}
 .rep-tablewrap{overflow-x:auto}
 .rep-tablewrap .adm-cat-table{min-width:280px}
+
+
+/* ===== Phase 9: Settings sections ===== */
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--border);font-size:.82rem}
+.set-row:last-of-type{border-bottom:none}
+.set-row span{color:var(--text-muted)}
+.set-row b{color:var(--text);font-weight:600;text-align:right}
+.set-note{font-size:.72rem;color:var(--text-dim);line-height:1.55;margin-top:.6rem;padding:.7rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:9px}
