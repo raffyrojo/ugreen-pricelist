@@ -1015,13 +1015,136 @@ function _admTabOverviewHtml(){
     '<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Price Distribution (SRP)</div><div class="adm-panel-sub">Products by SRP range</div></div><div class="adm-chart">'+renderPriceDistHtml()+'</div></div>'+
   '</div>';
 }
+/* ================= PHASE 3 - Airtable-style SKU Management ================= */
+var _skuSel={}, _skuPage=1, _SKU_PAGESIZE=25, _skuPageCodes=[];
+function _admTabSkuHtml(){
+  return '<div class="adm-tab" id="tab-sku">'+
+    '<div class="adm-sku-topbar"><div><div class="adm-sku-title">SKU Management</div><div class="adm-panel-sub" id="sku-count">'+ALL_PRODUCTS.length+' SKUs</div></div>'+
+      '<div class="adm-sku-topbtns">'+
+        '<button class="btn-secondary" onclick="closeAdminModal();document.getElementById(\x27excel-upload-input\x27).click()">Import Excel</button>'+
+        '<button class="btn-secondary" onclick="closeAdminModal();downloadExcel(\x27recommended\x27)">Export</button>'+
+        '<button class="adm-btn-cta" onclick="closeAdminModal();openPanel(\x27add\x27)">+ Add SKU</button>'+
+        '<button class="btn-ghost" id="btn-rollback-upload-adm" onclick="closeAdminModal();rollbackUpload()" style="display:none">Undo Upload</button>'+
+      '</div></div>'+
+    '<div class="adm-sku-bulkbar" id="sku-bulkbar"><span class="adm-sku-bulkcount" id="sku-bulkcount">0 selected</span>'+
+      '<button class="btn-danger" onclick="skuBulkArchive()">Archive selected</button>'+
+      '<button class="btn-ghost" onclick="skuClearSel()">Clear</button></div>'+
+    '<div class="adm-sku-filters">'+
+      '<input id="sku-search" class="adm-input" placeholder="Search name, model, code, material, UPC…" oninput="skuFilter()">'+
+      '<select id="sku-cat" class="adm-input" onchange="skuFilter()">'+renderSkuCatOptions()+'</select>'+
+      '<select id="sku-status" class="adm-input" onchange="skuFilter()"><option value="">All status</option><option value="active">Active</option><option value="new">New</option></select>'+
+      '<select id="sku-price" class="adm-input" onchange="skuFilter()"><option value="">All prices</option><option value="a">₱0 – 500</option><option value="b">₱500 – 2,000</option><option value="c">₱2,000 – 5,000</option><option value="d">₱5,000+</option></select>'+
+      '<select id="sku-sort" class="adm-input" onchange="skuFilter()"><option value="name">Product name</option><option value="code">Item code</option><option value="srp-asc">SRP: low to high</option><option value="srp-desc">SRP: high to low</option></select>'+
+    '</div>'+
+    '<div class="adm-panel" style="padding:0;overflow:hidden"><div class="adm-sku-tablewrap"><table class="adm-sku-table adm-sku-table-pro"><thead><tr>'+
+      '<th class="adm-sku-check"><input type="checkbox" id="sku-selall" onclick="skuSelAll(this)" title="Select page"></th>'+
+      '<th>Image</th><th>Product</th><th>Item Code</th><th>Model</th><th>Category</th>'+
+      '<th class="adm-sku-thr">SRP</th><th class="adm-sku-thr">Dealer</th><th class="adm-sku-thr">Volume</th><th class="adm-sku-thr">MOQ</th>'+
+      '<th>Status</th><th class="adm-sku-thr">Actions</th>'+
+    '</tr></thead><tbody id="sku-tbody"></tbody></table></div><div class="adm-sku-pager" id="sku-pager"></div></div>'+
+  '</div>';
+}
+/* Override _skuRows to add a Status filter (this file loads after the original) */
+function _skuRows(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var q=g('sku-search').trim().toLowerCase(), cat=g('sku-cat'), pr=g('sku-price'), st=g('sku-status'), sort=g('sku-sort')||'name';
+  var r=ALL_PRODUCTS.filter(function(p){
+    if(cat && String(p.sheet_display||p.sheet||p.category)!==cat) return false;
+    if(pr){var s=Number(p.srp)||0; if(pr==='a'&&!(s<500))return false; if(pr==='b'&&!(s>=500&&s<2000))return false; if(pr==='c'&&!(s>=2000&&s<5000))return false; if(pr==='d'&&!(s>=5000))return false;}
+    if(st){var nw=(typeof isNewSku==='function'&&isNewSku(p)); if(st==='new'&&!nw)return false; if(st==='active'&&nw)return false;}
+    if(q){var h=((p.product_name||'')+' '+(p.model||'')+' '+(p.item_code||'')+' '+(p.color||'')+' '+(p.upc||'')+' '+(p.material_number||'')).toLowerCase(); if(h.indexOf(q)<0)return false;}
+    return true;
+  });
+  r.sort(function(a,b){ if(sort==='srp-asc')return (Number(a.srp)||0)-(Number(b.srp)||0); if(sort==='srp-desc')return (Number(b.srp)||0)-(Number(a.srp)||0); if(sort==='code')return String(a.item_code).localeCompare(String(b.item_code)); return String(a.product_name||'').localeCompare(String(b.product_name||'')); });
+  return r;
+}
+function _skuPagerHtml(page,pages){
+  if(pages<=1) return '';
+  function btn(n,lbl,dis,act){return '<button'+(dis?' disabled':'')+(act?' class="active"':'')+' onclick="skuGoPage('+n+')">'+lbl+'</button>';}
+  var list=[1]; if(page-1>2)list.push('e');
+  for(var i=Math.max(2,page-1);i<=Math.min(pages-1,page+1);i++)list.push(i);
+  if(page+1<pages-1)list.push('e'); if(pages>1)list.push(pages);
+  var seen={},mid='';
+  for(var k=0;k<list.length;k++){var x=list[k]; if(x==='e'){mid+='<span class="adm-sku-ellip">…</span>';continue;} if(seen[x])continue; seen[x]=1; mid+=btn(x,String(x),false,x===page);}
+  return btn(page-1,'‹',page<=1,false)+mid+btn(page+1,'›',page>=pages,false);
+}
+function renderSkuTable(){
+  var rows=_skuRows(), total=rows.length;
+  var pages=Math.max(1,Math.ceil(total/_SKU_PAGESIZE));
+  if(_skuPage>pages)_skuPage=pages; if(_skuPage<1)_skuPage=1;
+  var start=(_skuPage-1)*_SKU_PAGESIZE, slice=rows.slice(start,start+_SKU_PAGESIZE);
+  _skuPageCodes=slice.map(function(p){return String(p.item_code);});
+  var cnt=document.getElementById('sku-count');
+  if(cnt)cnt.textContent=total+' SKU'+(total===1?'':'s')+(total?(' · showing '+(start+1)+'–'+(start+slice.length)):'');
+  var tb=document.getElementById('sku-tbody'); if(!tb)return;
+  var DOTS='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>';
+  tb.innerHTML = slice.length ? slice.map(function(p){
+    var code=p.item_code, ec=escAttr(String(code||''));
+    var src=imgSrc(p.image);
+    var img=src?'<img src="'+src+'" alt="" loading="lazy">':'<div class="adm-sku-noimg"></div>';
+    var isNew=(typeof isNewSku==='function'&&isNewSku(p));
+    var status=isNew?'<span class="adm-sku-status adm-sku-status-new">New</span>':'<span class="adm-sku-status">Active</span>';
+    var checked=_skuSel[String(code)]?' checked':'';
+    return '<tr'+(_skuSel[String(code)]?' class="sel"':'')+'>'+
+      '<td class="adm-sku-check"><input type="checkbox"'+checked+' onclick="skuSelToggle(\''+ec+'\',this.checked,this)"></td>'+
+      '<td class="adm-sku-imgcell">'+img+'</td>'+
+      '<td><div class="adm-sku-pname">'+escAttr(p.product_name||'')+'</div><div class="adm-sku-pmeta">'+(p.color?escAttr(p.color):'')+((p.color&&p.length)?' · ':'')+(p.length?escAttr(p.length):'')+'</div></td>'+
+      '<td class="adm-sku-code">'+ec+'</td>'+
+      '<td>'+escAttr(p.model||'')+'</td>'+
+      '<td class="adm-sku-cat">'+escAttr(p.sheet_display||p.sheet||p.category||'')+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(p.srp)+'</td>'+
+      '<td class="adm-sku-thr adm-sku-dp">'+fmt(p.dp)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(p.dp_volume)+'</td>'+
+      '<td class="adm-sku-thr">'+escAttr(String(p.moq||''))+'</td>'+
+      '<td>'+status+'</td>'+
+      '<td class="adm-sku-thr adm-sku-actcell"><div class="adm-sku-menuwrap"><button class="adm-sku-act" title="Actions" onclick="skuRowMenu(event,\''+ec+'\')">'+DOTS+'</button>'+
+        '<div class="adm-sku-menu" id="skumenu-'+ec+'">'+
+          '<button onclick="skuView(\''+ec+'\')">View</button>'+
+          '<button onclick="skuMenuClose();adminEditProduct(\''+ec+'\')">Edit</button>'+
+          '<button onclick="skuMenuClose();adminDuplicateProduct(\''+ec+'\')">Duplicate</button>'+
+          '<button class="danger" onclick="skuMenuClose();adminDeleteProduct(\''+ec+'\')">Delete</button>'+
+        '</div></div></td>'+
+    '</tr>';
+  }).join('') : '<tr><td colspan="12" class="adm-sku-more">No products match your filters.</td></tr>';
+  var pager=document.getElementById('sku-pager'); if(pager)pager.innerHTML=_skuPagerHtml(_skuPage,pages);
+  var sa=document.getElementById('sku-selall'); if(sa)sa.checked=(slice.length>0 && slice.every(function(p){return _skuSel[String(p.item_code)];}));
+  _skuUpdateBulkBar();
+}
+function skuFilter(){ _skuPage=1; renderSkuTable(); }
+function skuGoPage(n){ _skuPage=n; renderSkuTable(); var sc=document.querySelector('.adm-main-scroll'); if(sc)sc.scrollTop=0; }
+function _skuUpdateBulkBar(){ var n=Object.keys(_skuSel).length; var bar=document.getElementById('sku-bulkbar'), c=document.getElementById('sku-bulkcount'); if(c)c.textContent=n+' selected'; if(bar){ if(n>0)bar.classList.add('show'); else bar.classList.remove('show'); } }
+function skuSelToggle(code,checked,el){ code=String(code); if(checked)_skuSel[code]=true; else delete _skuSel[code]; if(el&&el.closest){var tr=el.closest('tr'); if(tr){ if(checked)tr.classList.add('sel'); else tr.classList.remove('sel'); }} var sa=document.getElementById('sku-selall'); if(sa)sa.checked=(_skuPageCodes.length>0 && _skuPageCodes.every(function(c){return _skuSel[c];})); _skuUpdateBulkBar(); }
+function skuSelAll(cb){ var on=cb.checked; for(var i=0;i<_skuPageCodes.length;i++){ if(on)_skuSel[_skuPageCodes[i]]=true; else delete _skuSel[_skuPageCodes[i]]; } renderSkuTable(); }
+function skuClearSel(){ _skuSel={}; renderSkuTable(); }
+function skuBulkArchive(){
+  var codes=Object.keys(_skuSel); if(!codes.length)return;
+  if(!confirm('Archive '+codes.length+' selected product'+(codes.length>1?'s':'')+'?\n\nThey move to Removed Products (restore any time from Settings → Manage).'))return;
+  var moved=0;
+  try{ var deleted=JSON.parse(localStorage.getItem('ugreen_deleted')||'[]');
+    codes.forEach(function(ic){
+      var gi=ALL_PRODUCTS.findIndex(function(x){return String(x.item_code)===String(ic);});
+      if(gi>=0){ DELETED_PRODUCTS.push(ALL_PRODUCTS[gi]); ALL_PRODUCTS.splice(gi,1); if(deleted.indexOf(ic)<0)deleted.push(ic); moved++; if(typeof logActivity==='function')logActivity('deleted',ic,ic); }
+      var cu=loadNewSkus().filter(function(x){return String(x.item_code)!==String(ic);}); saveNewSkus(cu);
+    });
+    localStorage.setItem('ugreen_deleted',JSON.stringify(deleted));
+  }catch(e){}
+  _skuSel={};
+  if(typeof updateAll==='function')updateAll(); if(typeof autoSave==='function')autoSave(); if(typeof markUnsaved==='function')markUnsaved();
+  renderSkuTable();
+  try{ showToast(moved+' product'+(moved===1?'':'s')+' archived.'); }catch(e){}
+}
+function skuMenuClose(except){ var ms=document.querySelectorAll('.adm-sku-menu.open'); for(var i=0;i<ms.length;i++){ if(ms[i]!==except)ms[i].classList.remove('open'); } }
+function skuRowMenu(ev,code){ if(ev&&ev.stopPropagation)ev.stopPropagation(); var m=document.getElementById('skumenu-'+code); skuMenuClose(m); if(m)m.classList.toggle('open'); }
+function skuView(code){ skuMenuClose(); var p=ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(code);}); if(!p){ try{showToast('Product not found');}catch(e){} return; } closeAdminModal(); if(typeof openModal==='function')openModal(p); }
+if(!window._skuMenuDocBound){ window._skuMenuDocBound=true; document.addEventListener('click',function(e){ if(!(e.target.closest&&e.target.closest('.adm-sku-menuwrap')))skuMenuClose(); }); }
+
 function renderAdminContent(){
   var el=document.getElementById('adm-content');
   var modal=document.getElementById('adm-modal');
   if(_ac.check()){
     modal.classList.remove('adm-compact');modal.classList.remove('adm-login');modal.classList.add('adm-dash');
     el.innerHTML=
-      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="btn-secondary" style="font-size:.8rem" onclick="closeAdminModal();openPanel(\x27add\x27)">+ Add SKU</button>'+'<button class="adm-btn-cta" onclick="closeAdminModal();saveCurrentVersion()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save ('+APP_VERSION+')</button>'+'<button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+'<div class="adm-tab" id="tab-sku">'+'<div class="adm-sku-topbar"><div><div class="adm-sku-title">SKU Management</div><div class="adm-panel-sub" id="sku-count">'+ALL_PRODUCTS.length+' SKUs</div></div>'+'<div class="adm-sku-topbtns">'+'<button class="btn-secondary" onclick="closeAdminModal();document.getElementById(\x27excel-upload-input\x27).click()">Import Excel</button>'+'<button class="btn-secondary" onclick="closeAdminModal();downloadExcel(\x27recommended\x27)">Export</button>'+'<button class="adm-btn-cta" onclick="closeAdminModal();openPanel(\x27add\x27)">+ Add SKU</button>'+'<button class="btn-ghost" id="btn-rollback-upload-adm" onclick="closeAdminModal();rollbackUpload()" style="display:none">Undo Upload</button>'+'</div></div>'+'<div class="adm-sku-filters">'+'<input id="sku-search" class="adm-input" placeholder="Search name, model, code, material, UPC\u2026" oninput="skuFilter()">'+'<select id="sku-cat" class="adm-input" onchange="skuFilter()">'+renderSkuCatOptions()+'</select>'+'<select id="sku-price" class="adm-input" onchange="skuFilter()"><option value="">All prices</option><option value="a">\u20b10 \u2013 500</option><option value="b">\u20b1500 \u2013 2,000</option><option value="c">\u20b12,000 \u2013 5,000</option><option value="d">\u20b15,000+</option></select>'+'<select id="sku-sort" class="adm-input" onchange="skuFilter()"><option value="name">Product name</option><option value="code">Item code</option><option value="srp-asc">SRP: low to high</option><option value="srp-desc">SRP: high to low</option></select>'+'</div>'+'<div class="adm-panel" style="padding:0;overflow:hidden"><div class="adm-sku-tablewrap"><table class="adm-sku-table"><thead><tr><th>Image</th><th>Product</th><th>Item Code</th><th>Model</th><th class="adm-sku-thr">SRP / Dealer</th><th>Status</th><th class="adm-sku-thr">Actions</th></tr></thead><tbody id="sku-tbody"></tbody></table></div></div>'+'</div>'+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
+      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="btn-secondary" style="font-size:.8rem" onclick="closeAdminModal();openPanel(\x27add\x27)">+ Add SKU</button>'+'<button class="adm-btn-cta" onclick="closeAdminModal();saveCurrentVersion()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save ('+APP_VERSION+')</button>'+'<button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
         '<div class="adm-card-header">'+
           '<span class="adm-card-icon promo" id="sec-promo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>'+
           '<div><div class="adm-card-title">Promo Popup</div><div class="adm-card-sub">Session-based promotional overlay</div></div>'+
