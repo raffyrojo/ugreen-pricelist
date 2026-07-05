@@ -67,6 +67,10 @@ function saveToGitHub(){
       });
       if (typeof removeDownloadHighlight === 'function') removeDownloadHighlight();
       if (typeof updateSaveIndicator === 'function') { try { window.HAS_UNSAVED_CHANGES = false; updateSaveIndicator(); } catch(e){} }
+      // Published: these edits are now committed to products.json, so the local
+      // "pending edits" overlay (ugreen_new_skus) is redundant. Clear it so the
+      // dashboard "Pending Changes" KPI resets to 0 after a successful publish.
+      try { if (typeof saveNewSkus === 'function') saveNewSkus([]); else localStorage.setItem('ugreen_new_skus','[]'); } catch(e){}
       var short = res.body.commit ? String(res.body.commit).slice(0,7) : '';
       showToast('Published ✓ ' + (short ? '('+short+') ' : '') + 'Live in ~1–2 min.');
       try{localStorage.setItem('ugreen_last_publish',String(Date.now()));}catch(e){}
