@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UGREEN Pricelist</title>
-<link rel="stylesheet" href="css/styles.css?v=p19">
+<link rel="stylesheet" href="css/styles.css?v=p20">
 <!-- Export libraries (Phase 3): jsPDF for Quick PDF, ExcelJS for Excel. html2canvas loads on demand. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
@@ -71,7 +71,7 @@
       <span class="legend-hint" style="font-size:0.68rem;color:var(--text-dim)">Click any row / card for full details</span>
       <div class="view-toggle"><button class="view-btn active" id="btn-table" onclick="setView('table')" title="Table view" aria-label="Table view"><span class="vb-ico">≡</span><span class="vb-txt"> Table</span></button><button class="view-btn" id="btn-grid" onclick="setView('grid')" title="Grid view" aria-label="Grid view"><span class="vb-ico">⊞</span><span class="vb-txt"> Grid</span></button></div>
     </div>
-    <span class="save-indicator saved" id="save-indicator" style="opacity: 0;">● Saved</span>
+    <span class="save-indicator" id="save-indicator"></span>
   </div>
   <p style="font-size:.65rem;color:var(--text-dim);margin:.35rem 0 .75rem;font-style:italic">* Prices are subject to change without prior notice.</p>
   <div id="table-view" style=""><div class="table-wrap"><table>
@@ -174,7 +174,7 @@
 <script src="js/filters.js?v=p1"></script>
 <script src="js/search.js"></script>
 <script src="js/render.js?v=p4"></script>
-<script src="js/app.js?v=p1"></script>
+<script src="js/app.js?v=p2"></script>
 <script src="js/exports.js?v=p3"></script>
 <script src="js/admin.js?v=p12"></script>
 <script src="js/github-save.js?v=p4"></script>
