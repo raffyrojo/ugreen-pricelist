@@ -1174,10 +1174,10 @@ function renderAddForm(prefill) {
   var fMOQ='<div class="form-field"><label>MOQ</label><input id="f-moq" type="number" value="'+esc(String(p.moq||''))+'" placeholder="0"></div>';
   var fDesc='<div class="form-field form-full"><label>Description <span class="form-hint">One bullet point per line</span></label><textarea id="f-desc" rows="4" placeholder="HDMI Cable for 4K displays&#10;Compatible with PS5, Xbox">'+esc(parseBullets(p.description||'').join('\n'))+'</textarea></div>';
   var fFeats='<div class="form-field form-full"><label>Features <span class="form-hint">One feature per line</span></label><textarea id="f-feats" rows="3" placeholder="4K@60Hz&#10;Gold-plated connectors">'+esc(parseFeats(p.features||'').join('\n'))+'</textarea></div>';
-  var fShort='<div class="form-field form-full"><label>Card Summary <span class="form-hint">One sentence shown on the grid card (≤80 chars). Generate from Description/Features, or type your own.</span></label>'+
+  var fShort='<div class="form-field form-full"><label>Card Summary <span class="form-hint">One sentence shown on the grid card (≤80 chars). Click ChatGPT prompt → paste into ChatGPT → paste the reply here. Or just type your own.</span></label>'+
     '<div style="display:flex;gap:6px;align-items:flex-start">'+
       '<input id="f-short" maxlength="90" value="'+esc(p.short_desc||'')+'" placeholder="e.g. 20W USB-C GaN charger with PD fast charging." oninput="_shortCount()" style="flex:1">'+
-      '<button type="button" id="btn-gen-sum" class="btn-ghost" style="white-space:nowrap;padding:.45rem .7rem;border:1px solid var(--border);border-radius:6px" onclick="genSummary()" title="Generate a one-sentence summary with AI">✨ Generate</button>'+
+      '<button type="button" id="btn-gen-sum" class="btn-ghost" style="white-space:nowrap;padding:.45rem .7rem;border:1px solid var(--border);border-radius:6px" onclick="copyGptPrompt()" title="Copy a ready-made prompt to paste into ChatGPT">📋 ChatGPT prompt</button>'+
     '</div>'+
     '<span class="form-hint" id="f-short-count" style="display:block;margin-top:.2rem"></span></div>';
   var fImg='<div class="form-field form-full"><label>Image URL <span class="form-hint">Paste https:// link</span></label>'+
@@ -2337,41 +2337,44 @@ function adminDuplicateProduct(code){
   if(typeof adminEditProduct==='function') adminEditProduct(nc);
 }
 
-/* ── AI card-summary generation (SKU editor) ──────────────────────────────
-   Calls the Cloudflare Worker's `summarize` action (same admin password as
-   publishing; Anthropic key lives only in the Worker). Fills #f-short. */
-var _ugSumPw = null;
-function genSummary(){
+/* ── ChatGPT prompt helper (SKU editor) ───────────────────────────────────
+   Builds a ready-made prompt from the SKU's own name/description/features and
+   copies it to the clipboard. Paste into chatgpt.com, then paste the reply
+   into the Card Summary field. No API / key — uses the user's ChatGPT sub. */
+function copyGptPrompt(){
   var g=function(id){var e=document.getElementById(id);return e?(e.value||''):'';};
-  var name=g('f-name').trim(), desc=g('f-desc'), feats=g('f-feats'), cat=g('f-cat');
-  if(!name && !desc.trim() && !feats.trim()){ showToast('Add a product name, description, or features first.'); return; }
-  var cfg=window.CONFIG||{}, endpoint=cfg.backend&&cfg.backend.workerEndpoint;
-  if(!endpoint){ showToast('No backend configured (workerEndpoint missing in config.js).'); return; }
-  if(!_ugSumPw){
-    _ugSumPw=window.prompt('Enter the admin save password to generate a summary:');
-    if(_ugSumPw===null) return;
-    if(!_ugSumPw){ showToast('Cancelled — no password entered.'); return; }
+  var name=g('f-name').trim(), desc=g('f-desc').trim(), feats=g('f-feats').trim(), cat=g('f-cat').trim();
+  if(!name && !desc && !feats){ showToast('Add a product name, description, or features first.'); return; }
+  var prompt=[
+    'Write a ONE-sentence product summary for a dealer price-list card.',
+    'Rules: exactly one sentence, at most 80 characters, at most 12 words, ending with a period. Use ONLY facts in the details below \u2014 do not invent specs, numbers, ports, or features. Plain and factual, no marketing fluff, no emojis. Output only the sentence.',
+    '',
+    'Product name: '+name,
+    (cat ? 'Category: '+cat : ''),
+    'Description:',
+    (desc || '(none provided)'),
+    'Features:',
+    (feats || '(none provided)')
+  ].filter(function(x){ return x!==''; }).join('\n');
+  function done(){ showToast('Prompt copied \u2014 paste it into ChatGPT, then paste the reply into Card Summary.'); }
+  function manual(){ window.prompt('Copy this prompt and paste it into ChatGPT:', prompt); }
+  function legacy(){
+    try{ var t=document.createElement('textarea'); t.value=prompt; t.style.position='fixed'; t.style.opacity='0';
+      document.body.appendChild(t); t.focus(); t.select(); var ok=document.execCommand('copy'); document.body.removeChild(t);
+      if(ok) done(); else manual();
+    }catch(e){ manual(); }
   }
-  var btn=document.getElementById('btn-gen-sum'), old=btn?btn.textContent:'';
-  if(btn){ btn.disabled=true; btn.textContent='Generating…'; }
-  fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'summarize',password:_ugSumPw,product:{product_name:name,description:desc,features:feats,category:cat}})})
-   .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){return {status:r.status,body:j};}); })
-   .then(function(res){
-     if(btn){ btn.disabled=false; btn.textContent=old||'✨ Generate'; }
-     if(res.status===401){ _ugSumPw=null; showToast('Wrong password — click Generate to try again.'); return; }
-     if(res.status!==200 || !res.body || !res.body.ok){ showToast('Summary failed: '+((res.body&&res.body.error)||('HTTP '+res.status))); return; }
-     var fld=document.getElementById('f-short');
-     if(fld){ fld.value=res.body.summary; if(typeof _shortCount==='function') _shortCount(); }
-     showToast('Summary generated — review it, then Save SKU.');
-   })
-   .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent=old||'✨ Generate'; } showToast('Summary request error: '+(e.message||e)); });
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(prompt).then(done).catch(legacy);
+    } else { legacy(); }
+  }catch(e){ legacy(); }
 }
 function _shortCount(){
   var f=document.getElementById('f-short'), c=document.getElementById('f-short-count');
   if(!f||!c) return;
   var n=(f.value||'').length;
-  c.textContent=n+'/80 characters'+(n>80?' — a little long for the card':'');
+  c.textContent=n+'/80 characters'+(n>80?' \u2014 a little long for the card':'');
   c.style.color=(n>80?'var(--srp)':'var(--text-dim)');
 }
-if(typeof window!=='undefined'){ window.genSummary=genSummary; window._shortCount=_shortCount; }
+if(typeof window!=='undefined'){ window.copyGptPrompt=copyGptPrompt; window._shortCount=_shortCount; }
