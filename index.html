@@ -140,6 +140,20 @@
 <script src="js/app.js"></script>
 <script src="js/exports.js"></script>
 <script src="js/admin.js?v=p10"></script>
-<script src="js/github-save.js?v=p2"></script>
+<script src="js/github-save.js?v=p3"></script>
+<script>
+/* Integrity guard (Phase 10 review): if any core script fails to load fully — e.g. a
+   file was truncated on save — this makes the failure LOUD instead of a silent broken
+   Save button. Checks the publish wiring after everything loads. */
+window.addEventListener('load',function(){
+  try{
+    var ok = (typeof saveToGitHub==='function') && (typeof saveCurrentVersion==='function');
+    if(!ok){
+      console.error('[integrity] Publish wiring missing — github-save.js may be truncated. Save will NOT publish.');
+      if(typeof showToast==='function') showToast('\u26A0 Publish is disabled (a script failed to load). Re-publish github-save.js.');
+    }
+  }catch(e){}
+});
+</script>
 </body>
 </html>
