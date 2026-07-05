@@ -404,77 +404,187 @@ aside{display:flex;flex-direction:column}
   .adm-shell.rail-open .adm-rail-backdrop{display:block;position:absolute;inset:0;z-index:25;background:rgba(15,23,42,.4)}
 }
 @media (max-width:640px){.adm-modal.adm-dash{width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0}.adm-main-top{flex-wrap:wrap}.adm-main-actions{width:100%;justify-content:flex-end}.adm-chart-label{width:96px}}
-/* ── v1.3.12: Two-panel Admin Login (UGREEN) ───────────────────────────── */
-.adm-modal.adm-login{width:min(880px,95vw);max-width:880px;padding:0}
+/* == Premium Enterprise Admin Login (redesign v01.7) =======================
+   Every selector below is login-scoped (.adm-login / .adm-ll-* / .adm-lr-* /
+   .adm-field / .adm-signin / .adm-remember / .adm-show-btn). The dashboard admin
+   view shares only .adm-modal / .adm-close-btn / #adm-content / #adm-err, which
+   are left untouched. */
+
+/* Overlay: darker, gentle blur + baked-in vignette. Scoped with :has() to the
+   login modal only, so the dashboard scroll-lag fix (backdrop-filter:none on the
+   heavy full-screen dash) is preserved. Browsers without :has() just skip this. */
+.adm-modal-overlay:has(.adm-modal.adm-login){
+  background:radial-gradient(ellipse at center,rgba(8,20,13,.46) 0%,rgba(4,10,7,.72) 100%);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+}
+
+/* Modal shell: larger radius, layered shadows, subtle glass rim */
+.adm-modal.adm-login{
+  position:relative;z-index:1;
+  width:min(920px,95vw);max-width:920px;padding:0;border-radius:22px;
+  border:1px solid rgba(255,255,255,.55);
+  box-shadow:0 40px 90px -22px rgba(6,28,16,.5),0 18px 40px -18px rgba(0,0,0,.32),
+             0 2px 6px rgba(0,0,0,.06),inset 0 1px 0 rgba(255,255,255,.5);
+}
 .adm-modal.adm-login #adm-content{flex-direction:row;overflow:hidden}
-.adm-login-wrap{display:flex;width:100%;min-height:480px}
-.adm-login-left{position:relative;flex:1 1 46%;min-width:0;overflow:hidden;color:#fff;
-  background:linear-gradient(150deg,#00A63E 0%,#018d37 48%,#007934 100%);
-  display:flex;flex-direction:column;justify-content:center;padding:2.75rem 2.4rem}
-.adm-ll-shapes{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-.adm-ll-shapes span{position:absolute;border-radius:50%;display:block}
-.adm-ll-shapes span:nth-child(1){width:280px;height:280px;right:-95px;top:-80px;background:rgba(255,255,255,.10)}
-.adm-ll-shapes span:nth-child(2){width:190px;height:190px;left:-65px;bottom:-55px;background:rgba(255,255,255,.08)}
-.adm-ll-shapes span:nth-child(3){width:96px;height:96px;left:42px;top:40px;background:rgba(255,255,255,.06)}
-.adm-ll-content{position:relative;z-index:1}
-.adm-ll-logo{height:30px;width:auto;display:block;margin-bottom:1.6rem}
-.adm-ll-welcome{font-family:'Metropolis',sans-serif;font-weight:900;font-size:2.45rem;letter-spacing:-.02em;line-height:1.02;margin:0 0 .6rem}
-.adm-ll-sub{font-size:.92rem;font-weight:700;letter-spacing:.01em;margin:0 0 .85rem;opacity:.96}
-.adm-ll-desc{font-size:.8rem;line-height:1.6;opacity:.85;max-width:300px;margin:0}
-.adm-ll-foot{position:relative;z-index:1;margin-top:auto;padding-top:1.6rem;font-size:.7rem;opacity:.8;letter-spacing:.02em}
-.adm-login-right{position:relative;flex:1 1 54%;min-width:0;background:var(--surface);
-  display:flex;align-items:center;justify-content:center;padding:2.5rem 2.3rem}
-.adm-close-btn.adm-login-close{position:absolute;top:1rem;right:1rem;z-index:3}
-.adm-lr-inner{width:100%;max-width:330px}
-.adm-lr-title{font-family:'Metropolis',sans-serif;font-weight:800;font-size:1.55rem;color:var(--text);margin:0 0 .25rem;letter-spacing:-.01em}
-.adm-lr-sub{font-size:.82rem;color:var(--text-muted);margin:0 0 1.45rem}
-.adm-field-label{display:block;font-size:.72rem;font-weight:600;color:var(--text-muted);margin:0 0 .35rem;letter-spacing:.01em}
-.adm-field{display:flex;align-items:center;gap:.55rem;background:#F6F8F9;border:1px solid var(--border);
-  border-radius:12px;padding:0 .85rem;height:48px;margin-bottom:1rem;transition:border-color .15s,box-shadow .15s,background .15s}
-.adm-field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);background:#fff}
-.adm-field-ico{display:flex;align-items:center;color:var(--text-dim);flex-shrink:0}
+.adm-login-wrap{display:flex;width:100%;min-height:540px}
+
+/* -- Left branding panel -- */
+.adm-login-left{
+  position:relative;flex:1 1 48%;min-width:0;overflow:hidden;color:#fff;
+  display:flex;flex-direction:column;justify-content:center;padding:3rem 2.6rem;
+  background:
+    radial-gradient(120% 90% at 12% 10%,rgba(255,255,255,.16),transparent 46%),
+    radial-gradient(90% 80% at 100% 100%,rgba(0,58,25,.55),transparent 55%),
+    linear-gradient(155deg,#00A63E 0%,#018d37 45%,#00702f 78%,#005f2a 100%);
+}
+/* soft translucent circles, slow drift */
+.adm-ll-shapes{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.adm-ll-shapes span{position:absolute;border-radius:50%;display:block;
+  background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.18),rgba(255,255,255,.03));
+  animation:admFloat 15s ease-in-out infinite}
+.adm-ll-shapes span:nth-child(1){width:300px;height:300px;right:-110px;top:-90px}
+.adm-ll-shapes span:nth-child(2){width:210px;height:210px;left:-80px;bottom:-70px;animation-delay:-5s}
+.adm-ll-shapes span:nth-child(3){width:110px;height:110px;left:36px;top:32px;animation-delay:-9s}
+@keyframes admFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(8px,-16px)}}
+
+/* floating analytics cards (decorative, low-opacity) */
+.adm-ll-card{position:absolute;z-index:0;border-radius:14px;color:#fff;padding:.7rem .8rem;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);
+  box-shadow:0 12px 30px rgba(0,0,0,.16);animation:admFloat 13s ease-in-out infinite}
+.adm-ll-card .l{font-size:.52rem;letter-spacing:.09em;text-transform:uppercase;opacity:.85}
+.adm-ll-card .v{font-family:'Metropolis',sans-serif;font-weight:800;font-size:1.05rem;margin-top:2px}
+.adm-ll-card .bars{display:flex;align-items:flex-end;gap:3px;height:22px;margin-top:6px}
+.adm-ll-card .bars i{width:5px;border-radius:2px;background:rgba(255,255,255,.6);display:block}
+.adm-ll-card--a{top:15%;right:7%;width:118px;animation-delay:-2s}
+.adm-ll-card--b{bottom:15%;right:15%;width:104px;animation-delay:-7s}
+
+.adm-ll-content{position:relative;z-index:2;display:flex;flex-direction:column}
+.adm-ll-logo{height:30px;width:auto;display:block;margin-bottom:1.5rem}
+.adm-ll-welcome{font-family:'Metropolis',sans-serif;font-weight:800;font-size:2.05rem;letter-spacing:-.02em;line-height:1.05;margin:0 0 .5rem}
+.adm-ll-sub{font-size:.9rem;font-weight:600;letter-spacing:.01em;margin:0 0 1rem;opacity:.95}
+.adm-ll-badge{display:inline-flex;align-items:center;gap:.42rem;align-self:flex-start;
+  font-size:.68rem;font-weight:700;letter-spacing:.03em;
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  padding:.34rem .72rem;border-radius:999px;margin-bottom:1.1rem}
+.adm-ll-badge svg{width:13px;height:13px}
+.adm-ll-features{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.55rem}
+.adm-ll-features li{display:flex;align-items:center;gap:.6rem;font-size:.82rem;opacity:.95}
+.adm-ll-features .fi{width:22px;height:22px;border-radius:7px;flex-shrink:0;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);
+  display:flex;align-items:center;justify-content:center}
+.adm-ll-features .fi svg{width:12px;height:12px}
+.adm-ll-intro{font-size:.8rem;line-height:1.55;opacity:.9;margin:0 0 1.15rem;max-width:300px}
+/* dynamic announcement / promo card (reflects PROMO_CONFIG.enabled) */
+.adm-ll-ann{display:flex;align-items:flex-start;gap:.6rem;margin-top:1.25rem;padding:.7rem .8rem;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)}
+.adm-ll-ann .ic{font-size:1rem;line-height:1.2;flex-shrink:0}
+.adm-ll-ann .tx{display:flex;flex-direction:column;min-width:0}
+.adm-ll-ann .t{font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;opacity:.82;font-weight:700}
+.adm-ll-ann .m{font-size:.76rem;font-weight:600;margin-top:2px;line-height:1.35;opacity:.96}
+.adm-ll-foot{position:relative;z-index:2;margin-top:auto;padding-top:1.6rem;font-size:.7rem;opacity:.85;letter-spacing:.02em;line-height:1.7}
+.adm-ll-foot .v{opacity:.7}
+
+/* -- Right form panel -- */
+.adm-login-right{position:relative;flex:1 1 52%;min-width:0;background:var(--surface);
+  display:flex;align-items:center;justify-content:center;padding:2.9rem 2.6rem}
+.adm-close-btn.adm-login-close{position:absolute;top:1rem;right:1rem;z-index:3;
+  transition:background .2s,transform .25s,color .2s}
+.adm-close-btn.adm-login-close:hover{background:var(--bg);color:var(--text);transform:rotate(90deg)}
+.adm-lr-inner{width:100%;max-width:342px}
+.adm-lr-status{display:inline-flex;align-items:center;gap:.42rem;font-size:.66rem;font-weight:600;
+  color:var(--text-muted);margin-bottom:1rem}
+.adm-lr-status .dot{width:7px;height:7px;border-radius:50%;background:#16a34a;
+  box-shadow:0 0 0 3px rgba(22,163,74,.16);animation:admPulse 2.4s ease-in-out infinite}
+@keyframes admPulse{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,.16)}50%{box-shadow:0 0 0 5px rgba(22,163,74,.04)}}
+.adm-lr-title{font-family:'Metropolis',sans-serif;font-weight:800;font-size:1.35rem;color:var(--text);margin:0 0 .3rem;letter-spacing:-.01em}
+.adm-lr-sub{font-size:.82rem;color:var(--text-muted);margin:0 0 1.7rem;line-height:1.5}
+.adm-field-label{display:block;font-size:.72rem;font-weight:600;color:var(--text-muted);margin:0 0 .4rem;letter-spacing:.01em}
+.adm-field{display:flex;align-items:center;gap:.6rem;background:#F6F8F9;border:1px solid var(--border);
+  border-radius:12px;padding:0 .9rem;height:54px;margin-bottom:1.25rem;
+  box-shadow:0 1px 2px rgba(16,24,40,.04);
+  transition:border-color .2s,box-shadow .2s,background .2s}
+.adm-field:hover{border-color:var(--border-strong)}
+.adm-field:focus-within{border-color:var(--accent);background:#fff;box-shadow:0 0 0 4px var(--accent-bg),0 1px 2px rgba(16,24,40,.05)}
+.adm-field-ico{display:flex;align-items:center;color:var(--text-dim);flex-shrink:0;transition:color .2s}
 .adm-field:focus-within .adm-field-ico{color:var(--accent)}
 .adm-field-input{flex:1;min-width:0;border:none;background:transparent;outline:none;height:100%;
-  font-family:'Metropolis',sans-serif;font-size:.9rem;color:var(--text)}
-.adm-field-input::placeholder{color:var(--text-dim)}
+  font-family:'Metropolis',sans-serif;font-size:.92rem;color:var(--text)}
+.adm-field-input::placeholder{color:#a7b1bd}
 .adm-field-input:read-only{color:var(--text-muted);cursor:default}
-.adm-show-btn{border:none;background:transparent;color:var(--accent);cursor:pointer;flex-shrink:0;padding:.25rem .1rem;
-  font-family:'Metropolis',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
-.adm-show-btn:hover{color:#007934}
-.adm-remember{display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--text-muted);cursor:pointer;user-select:none;margin-bottom:1rem}
-.adm-remember input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
-.adm-login-right .adm-error{font-size:.76rem;color:#dc2626;min-height:1.1rem;margin-bottom:.5rem}
-.adm-signin-btn{position:relative;width:100%;height:50px;border:none;border-radius:12px;cursor:pointer;
+/* password show/hide eye */
+.adm-show-btn{border:none;background:transparent;color:var(--text-dim);cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;padding:.3rem;border-radius:8px;
+  transition:color .2s,background .2s}
+.adm-show-btn:hover{color:var(--accent);background:var(--accent-bg)}
+.adm-show-btn svg{width:18px;height:18px}
+/* custom checkbox */
+.adm-remember{display:inline-flex;align-items:center;gap:.55rem;font-size:.82rem;color:var(--text-muted);cursor:pointer;user-select:none;margin-bottom:1.35rem}
+.adm-remember input{position:absolute;opacity:0;width:0;height:0}
+.adm-check{width:20px;height:20px;border-radius:7px;border:1.5px solid var(--border-strong);background:#fff;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .18s,border-color .18s,transform .12s}
+.adm-check svg{width:13px;height:13px;color:#fff;opacity:0;transform:scale(.6);transition:opacity .18s,transform .18s}
+.adm-remember:hover .adm-check{border-color:var(--accent)}
+.adm-remember input:checked + .adm-check{background:var(--accent);border-color:var(--accent)}
+.adm-remember input:checked + .adm-check svg{opacity:1;transform:scale(1)}
+.adm-remember input:focus-visible + .adm-check{box-shadow:0 0 0 4px var(--accent-bg)}
+.adm-remember input:active + .adm-check{transform:scale(.9)}
+
+.adm-login-right .adm-error{font-size:.76rem;color:#dc2626;min-height:1.1rem;margin-bottom:.6rem}
+
+/* sign in button */
+.adm-signin-btn{position:relative;width:100%;height:54px;border:none;border-radius:12px;cursor:pointer;
   background:var(--accent);color:#fff;font-family:'Metropolis',sans-serif;font-weight:700;font-size:.95rem;letter-spacing:.02em;
   display:flex;align-items:center;justify-content:center;gap:.5rem;
-  box-shadow:0 8px 20px rgba(0,121,52,.25);transition:background .15s,transform .1s,box-shadow .15s}
-.adm-signin-btn:hover{background:var(--accent-hover)}
-.adm-signin-btn:active{transform:translateY(1px)}
-.adm-signin-btn:disabled{cursor:default;opacity:.9}
-.adm-spin{display:none;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:admSpin .6s linear infinite}
+  box-shadow:0 10px 24px -6px rgba(0,121,52,.45),0 2px 4px rgba(0,0,0,.08);
+  transition:background .18s,transform .12s,box-shadow .18s}
+.adm-signin-btn:hover{background:var(--accent-hover);transform:translateY(-2px);box-shadow:0 16px 32px -8px rgba(0,121,52,.5),0 3px 6px rgba(0,0,0,.1)}
+.adm-signin-btn:active{transform:translateY(0) scale(.985)}
+.adm-signin-btn:focus-visible{outline:none;box-shadow:0 0 0 4px var(--accent-bg),0 10px 24px -6px rgba(0,121,52,.45)}
+.adm-signin-btn:disabled{cursor:default;opacity:.92;transform:none;box-shadow:0 6px 16px -6px rgba(0,121,52,.4)}
+.adm-btn-loading{display:none;align-items:center;gap:.5rem}
 .adm-signin-btn.is-loading .adm-btn-label{display:none}
-.adm-signin-btn.is-loading .adm-spin{display:block}
+.adm-signin-btn.is-loading .adm-btn-loading{display:inline-flex}
+.adm-spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:admSpin .6s linear infinite}
 @keyframes admSpin{to{transform:rotate(360deg)}}
-.adm-lr-foot{text-align:center;font-size:.68rem;color:var(--text-dim);margin-top:1.4rem;line-height:1.7;letter-spacing:.02em}
+
+.adm-lr-foot{text-align:center;font-size:.66rem;color:var(--text-dim);margin-top:1.6rem;line-height:1.8;letter-spacing:.02em}
+.adm-lr-foot .v{opacity:.75}
+
+/* error shake */
 @keyframes admShake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
 .adm-shake{animation:admShake .5s cubic-bezier(.36,.07,.19,.97)}
-@media (max-width:880px){
-  .adm-login-left{padding:2rem 1.7rem}
-  .adm-ll-welcome{font-size:2.05rem}
-  .adm-login-right{padding:2rem 1.6rem}
+
+/* staggered entrance (per-element delay via --d) */
+@keyframes admLoginIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.adm-anim{opacity:0;animation:admLoginIn .5s cubic-bezier(.16,.84,.44,1) both;animation-delay:var(--d,0ms)}
+
+/* responsive */
+@media (max-width:900px){
+  .adm-login-left{padding:2.2rem 1.9rem}
+  .adm-ll-welcome{font-size:1.8rem}
+  .adm-login-right{padding:2.2rem 1.8rem}
+  .adm-ll-card{display:none}
 }
 @media (max-width:640px){
-  .adm-modal.adm-login{width:100vw;max-width:100vw;max-height:94vh;border-radius:16px 16px 0 0}
+  .adm-modal.adm-login{width:100vw;max-width:100vw;max-height:94vh;border-radius:20px 20px 0 0}
   .adm-modal.adm-login #adm-content{flex-direction:column;overflow-y:auto}
   .adm-login-wrap{flex-direction:column;min-height:0}
-  .adm-login-left{flex:0 0 auto;padding:1.5rem 1.4rem}
-  .adm-ll-logo{height:26px;margin-bottom:.9rem}
-  .adm-ll-welcome{font-size:1.6rem;margin-bottom:.3rem}
-  .adm-ll-sub{font-size:.82rem;margin-bottom:.4rem}
-  .adm-ll-desc{display:none}
-  .adm-ll-foot{display:none}
-  .adm-login-right{flex:1 1 auto;padding:1.6rem 1.4rem 1.9rem}
+  .adm-login-left{flex:0 0 auto;padding:1.7rem 1.5rem 1.5rem}
+  .adm-ll-logo{height:26px;margin-bottom:1rem}
+  .adm-ll-welcome{font-size:1.55rem;margin-bottom:.3rem}
+  .adm-ll-sub{font-size:.82rem;margin-bottom:.8rem}
+  .adm-ll-badge{margin-bottom:1rem}
+  .adm-ll-features{flex-flow:row wrap;gap:.4rem .9rem}
+  .adm-ll-features li{font-size:.74rem}
+  .adm-ll-foot,.adm-ll-intro,.adm-ll-ann{display:none}
+  .adm-login-right{flex:1 1 auto;padding:1.7rem 1.5rem 2rem}
   .adm-lr-inner{max-width:none}
+  .adm-field{height:52px}
+  .adm-signin-btn{height:52px}
+}
+@media (prefers-reduced-motion:reduce){
+  .adm-anim,.adm-ll-shapes span,.adm-ll-card,.adm-lr-status .dot{animation:none!important;opacity:1!important;transform:none!important}
 }
 @keyframes admModalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
 /* Sticky header */
