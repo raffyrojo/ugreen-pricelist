@@ -13,7 +13,3 @@ GH_BRANCH = "main"
 # SECRETS — do NOT put these here. Set them once with wrangler:
 #   wrangler secret put GITHUB_TOKEN        (fine-grained PAT, Contents: Read+Write)
 #   wrangler secret put ADMIN_SAVE_SECRET   (the save password you'll type in the app)
-#   wrangler secret put OPENAI_API_KEY   (from platform.openai.com — powers AI card summaries)
-#
-# Optional non-secret model override (uncomment under [vars] above):
-#   OPENAI_MODEL = "gpt-4o-mini"

@@ -24,11 +24,6 @@ export default {
     try { payload = await request.json(); }
     catch (e) { return json({ error: 'Invalid JSON body' }, 400, cors); }
 
-    // --- AI one-sentence summary (separate action; own auth; never writes to GitHub) ---
-    if (payload && payload.action === 'summarize') {
-      return handleSummarize(payload, env, cors);
-    }
-
     // --- auth: constant-time-ish password check ---
     if (!payload || !payload.password || payload.password !== env.ADMIN_SAVE_SECRET) {
       return json({ error: 'Unauthorized' }, 401, cors);
@@ -100,45 +95,6 @@ async function putFile(owner, repo, branch, path, base64Content, message, header
   if (!res.ok) { const t = await res.text(); const e = new Error('GitHub write ' + res.status + ': ' + t.slice(0, 200)); e.status = res.status; throw e; }
   const j = await res.json();
   return j.commit && j.commit.sha;
-}
-
-/* AI: generate one dealer-facing sentence for the SKU card from the product's
-   own name/description/features. Same admin password as publishing. Anthropic
-   key lives only in the Worker secret OPENAI_API_KEY. */
-async function handleSummarize(payload, env, cors) {
-  if (!payload.password || payload.password !== env.ADMIN_SAVE_SECRET) return json({ error: 'Unauthorized' }, 401, cors);
-  if (!env.OPENAI_API_KEY) return json({ error: 'AI not configured: set the OPENAI_API_KEY Worker secret.' }, 500, cors);
-  const p = payload.product || {};
-  const name = String(p.product_name || '').slice(0, 300);
-  const desc = String(p.description || '').slice(0, 2000);
-  const feats = String(p.features || '').slice(0, 2000);
-  const cat = String(p.category || '').slice(0, 120);
-  if (!name && !desc && !feats) return json({ error: 'Need at least a product name, description, or features.' }, 400, cors);
-
-  const system = "You write one-sentence product summaries for a UGREEN pricelist SKU card (dealer-facing). RULES: exactly ONE sentence, at most 80 characters, at most 12 words, ending with a period. State only facts present in the provided name/description/features — NEVER invent numbers, wattages, capacities, materials, ports, speeds, or compatibility. Keep the product type plus one key spec or benefit. Plain and factual: no marketing fluff, no emojis, no line breaks. Output ONLY the sentence, nothing else.";
-  const user = "Category: " + cat + "\nProduct name: " + name + "\nDescription:\n" + desc + "\nFeatures:\n" + feats + "\n\nWrite the one-sentence card summary now.";
-  const model = env.OPENAI_MODEL || 'gpt-4o-mini';
-
-  let r;
-  try {
-    r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + env.OPENAI_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: model, max_tokens: 100, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] })
-    });
-  } catch (e) { return json({ error: 'AI request failed: ' + (e.message || e) }, 502, cors); }
-
-  const data = await r.json().catch(function () { return {}; });
-  if (!r.ok) return json({ error: 'AI error ' + r.status + ': ' + ((data && data.error && data.error.message) || '') }, r.status, cors);
-
-  let text = String((data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '').replace(/\s+/g, ' ').trim();
-  var q = text.match(/"([^"]{5,})"/); if (q) text = q[1];            // unwrap if the model quoted the sentence
-  text = text.replace(/^["'\s]+|["'\s]+$/g, '');
-  const m = text.match(/^.*?[.!?](?=\s|$)/); if (m) text = m[0];            // first sentence only
-  if (!/[.!?]$/.test(text)) text = text.replace(/[.\s]+$/, '') + '.';        // ensure terminal period
-  if (text.length > 80) text = text.slice(0, 79).replace(/\s+\S*$/, '').replace(/[,;:\s]+$/, '') + '.';
-  if (!text || text === '.') return json({ error: 'AI returned an empty summary.' }, 502, cors);
-  return json({ ok: true, summary: text }, 200, cors);
 }
 
 function b64utf8(str) {
