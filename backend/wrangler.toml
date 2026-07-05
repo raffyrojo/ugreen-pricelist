@@ -13,3 +13,10 @@ GH_BRANCH = "main"
 # SECRETS — do NOT put these here. Set them once with wrangler:
 #   wrangler secret put GITHUB_TOKEN        (fine-grained PAT, Contents: Read+Write)
 #   wrangler secret put ADMIN_SAVE_SECRET   (the save password you'll type in the app)
+
+# Trending analytics store (Workers KV). Create it once, then UNCOMMENT the
+# block below and paste the id. Until then, trending safely no-ops.
+#   wrangler kv namespace create TRENDING
+# [[kv_namespaces]]
+# binding = "TRENDING"
+# id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
