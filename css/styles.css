@@ -1869,3 +1869,25 @@ body.so-lock{ overflow:hidden; }
 .page-footer .pf-left{font-weight:600;color:var(--text-muted)}
 .page-footer .pf-right{color:var(--text-dim);letter-spacing:.01em}
 @media(max-width:640px){.page-footer{margin-top:1.25rem;font-size:.66rem;gap:.35rem;flex-direction:column;justify-content:center;text-align:center}}
+
+/* p30: clearer, more premium modal price tiles (SRP / Dealer Price / DP Volume).
+   .price-srp/.price-dpv sizes elsewhere are tuned for the compact table/grid;
+   these scope larger, readable values to the detail modal only, keeping the
+   legend colour-coding and making Dealer Price the clear hero. */
+.modal-prices{gap:.55rem;margin-top:.15rem}
+.modal-price{padding:.8rem .55rem;border-radius:12px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;min-height:86px;text-align:center}
+.modal-price .plabel{font-size:.62rem;font-weight:600;letter-spacing:.07em;margin-bottom:.4rem}
+.modal-price .pval{font-size:1.3rem;font-weight:600;line-height:1.1;letter-spacing:-.01em;opacity:1}
+.modal-price .pval.price-srp{font-size:1.3rem;font-weight:600;opacity:.9}
+.modal-price .pval.price-dpv{font-size:1.3rem;font-weight:600;opacity:.9}
+.modal-price.dp-highlight .pval,.modal-price.dp-highlight .pval.price-dp{font-size:1.55rem;font-weight:800}
+.modal-price.dp-highlight{border-color:rgba(0,150,50,.3);box-shadow:0 4px 14px rgba(0,150,50,.14)}
+.modal-price .dpv-moq-note{font-size:.56rem;margin-top:.4rem;line-height:1.3;opacity:.85}
+@media(max-width:640px){
+  .modal-prices{gap:.45rem}
+  .modal-price{min-height:74px;padding:.6rem .45rem}
+  .modal-price .plabel{font-size:.58rem}
+  .modal-price .pval,.modal-price .pval.price-srp,.modal-price .pval.price-dpv{font-size:1.1rem}
+  .modal-price.dp-highlight .pval{font-size:1.35rem}
+}
