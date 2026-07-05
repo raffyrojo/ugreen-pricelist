@@ -1519,13 +1519,13 @@ function renderAdminContent(){
             '<img class="adm-ll-logo" src="'+UGREEN_LOGO_LIGHT+'" alt="UGREEN">'+
             '<h2 class="adm-ll-welcome">Welcome Back</h2>'+
             '<p class="adm-ll-sub">UGREEN Product Management Portal</p>'+
-            '<span class="adm-ll-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Secure Enterprise Login</span>'+
+            '<span class="adm-ll-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Secure Enterprise Login</span>'+
             '<p class="adm-ll-intro">Everything you need to manage the UGREEN product portfolio in one place.</p>'+
             '<ul class="adm-ll-features">'+
-              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Product Catalog</li>'+
-              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Dealer Pricelist</li>'+
-              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Promotions &amp; Campaigns</li>'+
-              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Product Updates &amp; Announcements</li>'+
+              '<li><span class="fi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Product Catalog</li>'+
+              '<li><span class="fi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Dealer Pricelist</li>'+
+              '<li><span class="fi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Promotions &amp; Campaigns</li>'+
+              '<li><span class="fi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Product Updates &amp; Announcements</li>'+
             '</ul>'+
             '<div class="adm-ll-ann">'+
               '<span class="ic">'+(_pl?'\ud83d\udd25':'\ud83d\udce2')+'</span>'+
@@ -1555,7 +1555,7 @@ function renderAdminContent(){
                 '<button type="button" class="adm-show-btn" aria-label="Show password" onclick="admTogglePw(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>'+
               '</div>'+
             '</div>'+
-            '<label class="adm-remember adm-anim" style="--d:440ms"><input type="checkbox" id="adm-remember"><span class="adm-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>Remember me</span></label>'+
+            '<label class="adm-remember adm-anim" style="--d:440ms"><input type="checkbox" id="adm-remember"><span class="adm-check" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>Remember me</span></label>'+
             '<div class="adm-error" id="adm-err"></div>'+
             '<button class="adm-signin-btn adm-anim" style="--d:490ms" id="adm-login-btn" onclick="submitPin()"><span class="adm-btn-label">Sign In</span><span class="adm-btn-loading"><span class="adm-spin" aria-hidden="true"></span>Signing In\u2026</span></button>'+
             '<div class="adm-lr-foot adm-anim" style="--d:540ms">&copy; '+new Date().getFullYear()+' Iontech Inc. \u00b7 Authorized Personnel Only<br><span class="v">Version '+APP_VERSION+'</span></div>'+
