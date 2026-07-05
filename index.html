@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UGREEN Pricelist</title>
-<link rel="stylesheet" href="css/styles.css?v=p15">
+<link rel="stylesheet" href="css/styles.css?v=p19">
 <!-- Export libraries (Phase 3): jsPDF for Quick PDF, ExcelJS for Excel. html2canvas loads on demand. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
@@ -15,8 +15,28 @@
   <div class="logo"><img class="logo-img" src="assets/ugreen-logo.webp" alt="UGREEN"><span class="logo-sub">MORE FOR YOU</span><span class="doc-pill">Pricelist</span></div>
   <div class="header-right">
     <button class="hdr-icon-btn search-open-btn" id="search-open-btn" onclick="openSearchOverlay()" title="Search (press /)" aria-label="Search products"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-    <div class="view-toggle"><button class="view-btn active" id="btn-table" onclick="setView('table')" title="Table view" aria-label="Table view"><span class="vb-ico">≡</span><span class="vb-txt"> Table</span></button><button class="view-btn" id="btn-grid" onclick="setView('grid')" title="Grid view" aria-label="Grid view"><span class="vb-ico">⊞</span><span class="vb-txt"> Grid</span></button></div>
     <input type="file" id="excel-upload-input" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(this)">
+    <div class="sup-wrap" id="sup-wrap">
+      <button type="button" class="dl-btn sup-btn" id="sup-btn" onclick="toggleSupMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="sup-menu" title="Support &amp; Resources" aria-label="Support and resources"><svg class="sup-help-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="sup-txt">Support</span></button>
+      <div class="sup-menu" id="sup-menu" role="menu" aria-label="Support resources">
+        <div class="sup-group"><div class="sup-label">Getting Started</div>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/what-is-nas" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">What is NAS?</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/nas-selector" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">NAS Selector</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/ugreen-nas-learning-center" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">UGREEN NAS Learning Center</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        </div>
+        <div class="sup-group"><div class="sup-label">Tools</div>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/compare" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">NAS Comparison</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/raid-calculator" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">RAID Calculator</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        </div>
+        <div class="sup-group"><div class="sup-label">Compatibility</div>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/compatibility" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">Drive Compatibility List</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        </div>
+        <div class="sup-group"><div class="sup-label">Software</div>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/operating-system" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">UGOS (Operating System)</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        <a class="sup-item" role="menuitem" href="https://nas.ugreen.com/pages/solution-software" target="_blank" rel="noopener noreferrer"><span class="sup-item-txt">Solution Software</span><span class="sup-ext" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span></a>
+        </div>
+      </div>
+    </div>
     <div class="dl-wrap" id="dl-wrap">
       <button class="dl-btn hdr-icon-btn" onclick="toggleDlMenu()" title="Export" aria-label="Export">⬇</button>
       <div class="dl-menu" id="dl-menu">
@@ -33,7 +53,6 @@
     </div>
     <button class="dl-btn admin-header-btn hdr-icon-btn" id="admin-header-btn" onclick="openAdminModal()" title="Admin Panel" aria-label="Admin Panel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></button>
     <span class="admin-mode-badge" id="admin-mode-badge" style="display:none">Admin Mode</span>
-    <div class="result-count">Showing <span id="count">774</span> products</div>
   </div>
 </header>
 <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
@@ -48,7 +67,10 @@
     <div class="legend-item"><div class="legend-dot" style="background:var(--srp)"></div>SRP (Retail)</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--dp)"></div>DP (Dealer)</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--dpvol)"></div>DP Vol (Volume)</div>
-    <div style="margin-left:auto;font-size:0.68rem;color:var(--text-dim)">Click any row / card for full details</div>
+    <div class="legend-right" style="margin-left:auto;display:flex;align-items:center;gap:1rem">
+      <span class="legend-hint" style="font-size:0.68rem;color:var(--text-dim)">Click any row / card for full details</span>
+      <div class="view-toggle"><button class="view-btn active" id="btn-table" onclick="setView('table')" title="Table view" aria-label="Table view"><span class="vb-ico">≡</span><span class="vb-txt"> Table</span></button><button class="view-btn" id="btn-grid" onclick="setView('grid')" title="Grid view" aria-label="Grid view"><span class="vb-ico">⊞</span><span class="vb-txt"> Grid</span></button></div>
+    </div>
     <span class="save-indicator saved" id="save-indicator" style="opacity: 0;">● Saved</span>
   </div>
   <p style="font-size:.65rem;color:var(--text-dim);margin:.35rem 0 .75rem;font-style:italic">* Prices are subject to change without prior notice.</p>
@@ -152,7 +174,7 @@
 <script src="js/filters.js?v=p1"></script>
 <script src="js/search.js"></script>
 <script src="js/render.js?v=p4"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=p1"></script>
 <script src="js/exports.js?v=p3"></script>
 <script src="js/admin.js?v=p12"></script>
 <script src="js/github-save.js?v=p4"></script>
