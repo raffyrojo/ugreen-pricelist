@@ -1731,3 +1731,18 @@ body.so-lock{ overflow:hidden; }
 .grid-desc{flex:0 0 auto}
 .grid-meta{margin-top:auto}
 .grid-prices{margin-top:0.3rem}
+
+/* p22: Grid card — Color/Length badges now sit directly under the item code (top).
+   Markup reordered in render.js (code -> meta -> name -> desc -> prices).
+   Move the bottom-pin off .grid-meta and onto .grid-prices so the price block
+   still bottom-aligns uniformly across a row. */
+.grid-meta{margin-top:0.15rem}
+.grid-prices{margin-top:auto}
+
+/* p23: Grid card — reserve uniform block heights so every card aligns row-to-row.
+   Badge row keeps a fixed height (even the 9 SKUs with no color/length),
+   product name clamps to 2 lines, summary clamps to 2 lines. Prices already
+   bottom-pin (p22). Full name + description remain in the product modal. */
+.grid-meta{min-height:1.15rem}
+.grid-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.grid-desc{min-height:2.8em}
