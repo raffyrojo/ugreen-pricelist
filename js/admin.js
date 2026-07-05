@@ -586,6 +586,7 @@ function saveSku() {
     upc: (document.getElementById('f-upc').value||'').trim(),
     material_number: (document.getElementById('f-mat').value||'').trim(),
     description: descLines.join('\n'),
+    short_desc: (function(){var e=document.getElementById('f-short');return e?(e.value||'').replace(/\s+/g,' ').trim():'';})(),
     features: featLines.length ? '*placeholder\n'+featLines.map(function(f){return '*'+f;}).join('\n') : '',
     remarks: '', image: imgKey||'', dateAdded: dateAdded, created_at: created_at
   };
@@ -1173,6 +1174,12 @@ function renderAddForm(prefill) {
   var fMOQ='<div class="form-field"><label>MOQ</label><input id="f-moq" type="number" value="'+esc(String(p.moq||''))+'" placeholder="0"></div>';
   var fDesc='<div class="form-field form-full"><label>Description <span class="form-hint">One bullet point per line</span></label><textarea id="f-desc" rows="4" placeholder="HDMI Cable for 4K displays&#10;Compatible with PS5, Xbox">'+esc(parseBullets(p.description||'').join('\n'))+'</textarea></div>';
   var fFeats='<div class="form-field form-full"><label>Features <span class="form-hint">One feature per line</span></label><textarea id="f-feats" rows="3" placeholder="4K@60Hz&#10;Gold-plated connectors">'+esc(parseFeats(p.features||'').join('\n'))+'</textarea></div>';
+  var fShort='<div class="form-field form-full"><label>Card Summary <span class="form-hint">One sentence shown on the grid card (≤80 chars). Generate from Description/Features, or type your own.</span></label>'+
+    '<div style="display:flex;gap:6px;align-items:flex-start">'+
+      '<input id="f-short" maxlength="90" value="'+esc(p.short_desc||'')+'" placeholder="e.g. 20W USB-C GaN charger with PD fast charging." oninput="_shortCount()" style="flex:1">'+
+      '<button type="button" id="btn-gen-sum" class="btn-ghost" style="white-space:nowrap;padding:.45rem .7rem;border:1px solid var(--border);border-radius:6px" onclick="genSummary()" title="Generate a one-sentence summary with AI">✨ Generate</button>'+
+    '</div>'+
+    '<span class="form-hint" id="f-short-count" style="display:block;margin-top:.2rem"></span></div>';
   var fImg='<div class="form-field form-full"><label>Image URL <span class="form-hint">Paste https:// link</span></label>'+
     '<input type="text" id="f-img-url" placeholder="https://example.com/product.jpg" value="'+(p.image&&/^https?:\/\//.test(p.image)?esc(p.image):'')+'"><div style="font-size:.6rem;color:var(--srp);margin:.25rem 0;line-height:1.4">⚠ URLs may fail in Excel/PDF exports if the source blocks CORS. <strong>File uploads are more reliable.</strong></div><div style="font-size:.62rem;color:var(--text-dim);margin:.3rem 0">OR upload file:</div>'+
     '<input type="file" id="f-img" accept="image/*" onchange="previewImg(this)"><div style="font-size:.62rem;color:var(--text-dim);margin-top:.3rem">Images are auto-optimized: max 1000px, ~50–150 KB. Originals stay on your device.</div>'+
@@ -1191,6 +1198,7 @@ function renderAddForm(prefill) {
         '<div class="ped-tab active" id="ped-general">'+
           '<div class="form-grid">'+fIC+fCat+fName+'</div>'+
           '<div class="form-grid" style="margin-top:.85rem">'+fDesc+fFeats+'</div>'+
+          '<div class="form-grid" style="margin-top:.85rem">'+fShort+'</div>'+
         '</div>'+
         '<div class="ped-tab" id="ped-pricing">'+
           '<p class="ped-note">Volume price applies only when the order meets MOQ.</p>'+
@@ -2328,3 +2336,42 @@ function adminDuplicateProduct(code){
   showToast('Duplicated as '+nc+' \u2014 opening editor');
   if(typeof adminEditProduct==='function') adminEditProduct(nc);
 }
+
+/* ── AI card-summary generation (SKU editor) ──────────────────────────────
+   Calls the Cloudflare Worker's `summarize` action (same admin password as
+   publishing; Anthropic key lives only in the Worker). Fills #f-short. */
+var _ugSumPw = null;
+function genSummary(){
+  var g=function(id){var e=document.getElementById(id);return e?(e.value||''):'';};
+  var name=g('f-name').trim(), desc=g('f-desc'), feats=g('f-feats'), cat=g('f-cat');
+  if(!name && !desc.trim() && !feats.trim()){ showToast('Add a product name, description, or features first.'); return; }
+  var cfg=window.CONFIG||{}, endpoint=cfg.backend&&cfg.backend.workerEndpoint;
+  if(!endpoint){ showToast('No backend configured (workerEndpoint missing in config.js).'); return; }
+  if(!_ugSumPw){
+    _ugSumPw=window.prompt('Enter the admin save password to generate a summary:');
+    if(_ugSumPw===null) return;
+    if(!_ugSumPw){ showToast('Cancelled — no password entered.'); return; }
+  }
+  var btn=document.getElementById('btn-gen-sum'), old=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Generating…'; }
+  fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'summarize',password:_ugSumPw,product:{product_name:name,description:desc,features:feats,category:cat}})})
+   .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){return {status:r.status,body:j};}); })
+   .then(function(res){
+     if(btn){ btn.disabled=false; btn.textContent=old||'✨ Generate'; }
+     if(res.status===401){ _ugSumPw=null; showToast('Wrong password — click Generate to try again.'); return; }
+     if(res.status!==200 || !res.body || !res.body.ok){ showToast('Summary failed: '+((res.body&&res.body.error)||('HTTP '+res.status))); return; }
+     var fld=document.getElementById('f-short');
+     if(fld){ fld.value=res.body.summary; if(typeof _shortCount==='function') _shortCount(); }
+     showToast('Summary generated — review it, then Save SKU.');
+   })
+   .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent=old||'✨ Generate'; } showToast('Summary request error: '+(e.message||e)); });
+}
+function _shortCount(){
+  var f=document.getElementById('f-short'), c=document.getElementById('f-short-count');
+  if(!f||!c) return;
+  var n=(f.value||'').length;
+  c.textContent=n+'/80 characters'+(n>80?' — a little long for the card':'');
+  c.style.color=(n>80?'var(--srp)':'var(--text-dim)');
+}
+if(typeof window!=='undefined'){ window.genSummary=genSummary; window._shortCount=_shortCount; }
