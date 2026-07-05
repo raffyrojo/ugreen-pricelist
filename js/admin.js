@@ -1508,38 +1508,57 @@ function renderAdminContent(){
   } else {
     /* ── Login view — compact modal ── */
     modal.classList.remove('adm-dash');modal.classList.add('adm-login');
+    var _pl=(typeof PROMO_CONFIG!=='undefined'&&PROMO_CONFIG&&PROMO_CONFIG.enabled);
     el.innerHTML=
       '<div class="adm-login-wrap">'+
         '<aside class="adm-login-left">'+
           '<div class="adm-ll-shapes" aria-hidden="true"><span></span><span></span><span></span></div>'+
-          '<div class="adm-ll-content">'+
+          '<div class="adm-ll-card adm-ll-card--a" aria-hidden="true"><div class="l">Products</div><div class="v">'+((typeof ALL_PRODUCTS!=="undefined"&&ALL_PRODUCTS)?ALL_PRODUCTS.length:774)+'</div><div class="bars"><i style="height:42%"></i><i style="height:66%"></i><i style="height:50%"></i><i style="height:82%"></i><i style="height:60%"></i></div></div>'+
+          '<div class="adm-ll-card adm-ll-card--b" aria-hidden="true"><div class="l">Uptime</div><div class="v">99.9%</div></div>'+
+          '<div class="adm-ll-content adm-anim" style="--d:120ms">'+
             '<img class="adm-ll-logo" src="'+UGREEN_LOGO_LIGHT+'" alt="UGREEN">'+
-            '<h2 class="adm-ll-welcome">WELCOME</h2>'+
+            '<h2 class="adm-ll-welcome">Welcome Back</h2>'+
             '<p class="adm-ll-sub">UGREEN Product Management Portal</p>'+
-            '<p class="adm-ll-desc">Secure access for authorized Iontech personnel. Manage products, pricing, and administrative settings from one place.</p>'+
+            '<span class="adm-ll-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Secure Enterprise Login</span>'+
+            '<p class="adm-ll-intro">Everything you need to manage the UGREEN product portfolio in one place.</p>'+
+            '<ul class="adm-ll-features">'+
+              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Product Catalog</li>'+
+              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Dealer Pricelist</li>'+
+              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Promotions &amp; Campaigns</li>'+
+              '<li><span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Product Updates &amp; Announcements</li>'+
+            '</ul>'+
+            '<div class="adm-ll-ann">'+
+              '<span class="ic">'+(_pl?'\ud83d\udd25':'\ud83d\udce2')+'</span>'+
+              '<span class="tx"><span class="t">'+(_pl?'Active Promotion':'Portal Update')+'</span><span class="m">'+(_pl?'A dealer promo is currently live in the storefront.':'Manage your full UGREEN catalog and dealer pricing in one place.')+'</span></span>'+
+            '</div>'+
           '</div>'+
-          '<div class="adm-ll-foot">Powered by Iontech Inc.</div>'+
+          '<div class="adm-ll-foot">Powered by Iontech Inc.<br><span class="v">Version '+APP_VERSION+'</span></div>'+
         '</aside>'+
         '<section class="adm-login-right">'+
-          '<button class="adm-close-btn adm-login-close" onclick="closeAdminModal()" title="Close">&times;</button>'+
+          '<button class="adm-close-btn adm-login-close" onclick="closeAdminModal()" title="Close" aria-label="Close">&times;</button>'+
           '<div class="adm-lr-inner" id="adm-lr-card">'+
-            '<h3 class="adm-lr-title">Admin Sign In</h3>'+
-            '<p class="adm-lr-sub">Enter your credentials to continue.</p>'+
-            '<label class="adm-field-label" for="adm-username">Username</label>'+
-            '<div class="adm-field">'+
-              '<span class="adm-field-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>'+
-              '<input id="adm-username" class="adm-field-input" type="text" placeholder="Enter your username" autocomplete="username" aria-label="Username">'+
+            '<div class="adm-lr-status adm-anim" style="--d:200ms"><span class="dot"></span>System Online</div>'+
+            '<h3 class="adm-lr-title adm-anim" style="--d:250ms">Admin Sign In</h3>'+
+            '<p class="adm-lr-sub adm-anim" style="--d:290ms">Secure access for authorized Iontech personnel.</p>'+
+            '<div class="adm-anim" style="--d:340ms">'+
+              '<label class="adm-field-label" for="adm-username">Username</label>'+
+              '<div class="adm-field">'+
+                '<span class="adm-field-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>'+
+                '<input id="adm-username" class="adm-field-input" type="text" placeholder="Enter your username" autocomplete="username" aria-label="Username">'+
+              '</div>'+
             '</div>'+
-            '<label class="adm-field-label" for="adm-pin-field">Password</label>'+
-            '<div class="adm-field">'+
-              '<span class="adm-field-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>'+
-              '<input id="adm-pin-field" class="adm-field-input" type="password" maxlength="20" placeholder="Enter your password" autocomplete="current-password" aria-label="Password" onkeydown="if(event.key===\x27Enter\x27)submitPin()">'+
-              '<button type="button" class="adm-show-btn" onclick="var i=document.getElementById(\x27adm-pin-field\x27);if(i.type===\x27password\x27){i.type=\x27text\x27;this.textContent=\x27Hide\x27;}else{i.type=\x27password\x27;this.textContent=\x27Show\x27;}">Show</button>'+
+            '<div class="adm-anim" style="--d:390ms">'+
+              '<label class="adm-field-label" for="adm-pin-field">Password</label>'+
+              '<div class="adm-field">'+
+                '<span class="adm-field-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>'+
+                '<input id="adm-pin-field" class="adm-field-input" type="password" maxlength="20" placeholder="Enter your password" autocomplete="current-password" aria-label="Password" onkeydown="if(event.key===\x27Enter\x27)submitPin()">'+
+                '<button type="button" class="adm-show-btn" aria-label="Show password" onclick="admTogglePw(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>'+
+              '</div>'+
             '</div>'+
-            '<label class="adm-remember"><input type="checkbox" id="adm-remember"><span>Remember me</span></label>'+
+            '<label class="adm-remember adm-anim" style="--d:440ms"><input type="checkbox" id="adm-remember"><span class="adm-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>Remember me</span></label>'+
             '<div class="adm-error" id="adm-err"></div>'+
-            '<button class="adm-signin-btn" id="adm-login-btn" onclick="submitPin()"><span class="adm-btn-label">Sign In</span><span class="adm-spin" aria-hidden="true"></span></button>'+
-            '<div class="adm-lr-foot">Authorized Personnel Only<br>Iontech Inc.</div>'+
+            '<button class="adm-signin-btn adm-anim" style="--d:490ms" id="adm-login-btn" onclick="submitPin()"><span class="adm-btn-label">Sign In</span><span class="adm-btn-loading"><span class="adm-spin" aria-hidden="true"></span>Signing In\u2026</span></button>'+
+            '<div class="adm-lr-foot adm-anim" style="--d:540ms">&copy; '+new Date().getFullYear()+' Iontech Inc. \u00b7 Authorized Personnel Only<br><span class="v">Version '+APP_VERSION+'</span></div>'+
           '</div>'+
         '</section>'+
       '</div>';
@@ -1589,6 +1608,16 @@ function submitPin(){
       var _c=document.getElementById('adm-lr-card'); if(_c){_c.classList.remove('adm-shake');void _c.offsetWidth;_c.classList.add('adm-shake');}
     }
   });
+}
+
+function admTogglePw(btn){
+  var i=document.getElementById('adm-pin-field'); if(!i)return;
+  var EYE='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYEOFF='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  var reveal=(i.type==='password');
+  i.type=reveal?'text':'password';
+  btn.setAttribute('aria-label',reveal?'Hide password':'Show password');
+  btn.innerHTML=reveal?EYEOFF:EYE;
 }
 
 function changePin(){
