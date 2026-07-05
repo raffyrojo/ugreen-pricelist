@@ -49,6 +49,8 @@ function fixMobileLayout(){
   var layout=document.querySelector('.layout');
   if(!layout)return;
   if(window.innerWidth<=640){
+    /* Mobile = grid-only: never leave the table view active. */
+    if(typeof currentView!=='undefined' && currentView!=='grid' && typeof setView==='function'){setView('grid');}
     var hh=document.querySelector('header')?document.querySelector('header').getBoundingClientRect().height:106;
     layout.style.height=(window.innerHeight-hh)+'px';
     var sideEl=document.querySelector('aside');if(sideEl)sideEl.style.top=hh+'px';
