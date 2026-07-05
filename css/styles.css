@@ -1685,3 +1685,43 @@ body.so-lock{ overflow:hidden; }
 .na-btn.active,.na-btn:hover{border-color:var(--accent)}
 .na-badge{background:var(--accent);color:#fff}
 .grid-name .sku-new-badge{vertical-align:middle}
+
+
+/* ===== Support dropdown (header) — mirrors the Export (.dl-*) pattern, same tokens ===== */
+.sup-wrap{position:relative}
+.sup-btn{gap:6px}
+.sup-btn .sup-help-ico{display:block;flex-shrink:0}
+.sup-txt{font-size:.75rem;line-height:1}
+.sup-btn[aria-expanded="true"]{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
+.sup-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:234px;max-width:290px;box-shadow:var(--shadow-md);z-index:200}
+.sup-menu.open{display:block;animation:supFade .14s ease}
+@keyframes supFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.sup-group{padding:.4rem 0;border-bottom:1px solid var(--border)}
+.sup-group:last-child{border-bottom:none}
+.sup-label{font-family:'Metropolis',sans-serif;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);padding:.3rem .9rem}
+.sup-item{display:flex;align-items:center;gap:.6rem;width:100%;padding:.45rem .9rem;border:none;background:transparent;color:var(--text-muted);font-family:'Metropolis',sans-serif;font-size:.8rem;text-decoration:none;cursor:pointer;text-align:left;transition:background .12s,color .12s,padding-left .15s}
+.sup-item-txt{flex:1;min-width:0}
+.sup-item:hover,.sup-item:focus-visible{background:var(--surface2);color:var(--accent);padding-left:1.15rem;outline:none}
+.sup-item:focus-visible{box-shadow:inset 2px 0 0 var(--accent)}
+.sup-ext{margin-left:auto;display:inline-flex;align-items:center;color:var(--text-dim);flex-shrink:0;transition:transform .15s ease,color .12s}
+.sup-item:hover .sup-ext,.sup-item:focus-visible .sup-ext{color:var(--accent);transform:translate(2px,-2px)}
+@media (max-width:1024px){ .sup-btn .sup-txt{display:none} .sup-btn{width:34px;height:34px;padding:0;justify-content:center;gap:0} }
+@media (max-width:640px){
+  .sup-wrap{position:static}
+  .sup-menu{position:fixed;top:56px;left:0;right:0;min-width:0;max-width:100%;width:100%;max-height:calc(100vh - 56px);overflow-y:auto;border-radius:0 0 12px 12px;border-left:none;border-right:none;box-shadow:var(--shadow-lg)}
+  .sup-item{padding:.7rem 1rem}
+  .sup-item:hover,.sup-item:focus-visible{padding-left:1.25rem}
+}
+
+
+/* ===== View toggle relocated to content toolbar (legend, right-aligned) ===== */
+.legend-right{align-items:center}
+.legend .view-toggle{flex-shrink:0}
+@media (max-width:640px){
+  /* Legend now hosts the view toggle; keep it usable on mobile while hiding the price-legend clutter. */
+  .legend{display:flex;gap:.6rem;margin-bottom:.6rem;flex-wrap:nowrap;align-items:center}
+  .legend .legend-item,.legend .legend-hint,.legend .save-indicator{display:none}
+  .legend .legend-right{margin-left:auto;gap:0}
+  .legend .view-toggle{margin-left:auto}
+}
+
