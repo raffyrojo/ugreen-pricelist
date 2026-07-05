@@ -1,8 +1,8 @@
 {
-  "enabled": false,
+  "enabled": true,
   "linkUrl": "",
-  "altText": "UGREEN Promo",
+  "altText": "UGREEN X HONKAI STARRAIL",
   "duration": 10,
   "mediaType": "image",
-  "image": ""
+  "image": "images/promo/promo-1783255883967.png"
 }
