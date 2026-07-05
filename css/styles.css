@@ -1671,3 +1671,20 @@ body.so-lock{ overflow:hidden; }
   #search.so-input{ font-size:1.1rem; }
   .search-panel-close{ top:.8rem; right:.8rem; }
 }
+
+
+/* ===== Phase 12 — unify UI icons to one SVG line-icon set ===== */
+.sidebar-toggle svg{width:20px;height:20px;display:block}
+.view-toggle .view-btn .vb-ico{display:inline-flex;align-items:center;justify-content:center}
+.view-toggle .view-btn .vb-ico svg{width:15px;height:15px;display:block}
+.dl-menu-item .dl-icon{display:inline-flex;align-items:center;justify-content:center}
+.dl-menu-item .dl-icon svg{width:16px;height:16px;display:block}
+.up-ico{display:inline-flex;align-items:center;justify-content:center}
+.up-ico svg{width:18px;height:18px;display:block;color:var(--accent)}
+.ico-inline{width:14px;height:14px;flex-shrink:0}
+.btn-admin-edit,.btn-admin-del{display:inline-flex;align-items:center;gap:.35rem}
+.btn-admin-edit .ico-inline,.btn-admin-del .ico-inline{width:13px;height:13px}
+.ico-spin{animation:spin .8s linear infinite}
+.no-img-grid svg{width:30px;height:30px;opacity:.5}
+.so-noimg svg{width:28px;height:28px;opacity:.5}
+.warn-ico{width:12px;height:12px;flex-shrink:0;vertical-align:-2px;margin-right:3px}
