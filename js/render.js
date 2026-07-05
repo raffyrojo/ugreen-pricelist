@@ -127,7 +127,7 @@ function openModal(itemCode){
   document.getElementById('modal-code').textContent='Item: '+p.item_code+(p.model?' · Model: '+p.model:'');
   document.getElementById('modal-prices').innerHTML=
     '<div class="modal-price"><div class="plabel" style="opacity:.75">SRP</div><div class="pval price-srp">'+fmt(p.srp)+'</div></div>'+
-    '<div class="modal-price dp-highlight"><div class="plabel" style="color:var(--dp)">Dealer Price</div><div class="pval price-dp" style="font-size:1.15rem">'+fmt(p.dp)+'</div></div>'+
+    '<div class="modal-price dp-highlight"><div class="plabel" style="color:var(--dp)">Dealer Price</div><div class="pval price-dp">'+fmt(p.dp)+'</div></div>'+
     '<div class="modal-price"><div class="plabel" style="opacity:.7">DP Volume</div><div class="pval price-dpv">'+fmt(p.dp_volume)+'</div>'+(p.moq?'<div class="dpv-moq-note" style="margin-top:4px;font-size:.58rem">Valid only for orders ≥ '+p.moq+' units</div>':'')+'</div>';
   var bottomParts=[];
   bottomParts.push('<div class="sku-action-bar" style="margin-bottom:.8rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)"><button class="btn-screenshot" onclick="captureSkuCard(\''+p.item_code+'\',this)">📸 Screenshot</button></div>');
