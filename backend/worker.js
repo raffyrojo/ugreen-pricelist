@@ -23,6 +23,7 @@ export default {
     if (request.method === 'GET') {
       const url = new URL(request.url);
       if (url.searchParams.get('trending') != null) return handleTrendingGet(env, cors);
+      if (url.searchParams.get('searches') != null) return handleSearchesGet(env, cors);
       return json({ ok: true, service: 'ugreen-cms' }, 200, cors);
     }
     if (request.method !== 'POST') return json({ error: 'POST only' }, 405, cors);
@@ -153,6 +154,16 @@ async function handleTrendingGet(env, cors) {
   for (const b of buckets) { if (b && b.views) for (const c in b.views) totals[c] = (totals[c] || 0) + b.views[c]; }
   const top = Object.keys(totals).sort((a, b) => totals[b] - totals[a]).slice(0, 12);
   return json(top, 200, cors); // array of item_codes — same shape as data/trending.json
+}
+async function handleSearchesGet(env, cors) {
+  if (!env.TRENDING) return json([], 200, cors);
+  const keys = _recentDayKeys(30);
+  let buckets = [];
+  try { buckets = await Promise.all(keys.map(k => env.TRENDING.get(k, 'json').catch(() => null))); } catch (e) { buckets = []; }
+  const totals = {};
+  for (const b of buckets) { if (b && b.searches) for (const t in b.searches) totals[t] = (totals[t] || 0) + b.searches[t]; }
+  const top = Object.keys(totals).sort((a, b) => totals[b] - totals[a]).slice(0, 12);
+  return json(top, 200, cors); // array of search terms, most-searched first (cross-visitor, 30-day)
 }
 async function handleResetTrending(payload, env, cors) {
   if (!payload.password || payload.password !== env.ADMIN_SAVE_SECRET) return json({ error: 'Unauthorized' }, 401, cors);
