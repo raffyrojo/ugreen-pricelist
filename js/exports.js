@@ -1332,6 +1332,7 @@ function _doCatalogPdf(filtered) {
 }
 
 function _x_captureSkuCard(itemCode, btn) {
+  hideLoading(); // dismiss the 'Preparing images' overlay; this path uses its own button+toast UX
   try {
     if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Loading…'; }
     _ensureHtml2Canvas(
