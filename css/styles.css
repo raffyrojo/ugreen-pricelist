@@ -1676,3 +1676,12 @@ body.so-lock{ overflow:hidden; }
 .hdr-icon-btn{width:34px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:1.05rem;line-height:1;transition:background .15s,color .15s,border-color .15s}
 .hdr-icon-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
 .hdr-icon-btn svg{display:block}
+
+
+/* ===== New Arrivals (public, auto-expiring) ===== */
+.sb-newarrivals{margin-bottom:.4rem}
+.na-btn{font-weight:600}
+.na-btn .na-dot{margin-right:.4rem;font-size:.85em}
+.na-btn.active,.na-btn:hover{border-color:var(--accent)}
+.na-badge{background:var(--accent);color:#fff}
+.grid-name .sku-new-badge{vertical-align:middle}
