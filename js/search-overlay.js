@@ -90,7 +90,7 @@
   /* ---- rendering ---- */
   function _imgHtml(p){
     var s=(typeof imgSrc==='function')?imgSrc(p.image):p.image;
-    return s?'<img src="'+_esc(s)+'" loading="lazy" alt="">':'<div class="so-noimg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
+    return s?'<img src="'+_esc(s)+'" loading="lazy" alt="">':'<div class="so-noimg">📦</div>';
   }
   function renderOverlay(){
     var tags=document.getElementById('so-tags');
