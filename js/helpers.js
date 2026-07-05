@@ -43,6 +43,31 @@ function descBulletsHtml(raw,ctx){var lines=parseBullets(raw);if(!lines.length)r
 function isRecentlyNew(){ return false; }
 function isRecentlyMerged(){ return false; }
 
+/* ---- Public "New Arrivals" detector (auto-expiring). A SKU is NEW for
+   NEW_WINDOW_DAYS days after it was added, then drops off automatically.
+   Handles both dateAdded formats in the data: numeric ms (single-add / clone)
+   and "YYYY-MM" month strings (Excel bulk import); falls back to created_at.
+   Widen the window by changing NEW_WINDOW_DAYS. ---- */
+var NEW_WINDOW_DAYS = 30;
+function _newAddedTs(p){
+  if(!p) return 0;
+  var d=p.dateAdded;
+  if(typeof d==='number' && isFinite(d)) return d;
+  if(typeof d==='string'){
+    if(/^\d{4}-\d{2}$/.test(d)){var a=d.split('-');return Date.UTC(+a[0],+a[1]-1,1);}
+    if(/^\d{4}-\d{2}-\d{2}/.test(d)){var t=Date.parse(d);if(!isNaN(t))return t;}
+    if(/^\d+$/.test(d))return +d;
+  }
+  if(p.created_at){var c=Date.parse(p.created_at);if(!isNaN(c))return c;}
+  return 0;
+}
+function isNewArrival(p){
+  var ts=_newAddedTs(p);
+  if(!ts) return false;
+  var age=Date.now()-ts;
+  return age>=0 && age<=NEW_WINDOW_DAYS*86400000;
+}
+
 /* Admin gate — implemented in Phase 4. Browse-only build: never admin. */
 function isAdmin(){ return false; }
 

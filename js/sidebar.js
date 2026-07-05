@@ -28,6 +28,18 @@ function rebuildSidebar(){
   container.innerHTML='';
   var secCatMap=buildSectionCategoryMap(ALL_PRODUCTS);
 
+  // New Arrivals shortcut (public, auto-expiring). Only shown when >0 so it is never a dead "(0)" link.
+  var _naCount=0; try{ for(var _i=0;_i<ALL_PRODUCTS.length;_i++){ if(typeof isNewArrival==='function'&&isNewArrival(ALL_PRODUCTS[_i]))_naCount++; } }catch(e){}
+  if(_naCount>0){
+    var naWrap=document.createElement('div'); naWrap.className='sb-group sb-newarrivals';
+    var na=document.createElement('button');
+    na.className='filter-btn na-btn'+(currentFilter.type==='new'?' active':'');
+    na.dataset.filterType='new';
+    na.innerHTML='<span class="na-dot">\u2728</span><span style="flex:1;min-width:0;word-break:break-word">New Arrivals</span><span class="badge na-badge">'+_naCount+'</span>';
+    na.onclick=function(){setFilter('new','');};
+    naWrap.appendChild(na); container.appendChild(naWrap);
+  }
+
   secCatMap.forEach(function(sec){
     var cats=Object.keys(sec.cats).map(function(k){return sec.cats[k];})
       .filter(function(c){return c.count>0;})
@@ -84,7 +96,7 @@ function rebuildSidebar(){
   });
 
   var allBtn=document.querySelector('.filter-btn[data-filter-type="all"]');
-  if(allBtn){var badge=allBtn.querySelector('.badge');if(badge)badge.textContent=ALL_PRODUCTS.length;}
+  if(allBtn){var badge=allBtn.querySelector('.badge');if(badge)badge.textContent=ALL_PRODUCTS.length;allBtn.classList.toggle('active',currentFilter.type==='all');}
 }
 
 function toggleSidebar(){var aside=document.getElementById('sidebar');if(!aside)return;if(aside.classList.contains('sidebar-open'))closeSidebar();else openSidebar();}

@@ -3,6 +3,7 @@
 function getFiltered(){
   var q=currentSearch.trim().toLowerCase();
   var f=ALL_PRODUCTS.filter(function(p){
+    if(currentFilter.type==='new'){if(!(typeof isNewArrival==='function'&&isNewArrival(p)))return false;}
     if(currentFilter.type==='sheet'&&p.sheet!==currentFilter.value)return false;
     if(currentFilter.type==='category'){if(p.category!==currentFilter.value)return false;if(currentFilter.section&&p.sheet!==currentFilter.section)return false;}
     if(!q)return true;

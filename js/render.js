@@ -40,7 +40,7 @@ function renderTable(filtered,q){
     rows.push(
       '<tr data-key="'+i+'">'+
       thumbCell(p.image)+
-      '<td class="td-product"><div class="product-name">'+hl(p.product_name,q)+(isRecentlyNew(p.item_code)?'<span class="sku-new-badge">NEW</span>':'')+(isRecentlyMerged(p.item_code)?'<span class="sku-merged-badge">MERGED</span>':'')+'</div></td>'+
+      '<td class="td-product"><div class="product-name">'+hl(p.product_name,q)+((typeof isNewArrival==='function'&&isNewArrival(p))?'<span class="sku-new-badge">NEW</span>':'')+(isRecentlyMerged(p.item_code)?'<span class="sku-merged-badge">MERGED</span>':'')+'</div></td>'+
       '<td class="td-model">'+(p.model?hl(p.model,q):'—')+'</td>'+
       '<td class="td-code">'+hl(p.item_code,q)+'</td>'+
       '<td class="td-specs">'+(p.color?'<span class="spec-tag">'+hl(p.color,q)+'</span>':'')+(p.length?'<span class="spec-tag">'+hl(p.length,q)+'</span>':'')+'</td>'+
@@ -64,7 +64,7 @@ function renderGrid(filtered,q){
       '<div class="grid-img">'+gridImgHtml(p.image)+'</div>'+
       '<div class="grid-body">'+
         '<div class="grid-code">'+hl(p.item_code,q)+'</div>'+
-        '<div class="grid-name">'+hl(p.product_name,q)+'</div>'+
+        '<div class="grid-name">'+hl(p.product_name,q)+((typeof isNewArrival==='function'&&isNewArrival(p))?'<span class="sku-new-badge" style="margin-left:6px">NEW</span>':'')+'</div>'+
         (p.description?'<div class="grid-desc">'+esc(firstBullet(p.description))+'</div>':'')+
         '<div class="grid-meta">'+(p.color?tag(p.color):'')+(p.length?tag(p.length):'')+'</div>'+
         '<div class="grid-prices">'+
