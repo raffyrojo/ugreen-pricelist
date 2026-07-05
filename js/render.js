@@ -119,6 +119,7 @@ function toggleExpand(tr){
 function openModal(itemCode){
   var p=ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(itemCode);});
   if(!p)return;
+  try{ if(typeof recordView==='function') recordView(itemCode); }catch(e){}   /* Phase 11: track views for trending fallback */
   var s=imgSrc(p.image);
   document.getElementById('modal-img-panel').innerHTML=s?'<img src="'+s+'" alt="'+esc(p.product_name||'Product image')+'">':'<div class="modal-no-img">No Image</div>';
   document.getElementById('modal-cat').textContent=p.category||'';
