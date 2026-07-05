@@ -64,9 +64,9 @@ function renderGrid(filtered,q){
       '<div class="grid-img">'+gridImgHtml(p.image)+'</div>'+
       '<div class="grid-body">'+
         '<div class="grid-code">'+hl(p.item_code,q)+'</div>'+
-        '<div class="grid-name">'+hl(p.product_name,q)+((typeof isNewArrival==='function'&&isNewArrival(p))?'<span class="sku-new-badge" style="margin-left:6px">NEW</span>':'')+'</div>'+
-        (p.description?'<div class="grid-desc">'+esc(firstBullet(p.description))+'</div>':'')+
         '<div class="grid-meta">'+(p.color?tag(p.color):'')+(p.length?tag(p.length):'')+'</div>'+
+        '<div class="grid-name">'+hl(p.product_name,q)+((typeof isNewArrival==='function'&&isNewArrival(p))?'<span class="sku-new-badge" style="margin-left:6px">NEW</span>':'')+'</div>'+
+        ((p.short_desc||p.description)?'<div class="grid-desc">'+esc(p.short_desc||firstBullet(p.description))+'</div>':'')+
         '<div class="grid-prices">'+
           '<div class="grid-price"><div class="plabel" style="opacity:.75">SRP</div><div class="pval price-srp" style="font-size:.7rem;opacity:.8">'+fmtS(p.srp)+'</div></div>'+
           '<div class="grid-price"><div class="plabel" style="color:var(--dp);font-weight:600">Dealer ₱</div><div class="pval price-dp" style="font-size:.85rem;font-weight:700">'+fmtS(p.dp)+'</div></div>'+
