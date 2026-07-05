@@ -1722,3 +1722,12 @@ body.so-lock{ overflow:hidden; }
   .legend{display:none}
 }
 
+
+/* p21: Grid card uniform alignment.
+   Root cause: only cards WITH a description had .grid-desc{flex:1}, so cards
+   without one left the meta+price blocks floating at inconsistent heights.
+   Fix: bottom-pin the meta+prices group on every card so badges and prices
+   align across a row regardless of name length or description presence. */
+.grid-desc{flex:0 0 auto}
+.grid-meta{margin-top:auto}
+.grid-prices{margin-top:0.3rem}
