@@ -1,0 +1,65 @@
+name: Validate
+
+# Repo-level anti-corruption guard. Runs on every push/PR to main.
+# Catches truncated or broken files (the class of bug that silently disabled
+# the in-app Publish button) BEFORE they can affect the live site.
+# Validate-only: it does NOT deploy and never interferes with GitHub Pages.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: JS syntax check (node --check every module)
+        run: |
+          set -e
+          for f in js/*.js; do
+            echo "checking $f"
+            node --check "$f"
+          done
+
+      - name: JSON files parse cleanly
+        run: |
+          set -e
+          for f in data/products.json data/categories.json data/settings.json; do
+            if [ -f "$f" ]; then
+              node -e "JSON.parse(require('fs').readFileSync('$f','utf8'));console.log('OK $f')"
+            fi
+          done
+          node --check config.js && echo "OK config.js"
+
+      - name: index.html is complete (closes body/html)
+        run: |
+          grep -q "</body>" index.html && grep -q "</html>" index.html && echo "index.html complete" || (echo "::error::index.html looks truncated" && exit 1)
+
+      - name: Publish wiring present (regression guard for the truncated-save bug)
+        run: |
+          if grep -q "function saveCurrentVersion(){ saveToGitHub(); }" js/github-save.js; then
+            echo "publish override present"
+          else
+            echo "::error::github-save.js missing saveCurrentVersion -> saveToGitHub override"
+            exit 1
+          fi
+
+      - name: No NUL bytes in tracked text files (mount-corruption guard)
+        run: |
+          set -e
+          bad=0
+          for f in index.html config.js js/*.js css/*.css .github/workflows/*.yml tools/*.mjs; do
+            [ -f "$f" ] || continue
+            if LC_ALL=C grep -qP '\x00' "$f"; then echo "::error::NUL byte found in $f"; bad=1; fi
+          done
+          if [ "$bad" -ne 0 ]; then exit 1; fi
+          echo "no NUL bytes found"
