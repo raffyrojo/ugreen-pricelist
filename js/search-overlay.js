@@ -13,6 +13,7 @@
   var SKEY='ugreen_search_stats', VKEY='ugreen_view_stats';
   var MAX_TAGS=8, MAX_SUGGEST=6;
   var _trending=null, _trendingTried=false, _open=false;
+  var _buf={views:{},searches:{}}, _flushed=false;
 
   function _load(k){ try{ return JSON.parse(localStorage.getItem(k)||'{}'); }catch(e){ return {}; } }
   function _save(k,o){ try{ localStorage.setItem(k,JSON.stringify(o)); }catch(e){} }
@@ -25,12 +26,30 @@
     term=(term||'').trim().toLowerCase();
     if(term.length<3) return;
     var s=_load(SKEY); s[term]=(s[term]||0)+1; _save(SKEY,s);
+    _buf.searches[term]=1; _flushed=false;
   }
   function recordView(code){
     if(code==null) return;
     var v=_load(VKEY), k=String(code); v[k]=(v[k]||0)+1; _save(VKEY,v);
+    _buf.views[k]=1; _flushed=false;
   }
   window.recordView=recordView;   /* called from render.js openModal() */
+
+  /* Send this session's unique viewed codes + searched terms to the Worker
+     (anonymous, aggregate). Uses sendBeacon so it survives page unload. */
+  function _flushStats(){
+    if(_flushed) return;
+    var codes=Object.keys(_buf.views), terms=Object.keys(_buf.searches);
+    if(!codes.length && !terms.length) return;
+    var BE=(window.CONFIG&&window.CONFIG.backend)||{}, ep=BE.workerEndpoint;
+    if(!ep) return;
+    _flushed=true;
+    var body=JSON.stringify({action:'track',events:{views:codes.slice(0,300),searches:terms.slice(0,300)}});
+    var sent=false;
+    try{ if(navigator.sendBeacon) sent=navigator.sendBeacon(ep,new Blob([body],{type:'text/plain'})); }catch(e){}
+    if(!sent){ try{ fetch(ep,{method:'POST',headers:{'Content-Type':'text/plain'},body:body,keepalive:true}).catch(function(){}); }catch(e){} }
+    _buf={views:{},searches:{}};
+  }
 
   /* ---- catalog lookups ---- */
   function _byCode(code){
@@ -77,14 +96,32 @@
   /* ---- trending.json (lazy, non-blocking; empty/absent => fallback) ---- */
   function loadTrending(){
     if(_trendingTried) return; _trendingTried=true;
+    var manual=null, global=null, pend=2;
+    function finish(){
+      var out=[], seen={};
+      function add(c){ c=String(c); if(c && !seen[c]){ seen[c]=1; out.push(c); } }
+      if(Array.isArray(manual)) manual.forEach(add);   /* editorial picks first */
+      if(Array.isArray(global)) global.forEach(add);   /* then cross-visitor trending */
+      _trending = out.length?out:null;
+      if(_open) renderOverlay();                        /* refresh if overlay already open */
+    }
+    function tick(){ if(--pend<=0) finish(); }
     try{
       var C=(window.CONFIG&&window.CONFIG.data)||{};
-      var url=C.trending||'data/trending.json';
-      fetch(url,{cache:'no-cache'})
+      fetch(C.trending||'data/trending.json',{cache:'no-cache'})
         .then(function(r){ return r.ok?r.json():null; })
-        .then(function(j){ if(Array.isArray(j)) _trending=j; })
-        .catch(function(){});
-    }catch(e){}
+        .then(function(j){ if(Array.isArray(j)) manual=j; })
+        .catch(function(){}).then(tick);
+    }catch(e){ tick(); }
+    try{
+      var BE=(window.CONFIG&&window.CONFIG.backend)||{};
+      if(BE.workerEndpoint){
+        fetch(BE.workerEndpoint+'?trending=1',{cache:'no-cache'})
+          .then(function(r){ return r.ok?r.json():null; })
+          .then(function(j){ if(Array.isArray(j)) global=j; })
+          .catch(function(){}).then(tick);
+      } else { tick(); }
+    }catch(e){ tick(); }
   }
 
   /* ---- rendering ---- */
@@ -161,6 +198,9 @@
     });
     var idle=window.requestIdleCallback||function(f){ return setTimeout(f,1500); };
     idle(loadTrending);
+    document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden') _flushStats(); });
+    window.addEventListener('pagehide',_flushStats);
+    window.addEventListener('beforeunload',_flushStats);
   });
   document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&_open) closeSearchOverlay(); });
 })();

@@ -1437,7 +1437,11 @@ function _admSettingsExtraHtml(){
     '<div class="set-note" style="margin-top:0">Download a full copy of your data and save a restore point to Version History.</div>'+
     '<button class="btn-secondary" style="width:100%;margin-top:.65rem" onclick="admExportBackup()">Download Backup</button>'+
   '</div>';
-  return general+appearance+github+backup;
+  var trending='<div class="adm-card">'+head('Trending','Search-bar suggested products')+
+    '<div class="set-note" style="margin-top:0">Suggested products are ranked from anonymous view counts across all visitors, over a rolling 30-day window. Older activity ages out on its own. Your manual picks in <b>data/trending.json</b> always show first.</div>'+
+    '<button class="btn-secondary" style="width:100%;margin-top:.65rem" onclick="resetTrending()">Reset trending counts</button>'+
+  '</div>';
+  return general+appearance+github+trending+backup;
 }
 
 function renderAdminContent(){
@@ -2378,3 +2382,23 @@ function _shortCount(){
   c.style.color=(n>80?'var(--srp)':'var(--text-dim)');
 }
 if(typeof window!=='undefined'){ window.copyGptPrompt=copyGptPrompt; window._shortCount=_shortCount; }
+
+/* Admin: clear the global trending counts in the Worker's KV store. */
+function resetTrending(){
+  var BE=(window.CONFIG&&window.CONFIG.backend)||{}, ep=BE.workerEndpoint;
+  if(!ep){ showToast('No backend configured.'); return; }
+  if(!confirm('Reset trending counts?\n\nThis clears the anonymous view/search tallies used for the search-bar suggestions. Your manual trending.json picks are NOT affected.')) return;
+  var pw=window.prompt('Enter the admin save password to reset trending:');
+  if(pw===null) return;
+  if(!pw){ showToast('Cancelled — no password.'); return; }
+  showToast('Resetting trending…');
+  fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'resetTrending',password:pw})})
+   .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){return {status:r.status,body:j};}); })
+   .then(function(res){
+     if(res.status===401){ showToast('Wrong password.'); return; }
+     if(res.status!==200 || !res.body || !res.body.ok){ showToast('Reset failed: '+((res.body&&res.body.error)||('HTTP '+res.status))); return; }
+     showToast('Trending counts reset ('+(res.body.cleared||0)+' buckets cleared).');
+   })
+   .catch(function(e){ showToast('Reset error: '+(e.message||e)); });
+}
+if(typeof window!=='undefined'){ window.resetTrending=resetTrending; }
