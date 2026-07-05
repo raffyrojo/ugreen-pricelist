@@ -1516,7 +1516,7 @@ function renderAdminContent(){
           '<div class="adm-ll-card adm-ll-card--a" aria-hidden="true"><div class="l">Products</div><div class="v">'+((typeof ALL_PRODUCTS!=="undefined"&&ALL_PRODUCTS)?ALL_PRODUCTS.length:774)+'</div><div class="bars"><i style="height:42%"></i><i style="height:66%"></i><i style="height:50%"></i><i style="height:82%"></i><i style="height:60%"></i></div></div>'+
           '<div class="adm-ll-card adm-ll-card--b" aria-hidden="true"><div class="l">Uptime</div><div class="v">99.9%</div></div>'+
           '<div class="adm-ll-content adm-anim" style="--d:120ms">'+
-            '<img class="adm-ll-logo" src="'+UGREEN_LOGO_LIGHT+'" alt="UGREEN">'+
+            '<img class="adm-ll-logo" style="align-self:flex-start;width:auto;max-width:60%;height:30px;object-fit:contain" src="'+UGREEN_LOGO_LIGHT+'" alt="UGREEN">'+
             '<h2 class="adm-ll-welcome">Welcome Back</h2>'+
             '<p class="adm-ll-sub">UGREEN Product Management Portal</p>'+
             '<span class="adm-ll-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Secure Enterprise Login</span>'+
