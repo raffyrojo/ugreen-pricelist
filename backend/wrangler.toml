@@ -17,6 +17,6 @@ GH_BRANCH = "main"
 # Trending analytics store (Workers KV). Create it once, then UNCOMMENT the
 # block below and paste the id. Until then, trending safely no-ops.
 #   wrangler kv namespace create TRENDING
-# [[kv_namespaces]]
-# binding = "TRENDING"
-# id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+[[kv_namespaces]]
+binding = "TRENDING"
+id = "e7a966fb31b942689e08befed4f3d1d6"
