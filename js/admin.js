@@ -2336,6 +2336,68 @@ function updatePromoDuration(val){
 
 
 
+/* == Promo popup: persistence load + storefront display ====================
+   Config is saved to data/promo.json on Publish (see github-save.js). Loading it
+   here (a) restores the admin settings after refresh/redeploy and (b) shows the
+   popup to every visitor. PROMO_CONFIG.imageData holds a committed path once
+   saved, or a fresh data: URL right after an upload. */
+function _loadPromoConfig(){
+  try{
+    return fetch('data/promo.json?v='+Date.now(),{cache:'no-cache'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if(j && typeof j==='object' && typeof PROMO_CONFIG!=='undefined' && PROMO_CONFIG){
+          PROMO_CONFIG.enabled   = !!j.enabled;
+          PROMO_CONFIG.linkUrl   = j.linkUrl || '';
+          PROMO_CONFIG.altText   = j.altText || 'UGREEN Promo';
+          PROMO_CONFIG.duration  = (typeof j.duration==='number' ? j.duration : 10);
+          PROMO_CONFIG.mediaType = j.mediaType || 'image';
+          PROMO_CONFIG.imageData = j.image || '';
+        }
+      })
+      .catch(function(){});
+  }catch(e){ return Promise.resolve(); }
+}
+function _maybeShowPromo(){
+  try{
+    if(typeof PROMO_CONFIG==='undefined' || !PROMO_CONFIG) return;
+    if(!PROMO_CONFIG.enabled || !PROMO_CONFIG.imageData) return;
+    if(document.querySelector('.nas-promo-overlay')) return;      // already shown
+    var SK='ugreen_promo_seen';
+    try{ if(sessionStorage.getItem(SK)) return; }catch(e){}       // once per session
+    var src=PROMO_CONFIG.imageData;
+    var isVideo=(PROMO_CONFIG.mediaType==='video');
+    var alt=String(PROMO_CONFIG.altText||'Promo').replace(/"/g,'&quot;');
+    var media=isVideo
+      ? '<video src="'+src+'" autoplay muted loop playsinline></video>'
+      : '<img src="'+src+'" alt="'+alt+'">';
+    var link=String(PROMO_CONFIG.linkUrl||'').trim();
+    var inner=link ? '<a href="'+link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener noreferrer" style="display:block;line-height:0">'+media+'</a>' : media;
+    var dur=(typeof PROMO_CONFIG.duration==='number') ? PROMO_CONFIG.duration : 10;
+    var ov=document.createElement('div');
+    ov.className='nas-promo-overlay';
+    ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','Promotion');
+    ov.innerHTML='<div class="nas-promo-modal">'+inner+
+      '<button class="nas-promo-close" type="button" aria-label="Close promotion">&times;</button>'+
+      (dur>0 ? '<div class="nas-promo-timer" style="animation-duration:'+dur+'s"></div>' : '')+
+      '</div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ ov.classList.add('show'); });
+    try{ sessionStorage.setItem(SK,'1'); }catch(e){}
+    var _t=null;
+    function _close(){ if(_t)clearTimeout(_t); ov.classList.remove('show'); setTimeout(function(){ if(ov.parentNode)ov.parentNode.removeChild(ov); },320); }
+    var cbtn=ov.querySelector('.nas-promo-close'); if(cbtn) cbtn.addEventListener('click',_close);
+    ov.addEventListener('click',function(e){ if(e.target===ov) _close(); });
+    document.addEventListener('keydown',function esc(e){ if(e.key==='Escape'){ _close(); document.removeEventListener('keydown',esc); } });
+    if(dur>0) _t=setTimeout(_close, dur*1000);
+  }catch(e){}
+}
+/* Load the saved promo config on every page load; show the popup shortly after
+   so the pricelist paints first. */
+document.addEventListener('DOMContentLoaded', function(){
+  _loadPromoConfig().then(function(){ setTimeout(_maybeShowPromo, 700); });
+});
+
 /* ── CMS persistence layer (replaces single-file HTML "bake & download") ── */
 function _downloadProductsJson(){
   try{

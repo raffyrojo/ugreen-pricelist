@@ -7,6 +7,8 @@
    (base64 held in window.IMAGES, keyed by product.image) out as files to commit,
    rewriting those products to point at the committed file path. The live
    ALL_PRODUCTS is NOT mutated here — only on confirmed success (rollback-safe). */
+function _b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
+
 function _buildSavePayload(){
   var products = JSON.parse(JSON.stringify(ALL_PRODUCTS));
   var newImages = {};
@@ -23,6 +25,36 @@ function _buildSavePayload(){
       rewrites.push({ code: p.item_code, path: path, key: key });
     }
   });
+  // -- Promo popup: persist config to data/promo.json (+ commit its image as a
+  //    file). Both ride the newImages channel the Worker already commits, so no
+  //    Worker change is needed. Makes the popup survive refresh + redeploy. --
+  try{
+    if (typeof PROMO_CONFIG !== 'undefined' && PROMO_CONFIG) {
+      var pc = PROMO_CONFIG;
+      var promoOut = {
+        enabled: !!pc.enabled,
+        linkUrl: pc.linkUrl || '',
+        altText: pc.altText || 'UGREEN Promo',
+        duration: (typeof pc.duration === 'number' ? pc.duration : 10),
+        mediaType: pc.mediaType || 'image',
+        image: ''
+      };
+      var pimg = pc.imageData || '';
+      if (/^data:/.test(pimg)) {                       // fresh upload -> commit as a file
+        var mm = pimg.match(/^data:([a-zA-Z0-9.+\/-]+);/);
+        var mime = (mm && mm[1]) ? mm[1] : (promoOut.mediaType === 'video' ? 'video/mp4' : 'image/png');
+        var extMap = {'image/png':'png','image/jpeg':'jpg','image/jpg':'jpg','image/webp':'webp','image/gif':'gif','video/mp4':'mp4','video/webm':'webm'};
+        var pext = extMap[mime] || (promoOut.mediaType === 'video' ? 'mp4' : 'png');
+        var ppath = 'images/promo/promo-' + Date.now() + '.' + pext;
+        newImages[ppath] = pimg;
+        promoOut.image = ppath;
+        pc._pendingImagePath = ppath;                  // adopt into memory on success
+      } else if (pimg) {
+        promoOut.image = pimg;                          // already a committed path
+      }
+      newImages['data/promo.json'] = 'data:application/json;base64,' + _b64utf8(JSON.stringify(promoOut, null, 2));
+    }
+  }catch(e){}
   return { products: products, newImages: newImages, rewrites: rewrites };
 }
 
@@ -66,6 +98,7 @@ function saveToGitHub(){
         if (window.IMAGES) delete window.IMAGES[rw.key];
       });
       if (typeof removeDownloadHighlight === 'function') removeDownloadHighlight();
+      try{ if (typeof PROMO_CONFIG !== 'undefined' && PROMO_CONFIG && PROMO_CONFIG._pendingImagePath){ PROMO_CONFIG.imageData = PROMO_CONFIG._pendingImagePath; delete PROMO_CONFIG._pendingImagePath; } }catch(e){}
       if (typeof updateSaveIndicator === 'function') { try { window.HAS_UNSAVED_CHANGES = false; updateSaveIndicator(); } catch(e){} }
       // Published: these edits are now committed to products.json, so the local
       // "pending edits" overlay (ugreen_new_skus) is redundant. Clear it so the
