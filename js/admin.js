@@ -616,7 +616,7 @@ function renderManage() {
   var deletedCount = 0;
   try { deletedCount = JSON.parse(localStorage.getItem('ugreen_deleted')||'[]').length; } catch(e){}
   if (!custom.length && !deletedCount) {
-    document.getElementById('panel-body').innerHTML = '<div class="manage-empty">No custom SKUs yet.<br><span style="font-size:0.7rem;color:var(--text-dim)">Expand any product row and click ✏️ Edit SKU to make changes.</span></div>';
+    document.getElementById('panel-body').innerHTML = '<div class="manage-empty">No custom SKUs yet.<br><span style="font-size:0.7rem;color:var(--text-dim)">Expand any product row and click Edit SKU to make changes.</span></div>';
     return;
   }
   var deletedIds = [];
@@ -626,7 +626,7 @@ function renderManage() {
     deletedBlock = '<div style="margin-bottom:1rem">'+'<div class="adm-section-title" style="margin-bottom:.5rem">'+'Removed Products (' + deletedIds.length + ') — '+'<button onclick="restoreAllDeleted()" style="background:none;border:none;color:var(--accent);font-size:0.7rem;cursor:pointer;font-family:\u0027Metropolis\u0027,\u0027Helvetica Neue\u0027,Arial,sans-serif;text-decoration:underline">Restore All</button></div>'+'<div class="features-list">'+deletedIds.map(function(ic){return '<span class="feature-chip" style="display:inline-flex;align-items:center;gap:6px">'+esc(ic)+'<button onclick="restoreDeleted(\''+escAttr(ic)+'\')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;padding:0">&#x21A9;</button></span>';}).join('')+'</div></div>';
   }
   document.getElementById('panel-body').innerHTML = deletedBlock + '<div class="manage-list">' +
-    (custom.length ? '' : '<div class="manage-empty" style="padding:1rem">No custom SKUs. Expand any row and click ✏️ Edit SKU.</div>') +
+    (custom.length ? '' : '<div class="manage-empty" style="padding:1rem">No custom SKUs. Expand any row and click Edit SKU.</div>') +
     custom.map(function(p) {
       var src = p.image ? IMAGES[p.image] : null;
       return '<div class="manage-item">' +
@@ -1174,7 +1174,7 @@ function renderAddForm(prefill) {
   var fDesc='<div class="form-field form-full"><label>Description <span class="form-hint">One bullet point per line</span></label><textarea id="f-desc" rows="4" placeholder="HDMI Cable for 4K displays&#10;Compatible with PS5, Xbox">'+esc(parseBullets(p.description||'').join('\n'))+'</textarea></div>';
   var fFeats='<div class="form-field form-full"><label>Features <span class="form-hint">One feature per line</span></label><textarea id="f-feats" rows="3" placeholder="4K@60Hz&#10;Gold-plated connectors">'+esc(parseFeats(p.features||'').join('\n'))+'</textarea></div>';
   var fImg='<div class="form-field form-full"><label>Image URL <span class="form-hint">Paste https:// link</span></label>'+
-    '<input type="text" id="f-img-url" placeholder="https://example.com/product.jpg" value="'+(p.image&&/^https?:\/\//.test(p.image)?esc(p.image):'')+'"><div style="font-size:.6rem;color:var(--srp);margin:.25rem 0;line-height:1.4">⚠ URLs may fail in Excel/PDF exports if the source blocks CORS. <strong>File uploads are more reliable.</strong></div><div style="font-size:.62rem;color:var(--text-dim);margin:.3rem 0">OR upload file:</div>'+
+    '<input type="text" id="f-img-url" placeholder="https://example.com/product.jpg" value="'+(p.image&&/^https?:\/\//.test(p.image)?esc(p.image):'')+'"><div style="font-size:.6rem;color:var(--srp);margin:.25rem 0;line-height:1.4"><svg class="warn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> URLs may fail in Excel/PDF exports if the source blocks CORS. <strong>File uploads are more reliable.</strong></div><div style="font-size:.62rem;color:var(--text-dim);margin:.3rem 0">OR upload file:</div>'+
     '<input type="file" id="f-img" accept="image/*" onchange="previewImg(this)"><div style="font-size:.62rem;color:var(--text-dim);margin-top:.3rem">Images are auto-optimized: max 1000px, ~50–150 KB. Originals stay on your device.</div>'+
     '<div id="img-preview-wrap">' + (p.image?'<img src="'+(imgSrc(p.image)||'')+'" class="img-preview" style="margin-top:6px">' : '') + '</div></div>';
 

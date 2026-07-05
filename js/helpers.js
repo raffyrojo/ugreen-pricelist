@@ -19,7 +19,7 @@ function normalizeSidebar(val){return (val==null?'':String(val)).trim();}
 function imgSrc(name){ if(!name) return null; if(window.IMAGES && window.IMAGES[name]) return window.IMAGES[name]; return name; }
 
 function thumbCell(name){var s=imgSrc(name);return s?'<td class="td-thumb"><img src="'+s+'" loading="lazy" alt=""></td>':'<td class="td-thumb"><div class="no-img-sm">N/A</div></td>';}
-function gridImgHtml(name){var s=imgSrc(name);return s?'<img src="'+s+'" loading="lazy" alt="">':'<div class="no-img-grid"><span style="font-size:1.8rem">&#128230;</span><span>No Image</span></div>';}
+function gridImgHtml(name){var s=imgSrc(name);return s?'<img src="'+s+'" loading="lazy" alt="">':'<div class="no-img-grid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>No Image</span></div>';}
 function expandImgHtml(name){var s=imgSrc(name);return s?'<img src="'+s+'" loading="lazy" decoding="async" alt="">':'<div class="no-img-lg">No Image</div>';}
 
 function dpvCellHtml(p){

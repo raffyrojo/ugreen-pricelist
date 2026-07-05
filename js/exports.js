@@ -1333,7 +1333,7 @@ function _doCatalogPdf(filtered) {
 
 function _x_captureSkuCard(itemCode, btn) {
   try {
-    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Loading…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<svg class="ico-inline ico-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>Loading…'; }
     _ensureHtml2Canvas(
       function() { try { _doCaptureSkuCard(itemCode, btn); } catch(e) { console.error('captureSkuCard inner:', e); showToast('Screenshot error: '+(e.message||e)); _resetScreenshotBtn(btn); } },
       function(msg) { showToast(msg); _resetScreenshotBtn(btn); }
@@ -1554,7 +1554,7 @@ function _detectTransparency(img) {
   }
 }
 
-function _resetScreenshotBtn(btn) { if (btn) { btn.disabled = false; btn.innerHTML = '📸 Screenshot'; } }
+function _resetScreenshotBtn(btn) { if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="ico-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Screenshot'; } }
 
 
 
