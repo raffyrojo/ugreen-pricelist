@@ -1746,3 +1746,9 @@ body.so-lock{ overflow:hidden; }
 .grid-meta{min-height:1.15rem}
 .grid-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
 .grid-desc{min-height:2.8em}
+
+/* p24: Admin scroll-lag fix. The admin overlay had backdrop-filter:blur(4px)
+   over the full 774-card pricelist; the browser re-blurred that heavy layer on
+   every scroll frame inside the near-fullscreen dashboard → visible jank.
+   The dim (rgba .5) stays; the blur was invisible behind a fullscreen modal. */
+.adm-modal-overlay{ -webkit-backdrop-filter:none; backdrop-filter:none; }
