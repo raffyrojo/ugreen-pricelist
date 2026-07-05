@@ -1,6 +1,7 @@
 /* Search overlay + lightweight, privacy-friendly search/view analytics (Phase 11).
    - Collapses the header search into an icon that opens a full-screen overlay.
-   - "Top Searches": the most frequent terms THIS visitor has searched (localStorage).
+   - "Top Searches": the most-searched terms across ALL visitors (Worker ?searches=1,
+     cross-visitor, rolling 30-day), padded with this device's own searches + curated defaults.
    - "Suggested Products": trending SKUs, resolved in priority order:
        1. data/trending.json  (an item_code list a backend/trends job can populate later)
        2. most-viewed SKUs on this device
@@ -12,7 +13,7 @@
   'use strict';
   var SKEY='ugreen_search_stats', VKEY='ugreen_view_stats';
   var MAX_TAGS=8, MAX_SUGGEST=6;
-  var _trending=null, _trendingTried=false, _open=false;
+  var _trending=null, _trendingTried=false, _open=false, _globalSearches=null;
   var _buf={views:{},searches:{}}, _flushed=false;
 
   function _load(k){ try{ return JSON.parse(localStorage.getItem(k)||'{}'); }catch(e){ return {}; } }
@@ -72,11 +73,14 @@
   /* ---- top searches (padded with catalog-valid defaults) ---- */
   var DEFAULTS=['power bank','charger','charging cable','usb cable','docking','hdmi','card reader','hub'];
   function topSearches(){
-    var out=_rank(_load(SKEY)).slice(0,MAX_TAGS);
-    for(var i=0;i<DEFAULTS.length && out.length<MAX_TAGS;i++){
-      var t=DEFAULTS[i];
-      if(out.indexOf(t)<0 && _firstMatch(t)) out.push(t);   /* only surface terms that hit the catalog */
+    var out=[], seen={};
+    function add(t){
+      t=String(t==null?'':t).toLowerCase().trim();
+      if(t && !seen[t] && out.length<MAX_TAGS && _firstMatch(t)){ seen[t]=1; out.push(t); }
     }
+    if(_globalSearches) _globalSearches.forEach(add);   /* cross-visitor top searches (all users) first */
+    _rank(_load(SKEY)).forEach(add);                     /* then this device's own searches */
+    DEFAULTS.forEach(add);                               /* then curated catalog-valid padding */
     return out;
   }
 
@@ -122,6 +126,16 @@
           .catch(function(){}).then(tick);
       } else { tick(); }
     }catch(e){ tick(); }
+    /* cross-visitor top search terms (independent of the suggested-products merge) */
+    try{
+      var BE2=(window.CONFIG&&window.CONFIG.backend)||{};
+      if(BE2.workerEndpoint){
+        fetch(BE2.workerEndpoint+'?searches=1',{cache:'no-cache'})
+          .then(function(r){ return r.ok?r.json():null; })
+          .then(function(j){ if(Array.isArray(j)){ _globalSearches=j; if(_open) renderOverlay(); } })
+          .catch(function(){});
+      }
+    }catch(e){}
   }
 
   /* ---- rendering ---- */
