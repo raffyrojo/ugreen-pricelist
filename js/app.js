@@ -61,6 +61,42 @@ function fixMobileLayout(){
 /* Export dropdown (UI only). */
 function toggleDlMenu(){document.getElementById('dl-menu').classList.toggle('open');}
 
+/* Support dropdown (help / NAS resources). Mirrors the Export menu, adds keyboard nav. */
+function toggleSupMenu(e){
+  if(e){e.stopPropagation();}
+  var m=document.getElementById('sup-menu'),b=document.getElementById('sup-btn');
+  if(!m)return;
+  var open=m.classList.toggle('open');
+  if(b)b.setAttribute('aria-expanded',open?'true':'false');
+  if(open){var first=m.querySelector('.sup-item');if(first){setTimeout(function(){try{first.focus();}catch(_){}}, 0);}}
+}
+function closeSupMenu(focusBtn){
+  var m=document.getElementById('sup-menu'),b=document.getElementById('sup-btn');
+  if(m&&m.classList.contains('open')){m.classList.remove('open');if(b)b.setAttribute('aria-expanded','false');if(focusBtn&&b){try{b.focus();}catch(_){}}}
+}
+/* Close when clicking outside, and close after a link is chosen. */
+document.addEventListener('click',function(e){
+  var wrap=document.getElementById('sup-wrap');
+  var menu=document.getElementById('sup-menu');
+  if(menu&&menu.classList.contains('open')&&wrap&&!wrap.contains(e.target))closeSupMenu(false);
+  var link=e.target.closest&&e.target.closest('#sup-menu .sup-item');
+  if(link)closeSupMenu(false);
+});
+/* Keyboard: Escape closes; Arrow/Home/End move between items; ArrowDown from the button opens. */
+document.addEventListener('keydown',function(e){
+  var menu=document.getElementById('sup-menu'),btn=document.getElementById('sup-btn');
+  if(document.activeElement===btn&&e.key==='ArrowDown'){e.preventDefault();if(menu&&!menu.classList.contains('open'))toggleSupMenu();else if(menu){var f=menu.querySelector('.sup-item');if(f)f.focus();}return;}
+  if(!menu||!menu.classList.contains('open'))return;
+  if(e.key==='Escape'){e.preventDefault();closeSupMenu(true);return;}
+  var items=Array.prototype.slice.call(menu.querySelectorAll('.sup-item'));
+  if(!items.length)return;
+  var idx=items.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'){e.preventDefault();items[(idx+1+items.length)%items.length].focus();}
+  else if(e.key==='ArrowUp'){e.preventDefault();items[(idx-1+items.length)%items.length].focus();}
+  else if(e.key==='Home'){e.preventDefault();items[0].focus();}
+  else if(e.key==='End'){e.preventDefault();items[items.length-1].focus();}
+});
+
 /* ── Phase 3/4 placeholders — keep the header intact, no dead clicks ──
    These are wired for real in later phases. */
 function _soon(){ showToast('That feature arrives in a later phase.'); }
