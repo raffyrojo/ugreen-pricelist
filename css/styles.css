@@ -460,7 +460,7 @@ aside{display:flex;flex-direction:column}
 .adm-ll-card--b{bottom:15%;right:15%;width:104px;animation-delay:-7s}
 
 .adm-ll-content{position:relative;z-index:2;display:flex;flex-direction:column}
-.adm-ll-logo{height:30px;width:auto;display:block;margin-bottom:1.5rem}
+.adm-ll-logo{height:30px;width:auto;max-width:70%;align-self:flex-start;display:block;object-fit:contain;margin-bottom:1.5rem}
 .adm-ll-welcome{font-family:'Metropolis',sans-serif;font-weight:800;font-size:2.05rem;letter-spacing:-.02em;line-height:1.05;margin:0 0 .5rem}
 .adm-ll-sub{font-size:.9rem;font-weight:600;letter-spacing:.01em;margin:0 0 1rem;opacity:.95}
 .adm-ll-badge{display:inline-flex;align-items:center;gap:.42rem;align-self:flex-start;
