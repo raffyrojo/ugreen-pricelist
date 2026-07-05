@@ -1118,7 +1118,7 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
   .expand-features-wrap{padding-top:.75rem}
 
   /* ── Grid: 1 column on mobile, 2 on small tablet ── */
-  .grid-view.active{grid-template-columns:1fr;gap:.6rem}
+  .grid-view.active{grid-template-columns:repeat(2,1fr);gap:.6rem}
   .grid-card{border-radius:8px}
   .grid-img{height:130px}
 
@@ -1200,7 +1200,7 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 
 /* ── SMALL MOBILE (≤390px) ─────────────────────────────────────────────── */
 @media (max-width:390px){
-  .grid-view.active{grid-template-columns:1fr}
+  .grid-view.active{grid-template-columns:repeat(2,1fr);gap:.5rem}
   .modal-specs{grid-template-columns:1fr}
   .expand-meta-grid{grid-template-columns:1fr}
   .header-right .dl-wrap,.header-right .view-toggle{
@@ -1718,10 +1718,7 @@ body.so-lock{ overflow:hidden; }
 .legend-right{align-items:center}
 .legend .view-toggle{flex-shrink:0}
 @media (max-width:640px){
-  /* Legend now hosts the view toggle; keep it usable on mobile while hiding the price-legend clutter. */
-  .legend{display:flex;gap:.6rem;margin-bottom:.6rem;flex-wrap:nowrap;align-items:center}
-  .legend .legend-item,.legend .legend-hint,.legend .save-indicator{display:none}
-  .legend .legend-right{margin-left:auto;gap:0}
-  .legend .view-toggle{margin-left:auto}
+  /* Mobile is grid-only: hide the whole content legend, incl. the Table/Grid toggle. */
+  .legend{display:none}
 }
 
