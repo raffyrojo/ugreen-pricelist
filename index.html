@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UGREEN Pricelist</title>
-<link rel="stylesheet" href="css/styles.css?v=p10">
+<link rel="stylesheet" href="css/styles.css?v=p11">
 <!-- Export libraries (Phase 3): jsPDF for Quick PDF, ExcelJS for Excel. html2canvas loads on demand. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
@@ -13,8 +13,8 @@
 <header>
   <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle filters">☰</button>
   <div class="logo"><img class="logo-img" src="assets/ugreen-logo.webp" alt="UGREEN"><span class="logo-sub">MORE FOR YOU</span><span class="doc-pill">Pricelist</span></div>
-  <div class="search-wrap"><span class="search-icon">⌕</span><input type="text" id="search" placeholder="Search SKU, item code, product name, description..." autocomplete="off" spellcheck="false" aria-label="Search products"></div>
   <div class="header-right">
+    <button class="hdr-icon-btn search-open-btn" id="search-open-btn" onclick="openSearchOverlay()" title="Search (press /)" aria-label="Search products"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
     <div class="view-toggle"><button class="view-btn active" id="btn-table" onclick="setView('table')" title="Table view" aria-label="Table view"><span class="vb-ico">≡</span><span class="vb-txt"> Table</span></button><button class="view-btn" id="btn-grid" onclick="setView('grid')" title="Grid view" aria-label="Grid view"><span class="vb-ico">⊞</span><span class="vb-txt"> Grid</span></button></div>
     <input type="file" id="excel-upload-input" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(this)">
     <div class="dl-wrap" id="dl-wrap">
@@ -89,6 +89,21 @@
 </div>
 
 <!-- Admin modal (Phase 4) -->
+<!-- Search overlay (Phase 11) -->
+<div class="search-overlay" id="search-overlay" role="dialog" aria-modal="true" aria-label="Search products" onclick="closeSearchOverlayOutside(event)">
+  <div class="search-panel" role="document">
+    <button class="search-panel-close" onclick="closeSearchOverlay()" aria-label="Close search">✕</button>
+    <div class="so-input-wrap">
+      <span class="so-input-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input type="text" id="search" class="so-input" placeholder="What are you looking for?" autocomplete="off" spellcheck="false" aria-label="Search products">
+    </div>
+    <div class="so-cols">
+      <div class="so-col so-col-top"><div class="so-col-title">Top Searches</div><div class="so-tags" id="so-tags"></div></div>
+      <div class="so-col so-col-suggest"><div class="so-col-title">Suggested Products</div><div class="so-suggest" id="so-suggest"></div></div>
+    </div>
+  </div>
+</div>
+
 <div class="adm-modal-overlay" id="adm-overlay" onclick="closeAdminModalOutside(event)">
   <div class="adm-modal" id="adm-modal" onclick="event.stopPropagation()">
     <div id="adm-content"></div>
@@ -136,11 +151,12 @@
 <script src="js/sidebar.js"></script>
 <script src="js/filters.js"></script>
 <script src="js/search.js"></script>
-<script src="js/render.js"></script>
+<script src="js/render.js?v=p1"></script>
 <script src="js/app.js"></script>
 <script src="js/exports.js"></script>
 <script src="js/admin.js?v=p10"></script>
 <script src="js/github-save.js?v=p4"></script>
+<script src="js/search-overlay.js?v=p1"></script>
 <script>
 /* Integrity guard (Phase 10 review): if any core script fails to load fully — e.g. a
    file was truncated on save — this makes the failure LOUD instead of a silent broken
