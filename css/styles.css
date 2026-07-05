@@ -1752,3 +1752,10 @@ body.so-lock{ overflow:hidden; }
    every scroll frame inside the near-fullscreen dashboard → visible jank.
    The dim (rgba .5) stays; the blur was invisible behind a fullscreen modal. */
 .adm-modal-overlay{ -webkit-backdrop-filter:none; backdrop-filter:none; }
+
+/* p25: page footer bar (Distributed by: Iontech Inc. + copyright). Sits at the
+   bottom of the scrollable main column, mirroring the reference pricelist footer. */
+.page-footer{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:2rem;padding:1.1rem .25rem .4rem;border-top:1px solid var(--border);font-size:.72rem;color:var(--text-dim);font-family:'Metropolis',sans-serif}
+.page-footer .pf-left{font-weight:600;color:var(--text-muted)}
+.page-footer .pf-right{color:var(--text-dim);letter-spacing:.01em}
+@media(max-width:640px){.page-footer{margin-top:1.25rem;font-size:.66rem;gap:.35rem;flex-direction:column;justify-content:center;text-align:center}}
