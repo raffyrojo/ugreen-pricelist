@@ -374,10 +374,13 @@ function previewImg(input) {
   var file = input.files[0];
   var origSize = file.size;
 
-  // v1.1.17: tighter compression — max 400px (was 1000px), always compress (no skip threshold),
-  //          WebP-first (modern browsers) for smallest possible stored size.
-  var MAX_DIM = 400;
+  // Product SKU images ONLY (Add/Edit SKU). Popup Ads images are intentionally NOT
+  // compressed (handlePromoImageUpload keeps originals). Resize to max MAX_DIM px,
+  // then encode WebP-first with an iterative quality step-down so the stored file
+  // stays within ~TARGET_MAX_BYTES — good quality for dealers, small commits.
+  var MAX_DIM = 1000;
   var LOSSY_QUALITY = 0.82;
+  var TARGET_MAX_BYTES = 150 * 1024;   // ~150 KB cap keeps deploys fast + reliable
 
   // One-time WebP capability check — canvas.toDataURL returns 'data:image/webp...' only if supported
   var _supportsWebP = (function() {
@@ -403,15 +406,26 @@ function previewImg(input) {
       var ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, nw, nh);
 
+      // Encode with an iterative quality step-down so the stored image stays
+      // within ~TARGET_MAX_BYTES while keeping resolution up to MAX_DIM.
+      function _byteLen(u){ return Math.round((u.length - u.indexOf(',') - 1) * 0.75); }
+      function _encCapped(mime){
+        var q = LOSSY_QUALITY, url = canvas.toDataURL(mime, q);
+        while (_byteLen(url) > TARGET_MAX_BYTES && q > 0.45) {
+          q = Math.round((q - 0.1) * 100) / 100;
+          url = canvas.toDataURL(mime, q);
+        }
+        return url;
+      }
       var out, fmt;
       if (_supportsWebP) {
         // WebP handles both opaque and transparent images efficiently
-        out = canvas.toDataURL('image/webp', LOSSY_QUALITY);
+        out = _encCapped('image/webp');
         fmt = 'WebP';
       } else {
         var hasAlpha = _detectTransparency(img);
         if (hasAlpha) {
-          // Preserve alpha channel — PNG fallback
+          // Preserve alpha channel — PNG fallback (lossless)
           out = canvas.toDataURL('image/png');
           fmt = 'PNG';
         } else {
@@ -420,7 +434,7 @@ function previewImg(input) {
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, nw, nh);
           ctx.globalCompositeOperation = 'source-over';
-          out = canvas.toDataURL('image/jpeg', LOSSY_QUALITY);
+          out = _encCapped('image/jpeg');
           fmt = 'JPEG';
         }
       }
