@@ -49,6 +49,7 @@ function validateProduct(p, isNew) {
   var errors = [];
   // Required fields
   if (!p.item_code || !String(p.item_code).trim()) errors.push('Item Code is required');
+  if (p.item_code && /[<>"'&\\]/.test(String(p.item_code))) errors.push('Item Code contains invalid characters (quotes, angle brackets, & or \\)');
   if (!p.model || !String(p.model).trim()) errors.push('Model No is required');
   if (!p.product_name || !String(p.product_name).trim()) errors.push('Product Name is required');
   if (!p.category || !String(p.category).trim()) errors.push('Category is required');
@@ -223,7 +224,55 @@ function loadNewSkus() {
 }
 
 function saveNewSkus(arr) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(arr)); } catch(e){}
+  try { localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+  catch(e){
+    _logErr('saveNewSkus',e);
+    try{ showToast('\u26A0 Could not store pending edits locally (storage full). Publish soon \u2014 unpublished changes may not survive a refresh.'); }catch(_){}
+  }
+}
+
+/* == Pending-change durability (2026-07-06 hardening) =========================
+   ugreen_new_skus holds unpublished adds/edits; ugreen_deleted holds unpublished
+   removals; ugreen_pending_imgs holds base64 for images uploaded but not yet
+   published. applyPendingOverlay() (called from app.js after the catalog loads)
+   re-applies all three, so a refresh no longer hides -- and a later publish no
+   longer silently discards -- unpublished work. Cleared on successful publish. */
+var PENDING_IMGS_KEY = 'ugreen_pending_imgs';
+function loadPendingImgs(){ try { return JSON.parse(localStorage.getItem(PENDING_IMGS_KEY)||'{}'); } catch(e){ return {}; } }
+function savePendingImg(key, dataUrl){
+  try {
+    var m = loadPendingImgs(); m[key] = dataUrl;
+    localStorage.setItem(PENDING_IMGS_KEY, JSON.stringify(m));
+  } catch(e){
+    _logErr('savePendingImg', e);
+    try{ showToast('\u26A0 Image kept for this session only (local storage full) \u2014 publish before closing the tab.'); }catch(_){}
+  }
+}
+function clearPendingImgs(){ try { localStorage.removeItem(PENDING_IMGS_KEY); } catch(e){} }
+function applyPendingOverlay(){
+  var applied = 0;
+  try {
+    var imgs = loadPendingImgs();
+    for (var k in imgs) { if (window.IMAGES && !window.IMAGES[k]) window.IMAGES[k] = imgs[k]; }
+    var pending = loadNewSkus();
+    pending.forEach(function(p){
+      if (!p || !p.item_code) return;
+      var gi = ALL_PRODUCTS.findIndex(function(x){ return String(x.item_code) === String(p.item_code); });
+      if (gi >= 0) Object.assign(ALL_PRODUCTS[gi], p); else ALL_PRODUCTS.push(p);
+      applied++;
+    });
+    var deleted = [];
+    try { deleted = JSON.parse(localStorage.getItem('ugreen_deleted')||'[]'); } catch(e){}
+    deleted.forEach(function(ic){
+      var gi = ALL_PRODUCTS.findIndex(function(x){ return String(x.item_code) === String(ic); });
+      if (gi >= 0) { DELETED_PRODUCTS.push(ALL_PRODUCTS[gi]); ALL_PRODUCTS.splice(gi,1); applied++; }
+    });
+    if (applied > 0) {
+      try { HAS_UNSAVED_CHANGES = true; updateSaveIndicator(false); highlightDownloadButton(); } catch(e){}
+      setTimeout(function(){ try{ showToast(applied + ' unpublished change' + (applied===1?'':'s') + ' restored \u2014 remember to Publish.'); }catch(e){} }, 900);
+    }
+  } catch(e){ _logErr('applyPendingOverlay', e); }
+  return applied;
 }
 
 var NEW_DAYS = 30;
@@ -581,6 +630,7 @@ function saveSku() {
   var imgUrl = urlInput ? urlInput.value.trim() : '';
   if (pendingImgB64) {
     imgKey = 'custom_'+ic; IMAGES[imgKey] = pendingImgB64;
+    savePendingImg(imgKey, pendingImgB64);   // survives refresh until published
   } else if (imgUrl && /^https?:\/\//.test(imgUrl)) {
     imgKey = imgUrl; // store URL directly
   } else if (editingCode) {
@@ -593,10 +643,10 @@ function saveSku() {
     sheet: sheet, sheet_display: sheetDisplay,
     color: (document.getElementById('f-color').value||'').trim(),
     length: normalizeLength(document.getElementById('f-length').value||''),
-    srp: parseFloat(document.getElementById('f-srp').value)||null,
-    dp:  parseFloat(document.getElementById('f-dp').value)||null,
-    dp_volume: parseFloat(document.getElementById('f-dpv').value)||null,
-    moq: parseInt(document.getElementById('f-moq').value)||null,
+    srp: (_preCheck.srp !== null && !isNaN(_preCheck.srp)) ? _preCheck.srp : null,
+    dp:  (_preCheck.dp !== null && !isNaN(_preCheck.dp)) ? _preCheck.dp : null,
+    dp_volume: (_preCheck.dp_volume !== null && !isNaN(_preCheck.dp_volume)) ? _preCheck.dp_volume : null,
+    moq: (_preCheck.moq !== null && !isNaN(_preCheck.moq)) ? _preCheck.moq : null,
     upc: (document.getElementById('f-upc').value||'').trim(),
     material_number: (document.getElementById('f-mat').value||'').trim(),
     description: descLines.join('\n'),
@@ -1833,7 +1883,7 @@ function checkDuplicateLive(){
 function resetToDefault(){
   if(!_ac.check())return;
   if(!confirm('Reset to original data?\nAll custom changes will be removed.'))return;
-  [STORAGE_KEY,'ugreen_new_skus_apr2026','ugreen_deleted'].forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+  [STORAGE_KEY,'ugreen_new_skus','ugreen_new_skus_apr2026','ugreen_deleted','ugreen_pending_imgs','ugreen_cms_products'].forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
   location.reload();
 }
 
@@ -2302,7 +2352,12 @@ function togglePromoEnabled(){
 }
 
 function updatePromoLink(val){
-  PROMO_CONFIG.linkUrl = (val||'').trim();
+  var v = (val||'').trim();
+  if (v && !/^https?:\/\//i.test(v)) {
+    showToast('Promo link must start with http:// or https:// \u2014 not saved.');
+    return;
+  }
+  PROMO_CONFIG.linkUrl = v;
   HAS_UNSAVED_CHANGES = true; updateSaveIndicator(false);
 }
 
@@ -2386,6 +2441,7 @@ function _maybeShowPromo(){
       ? '<video src="'+src+'" autoplay muted loop playsinline></video>'
       : '<img src="'+src+'" alt="'+alt+'">';
     var link=String(PROMO_CONFIG.linkUrl||'').trim();
+    if(link && !/^https?:\/\//i.test(link)) link='';   // only real web links may wrap the promo
     var inner=link ? '<a href="'+link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener noreferrer" style="display:block;line-height:0">'+media+'</a>' : media;
     var dur=(typeof PROMO_CONFIG.duration==='number') ? PROMO_CONFIG.duration : 10;
     var ov=document.createElement('div');
@@ -2421,7 +2477,7 @@ function _downloadProductsJson(){
     setTimeout(function(){URL.revokeObjectURL(a.href);},600);
   }catch(e){ showToast('Save failed: '+(e.message||e)); }
 }
-function saveData(){ try{ localStorage.setItem('ugreen_cms_products', JSON.stringify(ALL_PRODUCTS)); }catch(e){} }
+function saveData(){ /* 2026-07-06: removed the ~1.5MB 'ugreen_cms_products' localStorage mirror \u2014 it was write-only (never read back) and cost a full catalog JSON.stringify on every edit. Durability now lives in ugreen_new_skus / ugreen_deleted / ugreen_pending_imgs (see applyPendingOverlay). */ }
 function autoSave(){ saveData(); }
 function saveCurrentVersion(){ _downloadProductsJson(); showToast('products.json downloaded.'); }
 function saveAsNewVersion(){ try{ if(typeof pushVersionSnapshot==='function') pushVersionSnapshot(); }catch(e){} _downloadProductsJson(); showToast('products.json downloaded \u2014 Phase 5 will commit it to GitHub.'); }
@@ -2507,3 +2563,9 @@ function resetTrending(){
    .catch(function(e){ showToast('Reset error: '+(e.message||e)); });
 }
 if(typeof window!=='undefined'){ window.resetTrending=resetTrending; }
+
+/* Warn before leaving with unpublished changes (soft guard \u2014 pending edits are
+   also persisted and restored by applyPendingOverlay; this is just a reminder). */
+window.addEventListener('beforeunload', function(e){
+  if (typeof HAS_UNSAVED_CHANGES !== 'undefined' && HAS_UNSAVED_CHANGES) { e.preventDefault(); e.returnValue = ''; }
+});

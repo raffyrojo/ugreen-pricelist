@@ -115,6 +115,12 @@ function adminDeleteProduct(){_soon();}
 document.addEventListener('DOMContentLoaded', function(){
   showLoading('Loading pricelist…');
   loadData().then(function(){
+    /* Baseline fingerprint of the pristine published catalog — used by the
+       publish drift/count guards in github-save.js (2026-07-06 hardening). */
+    try { window._UG_BASELINE = { count: ALL_PRODUCTS.length, hash: (typeof _ugHash === 'function' ? _ugHash(JSON.stringify(ALL_PRODUCTS)) : null), ts: Date.now() }; } catch(e){}
+    /* Re-apply unpublished admin work saved locally (adds / edits / removals /
+       uploaded images) so a refresh never hides or discards it. */
+    try { if (typeof applyPendingOverlay === 'function') applyPendingOverlay(); } catch(e){}
     sortProducts(ALL_PRODUCTS);
     wireTable();
     rebuildSidebar();
