@@ -1461,7 +1461,9 @@ async function _preDownscaleAllImages(prods, maxDim) {
     if (!dataUrl) continue;
     if (Object.prototype.hasOwnProperty.call(window._excelDownscaleCache, dataUrl)) continue;
     var isUrl = /^https?:\/\//.test(dataUrl);
+    var isPath = !isUrl && !/^data:/.test(dataUrl); // committed same-origin image file (e.g. images/custom_X.webp) not yet in the export bundle
     if (isUrl) { todo.push(dataUrl); urlCount++; }
+    else if (isPath) { todo.push(dataUrl); } // load + canvas-convert on demand (bundle-independent)
     else if (dataUrl.length >= SKIP_THRESHOLD_B64) { todo.push(dataUrl); }
     // else: small base64 — skip (used as-is in embed step)
   }
