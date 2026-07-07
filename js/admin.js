@@ -667,7 +667,6 @@ function saveSku() {
   var gi = ALL_PRODUCTS.findIndex(function(x){return String(x.item_code)===String(ic);});
   if (gi >= 0) Object.assign(ALL_PRODUCTS[gi], p); else ALL_PRODUCTS.push(p);
   updateAll();
-  closePanel();
   var msg = editingCode ? 'SKU "'+ic+'" updated ✓' : 'SKU "'+ic+'" added ✓';
   logActivity(editingCode ? 'edited' : 'added', ic, (p.product_name||ic));
   autoSave(); markUnsaved();
@@ -1044,7 +1043,7 @@ function _admQuickActionsHtml(){
   var FIRE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>';
   return '<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Quick Actions</div><div class="adm-panel-sub">Common tasks</div></div>'+
     '<div class="adm-qa-grid">'+
-      '<button class="adm-qa" onclick="closeAdminModal();openPanel(\x27add\x27)"><span class="adm-qa-ico">'+PLUS+'</span><span class="adm-qa-label">Add SKU</span></button>'+
+      '<button class="adm-qa" onclick="openPanel(\x27add\x27)"><span class="adm-qa-ico">'+PLUS+'</span><span class="adm-qa-label">Add SKU</span></button>'+
       '<button class="adm-qa" onclick="closeAdminModal();document.getElementById(\x27excel-upload-input\x27).click()"><span class="adm-qa-ico">'+UP+'</span><span class="adm-qa-label">Import Excel</span></button>'+
       '<button class="adm-qa" onclick="closeAdminModal();downloadExcel(\x27recommended\x27)"><span class="adm-qa-ico">'+DN+'</span><span class="adm-qa-label">Export Excel</span></button>'+
       '<button class="adm-qa" onclick="admBackup()"><span class="adm-qa-ico">'+DL+'</span><span class="adm-qa-label">Backup JSON</span></button>'+
@@ -1085,7 +1084,7 @@ function _admTabSkuHtml(){
       '<div class="adm-sku-topbtns">'+
         '<button class="btn-secondary" onclick="closeAdminModal();document.getElementById(\x27excel-upload-input\x27).click()">Import Excel</button>'+
         '<button class="btn-secondary" onclick="closeAdminModal();downloadExcel(\x27recommended\x27)">Export</button>'+
-        '<button class="adm-btn-cta" onclick="closeAdminModal();openPanel(\x27add\x27)">+ Add SKU</button>'+
+        '<button class="adm-btn-cta" onclick="openPanel(\x27add\x27)">+ Add SKU</button>'+'<button class="adm-btn-cta" onclick="saveCurrentVersion()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save ('+APP_VERSION+')</button>'+
         '<button class="btn-ghost" id="btn-rollback-upload-adm" onclick="closeAdminModal();rollbackUpload()" style="display:none">Undo Upload</button>'+
       '</div></div>'+
     '<div class="adm-sku-bulkbar" id="sku-bulkbar"><span class="adm-sku-bulkcount" id="sku-bulkcount">0 selected</span>'+
@@ -1514,7 +1513,7 @@ function renderAdminContent(){
   if(_ac.check()){
     modal.classList.remove('adm-compact');modal.classList.remove('adm-login');modal.classList.add('adm-dash');
     el.innerHTML=
-      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="btn-secondary" style="font-size:.8rem" onclick="closeAdminModal();openPanel(\x27add\x27)">+ Add SKU</button>'+'<button class="adm-btn-cta" onclick="closeAdminModal();saveCurrentVersion()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Save ('+APP_VERSION+')</button>'+'<button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
+      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
         '<div class="adm-card-header">'+
           '<span class="adm-card-icon promo" id="sec-promo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>'+
           '<div><div class="adm-card-title">Promo Popup</div><div class="adm-card-sub">Session-based promotional overlay</div></div>'+
@@ -1637,7 +1636,7 @@ function submitPin(){
   if(btn){btn.disabled=true;btn.classList.add('is-loading');}
   _ac.attempt(pin).then(function(res){
     if(res.ok){
-      refreshAdminUI();closeAdminModal();
+      refreshAdminUI();renderAdminContent();
       if(_admCb){var cb=_admCb;_admCb=null;cb();}
       showToast(res.migrated ? 'Admin access granted — PIN secured.' : 'Admin access granted.');
       return;
