@@ -172,12 +172,13 @@
     ov.classList.add('open'); _open=true;
     document.body.classList.add('so-lock');
     var inp=document.getElementById('search');
-    if(inp) setTimeout(function(){ try{ inp.focus(); inp.select(); }catch(e){} },60);
+    if(inp){ inp.value=''; setTimeout(function(){ try{ inp.focus(); }catch(e){} },60); }
   }
   function closeSearchOverlay(){
     var ov=document.getElementById('search-overlay'); if(!ov) return;
     ov.classList.remove('open'); _open=false;
     document.body.classList.remove('so-lock');
+    var inp=document.getElementById('search'); if(inp) inp.value='';   /* reset so the overlay reopens blank */
   }
   function closeSearchOverlayOutside(e){ if(e&&e.target&&e.target.id==='search-overlay') closeSearchOverlay(); }
   function soPickTerm(t){
