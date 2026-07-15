@@ -31,6 +31,8 @@ function applyFilters(){DISPLAYED_PRODUCTS=getFiltered();return DISPLAYED_PRODUC
 
 function setFilter(type,value,section){
   currentFilter={type:type,value:value,section:section||''};
+  currentSearch='';                                             /* switching category always clears any active search */
+  var searchEl=document.getElementById('search');if(searchEl)searchEl.value='';
   expandedKey=null;sortCol=null;
   rebuildSidebar();
   render();
