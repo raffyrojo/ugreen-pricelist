@@ -39,6 +39,13 @@ function _dlrInjectCss(){
    '.dlr-picker-bar input,.dlr-picker-bar select{background:var(--surface,#151922);border:1px solid var(--border,#2a2f3a);border-radius:7px;padding:7px 9px;color:var(--text,#e7ebf3);font-size:.8rem}',
    '.dlr-picker-bar input{flex:1;min-width:150px}',
    '.dlr-count{font-size:.74rem;color:var(--text-muted,#8b93a5);align-self:center;margin-left:auto}',
+   '.dlr-bulk{border:1px solid var(--border,#2a2f3a);border-radius:10px;padding:12px;margin-bottom:12px;background:var(--bg,#0e1117)}',
+   '.dlr-bulk-head{font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted,#8b93a5);margin-bottom:4px}',
+   '.dlr-bulk-sub{font-size:.72rem;color:var(--text-dim,#6b7280);margin-bottom:8px}',
+   '.dlr-bulk-ta{width:100%;min-height:66px;background:var(--surface,#151922);border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:9px 11px;color:var(--text,#e7ebf3);font-size:.82rem;font-family:ui-monospace,Menlo,monospace;resize:vertical;box-sizing:border-box}',
+   '.dlr-bulk-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}',
+   '.dlr-file-label{cursor:pointer;margin:0}',
+   '.dlr-bulk-status{font-size:.76rem;color:var(--text-muted,#8b93a5);flex:1;min-width:160px;line-height:1.5}',
    '.dlr-picker-list{max-height:46vh;overflow-y:auto;padding:4px 0}',
    '.dlr-opt{display:flex;align-items:center;gap:10px;padding:7px 12px;font-size:.82rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.03)}',
    '.dlr-opt:hover{background:rgba(255,255,255,.03)}',
@@ -163,6 +170,7 @@ function _dlrEditorHtml(){
       '<div class="dlr-field" style="max-width:150px"><label>Status</label><select id="dlr-active" onchange="_DLR.editing.active=(this.value===\'1\')" style="background:var(--bg,#0e1117);border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:9px 11px;color:var(--text,#e7ebf3);font-size:.86rem"><option value="1"'+(d.active!==false?' selected':'')+'>Active</option><option value="0"'+(d.active===false?' selected':'')+'>Disabled</option></select></div>'+
     '</div>'+
     '<div class="dlr-field" style="margin-bottom:8px"><label>Assigned SKUs</label></div>'+
+    '<div class="dlr-bulk">'+'<div class="dlr-bulk-head">Bulk assign by Item Code</div>'+'<div class="dlr-bulk-sub">Paste Item Codes (one per line, or comma/space separated) or upload a .txt/.csv. Matched codes are added to the list below.</div>'+'<textarea id="dlr-bulk-ta" class="dlr-bulk-ta" placeholder="40189&#10;20503&#10;10561"></textarea>'+'<div class="dlr-bulk-actions">'+'<label class="dlr-btn dlr-file-label">Upload .txt/.csv<input id="dlr-bulk-file" type="file" accept=".txt,.csv" style="display:none" onchange="dlrBulkFile(this)"></label>'+'<button class="dlr-btn primary" type="button" onclick="dlrBulkAdd()">Match &amp; add</button>'+'<span class="dlr-bulk-status" id="dlr-bulk-status"></span>'+'</div>'+'</div>'+
     '<div class="dlr-picker">'+
       '<div class="dlr-picker-bar">'+
         '<input id="dlr-q" value="'+_dlrEsc(_DLR.q)+'" placeholder="Search SKU, name or model…" oninput="dlrPickerSearch(this.value)">'+
@@ -182,6 +190,35 @@ function _dlrEditorHtml(){
 }
 function _dlrBindPicker(){ /* reserved for future keyboard nav */ }
 
+function dlrBulkFile(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){ var ta=document.getElementById('dlr-bulk-ta'); if(ta){ ta.value=(ta.value.trim()?ta.value.replace(/\s+$/,'')+'\n':'')+String(rd.result||''); } var st=document.getElementById('dlr-bulk-status'); if(st) st.textContent='Loaded "'+f.name+'" — click Match & add.'; };
+  rd.onerror=function(){ var st=document.getElementById('dlr-bulk-status'); if(st) st.textContent='Could not read that file.'; };
+  rd.readAsText(f); inp.value='';
+}
+function dlrBulkAdd(){
+  if(!_DLR.editing) return;
+  var ta=document.getElementById('dlr-bulk-ta'); if(!ta) return;
+  var codes=(ta.value||'').split(/[\s,;]+/).map(function(c){return c.trim();}).filter(Boolean);
+  if(!codes.length){ _dlrBulkStatus('Paste or upload some Item Codes first.'); return; }
+  var byCode={}; (ALL_PRODUCTS||[]).forEach(function(p){ byCode[String(p.item_code).toLowerCase()]=String(p.item_code); });
+  var cur={}; (_DLR.editing.skus||[]).forEach(function(c){ cur[String(c)]=1; });
+  var added=0, dup=0, notFound=[], seen={};
+  codes.forEach(function(c){
+    var key=c.toLowerCase(); if(seen[key]) return; seen[key]=1;
+    var actual=byCode[key];
+    if(!actual){ notFound.push(c); return; }
+    if(cur[actual]){ dup++; return; }
+    _DLR.editing.skus.push(actual); cur[actual]=1; added++;
+  });
+  var msg='Added '+added+' new SKU'+(added===1?'':'s')+'.';
+  if(dup) msg+=' '+dup+' already assigned.';
+  if(notFound.length) msg+=' '+notFound.length+' not found: '+notFound.slice(0,20).join(', ')+(notFound.length>20?' …':'');
+  _dlrRepaintPicker();
+  _dlrBulkStatus(msg);
+}
+function _dlrBulkStatus(m){ var s=document.getElementById('dlr-bulk-status'); if(s) s.textContent=m; }
 function dlrToggleSku(code,on){
   var s=_DLR.editing.skus||[];
   if(on){ if(s.indexOf(code)<0) s.push(code); } else { s=s.filter(function(c){return c!==code;}); }
