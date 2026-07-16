@@ -180,10 +180,10 @@ async function handleResetTrending(payload, env, cors) {
 
 /* ===== Dealer portal (Cloudflare KV binding: DEALERS) ==========================
    One KV key 'dealers' -> JSON array of dealer profiles:
-     { id, name, accessCode, discountPct (0-95, percent off SRP), active, skus:[item_code] }
-   dealerAuth is PUBLIC (no admin password): a dealer exchanges their access code
+     { id, name, username, password, discountPct (0-95, percent off SRP), active, skus:[item_code] }
+   dealerAuth is PUBLIC (no admin password): a dealer exchanges username+password
    for ONLY their own {name,discountPct,skus}. Other dealers' data is never returned.
-   dealersGet/dealersSave are admin-only (ADMIN_SAVE_SECRET). Access codes never
+   dealersGet/dealersSave are admin-only (ADMIN_SAVE_SECRET). Credentials never
    live in the public repo. If no KV is bound, dealer routes fail closed. */
 async function _dealersRead(env) {
   let list = null;
@@ -191,12 +191,13 @@ async function _dealersRead(env) {
   return Array.isArray(list) ? list : [];
 }
 async function handleDealerAuth(payload, env, cors) {
-  const code = String(payload.code || '').trim();
-  if (!code) return json({ error: 'code required' }, 400, cors);
+  const username = String(payload.username || '').trim().toLowerCase();
+  const password = String(payload.password || '');
+  if (!username || !password) return json({ error: 'username and password required' }, 400, cors);
   if (!env.DEALERS) return json({ error: 'Dealer portal not configured' }, 503, cors);
   const list = await _dealersRead(env);
-  const d = list.find(x => x && x.active !== false && String(x.accessCode) === code);
-  if (!d) return json({ error: 'Invalid access code' }, 401, cors);
+  const d = list.find(x => x && x.active !== false && String(x.username || '').toLowerCase() === username && String(x.password || '') === password);
+  if (!d) return json({ error: 'Invalid username or password' }, 401, cors);
   return json({ ok: true, dealer: {
     id: d.id, name: d.name,
     discountPct: Math.max(0, Math.min(95, Number(d.discountPct) || 0)),
@@ -216,16 +217,18 @@ async function handleDealersSave(payload, env, cors) {
   const clean = payload.dealers.slice(0, 1000).map(d => ({
     id: String(d.id || '').slice(0, 40),
     name: String(d.name || '').slice(0, 120),
-    accessCode: String(d.accessCode || '').slice(0, 120),
+    username: String(d.username || '').trim().toLowerCase().slice(0, 120),
+    password: String(d.password || '').slice(0, 200),
     discountPct: Math.max(0, Math.min(95, Number(d.discountPct) || 0)),
     active: d.active !== false,
     skus: Array.isArray(d.skus) ? [...new Set(d.skus.map(s => String(s).slice(0, 60)))].slice(0, 5000) : []
   }));
   for (const d of clean) {
     if (!d.name) return json({ error: 'Every dealer needs a name' }, 400, cors);
-    if (!d.accessCode) return json({ error: 'Dealer "' + d.name + '" needs an access code' }, 400, cors);
-    const k = d.accessCode;
-    if (seen[k]) return json({ error: 'Duplicate access code on "' + d.name + '" — codes must be unique' }, 400, cors);
+    if (!d.username) return json({ error: 'Dealer "' + d.name + '" needs a username' }, 400, cors);
+    if (!d.password) return json({ error: 'Dealer "' + d.name + '" needs a password' }, 400, cors);
+    const k = d.username;
+    if (seen[k]) return json({ error: 'Duplicate username "' + k + '" — usernames must be unique' }, 400, cors);
     seen[k] = 1;
   }
   try { await env.DEALERS.put('dealers', JSON.stringify(clean)); }
