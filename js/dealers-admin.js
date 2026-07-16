@@ -1,7 +1,7 @@
 /* UGREEN Pricelist CMS — Admin "Special Dealers" tab.
    Classic global scope (matches admin.js) so onclick handlers resolve.
    Data lives in the Cloudflare Worker's DEALERS KV (never in the public repo).
-   A dealer = { id, name, accessCode, discountPct (percent off SRP), active, skus:[item_code] }.
+   A dealer = { id, name, username, password, discountPct (percent off SRP), active, skus:[item_code] }.
    The main pricelist stays the single source of truth: the dealer view inherits
    every field from products.json and only overrides DP = round(SRP*(1-pct/100)). */
 
@@ -59,7 +59,7 @@ function renderDealersTab(){
   if(_DLR.editing){ el.innerHTML=_dlrEditorHtml(); _dlrBindPicker(); return; }
   if(!_DLR.loaded){
     el.innerHTML='<div class="dlr-wrap">'+
-      '<div class="dlr-note">Private per-dealer pricelists. Each dealer gets a flat % off SRP on the SKUs you assign. '+
+      '<div class="dlr-note">Private per-dealer pricelists. Each dealer gets a Special Margin (%) off SRP on the SKUs you assign. '+
       'The main pricelist stays the single source of truth — SRP edits and SKU deletions flow through automatically. '+
       'Dealer data is stored securely in the Worker (never in the public repo).</div>'+
       '<button class="dlr-btn primary" onclick="dlrLoad()">Load dealer list</button>'+
@@ -71,9 +71,9 @@ function renderDealersTab(){
     var n=(d.skus||[]).length;
     return '<div class="dlr-card">'+
       '<div><h4>'+_dlrEsc(d.name)+(d.active===false?' <span class="dlr-off">(disabled)</span>':'')+'</h4>'+
-      '<div class="dlr-meta"><span class="dlr-pill">'+(Number(d.discountPct)||0)+'% off SRP</span>'+
+      '<div class="dlr-meta"><span class="dlr-pill">'+(Number(d.discountPct)||0)+'% margin</span>'+
       '<span>'+n+' SKU'+(n===1?'':'s')+' assigned</span>'+
-      '<span>code: '+_dlrEsc(d.accessCode)+'</span></div></div>'+
+      '<span>user: '+_dlrEsc(d.username)+'</span></div></div>'+
       '<div style="display:flex;gap:8px">'+
       '<button class="dlr-btn" onclick="dlrEdit(\''+_dlrEsc(d.id)+'\')">Edit</button>'+
       '<button class="dlr-btn danger" onclick="dlrDelete(\''+_dlrEsc(d.id)+'\')">Delete</button></div>'+
@@ -106,12 +106,12 @@ function dlrLoad(){
 }
 
 function _dlrId(){ return 'd'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function dlrGenCode(){
-  var a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789', out='';
-  for(var i=0;i<8;i++) out+=a[Math.floor(Math.random()*a.length)];
-  var inp=document.getElementById('dlr-code'); if(inp){ inp.value=out; if(_DLR.editing) _DLR.editing.accessCode=out; }
+function dlrGenPass(){
+  var a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789', out='';
+  for(var i=0;i<10;i++) out+=a[Math.floor(Math.random()*a.length)];
+  var inp=document.getElementById('dlr-pass'); if(inp){ inp.value=out; if(_DLR.editing) _DLR.editing.password=out; }
 }
-function dlrNew(){ _DLR.editing={ id:_dlrId(), name:'', accessCode:'', discountPct:40, active:true, skus:[] }; _DLR.q=''; _DLR.cat='__all'; renderDealersTab(); }
+function dlrNew(){ _DLR.editing={ id:_dlrId(), name:'', username:'', password:'', discountPct:40, active:true, skus:[] }; _DLR.q=''; _DLR.cat='__all'; renderDealersTab(); }
 function dlrEdit(id){ var d=_DLR.dealers.filter(function(x){return x.id===id;})[0]; if(!d) return; _DLR.editing=JSON.parse(JSON.stringify(d)); if(!Array.isArray(_DLR.editing.skus))_DLR.editing.skus=[]; _DLR.q=''; _DLR.cat='__all'; renderDealersTab(); }
 function dlrCancelEdit(){ _DLR.editing=null; renderDealersTab(); }
 
@@ -151,12 +151,14 @@ function _dlrEditorHtml(){
   return '<div class="dlr-wrap"><div class="dlr-form">'+
     '<div class="dlr-frow">'+
       '<div class="dlr-field" style="flex:2"><label>Dealer name</label><input id="dlr-name" value="'+_dlrEsc(d.name)+'" oninput="_DLR.editing.name=this.value" placeholder="e.g. Acme Corp"></div>'+
-      '<div class="dlr-field"><label>Discount (% off SRP)</label><input id="dlr-pct" type="number" min="0" max="95" value="'+(Number(d.discountPct)||0)+'" oninput="_DLR.editing.discountPct=this.value"></div>'+
+      '<div class="dlr-field"><label>Special Margin (%)</label><input id="dlr-pct" type="number" min="0" max="95" value="'+(Number(d.discountPct)||0)+'" oninput="_DLR.editing.discountPct=this.value"></div>'+
     '</div>'+
     '<div class="dlr-frow">'+
-      '<div class="dlr-field" style="flex:2"><label>Access code (share privately with this dealer)</label>'+
-        '<div class="dlr-code-row"><input id="dlr-code" value="'+_dlrEsc(d.accessCode)+'" oninput="_DLR.editing.accessCode=this.value" placeholder="unique code"><button class="dlr-btn" type="button" onclick="dlrGenCode()">Generate</button></div></div>'+
-      '<div class="dlr-field"><label>Status</label><select id="dlr-active" onchange="_DLR.editing.active=(this.value===\'1\')" style="background:var(--bg,#0e1117);border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:9px 11px;color:var(--text,#e7ebf3);font-size:.86rem"><option value="1"'+(d.active!==false?' selected':'')+'>Active</option><option value="0"'+(d.active===false?' selected':'')+'>Disabled</option></select></div>'+
+      '<div class="dlr-field"><label>Username (dealer signs in with this)</label>'+
+        '<input id="dlr-user" value="'+_dlrEsc(d.username)+'" oninput="_DLR.editing.username=this.value" placeholder="e.g. acme" autocomplete="off"></div>'+
+      '<div class="dlr-field"><label>Password</label>'+
+        '<div class="dlr-code-row"><input id="dlr-pass" value="'+_dlrEsc(d.password)+'" oninput="_DLR.editing.password=this.value" placeholder="password" autocomplete="off"><button class="dlr-btn" type="button" onclick="dlrGenPass()">Generate</button></div></div>'+
+      '<div class="dlr-field" style="max-width:150px"><label>Status</label><select id="dlr-active" onchange="_DLR.editing.active=(this.value===\'1\')" style="background:var(--bg,#0e1117);border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:9px 11px;color:var(--text,#e7ebf3);font-size:.86rem"><option value="1"'+(d.active!==false?' selected':'')+'>Active</option><option value="0"'+(d.active===false?' selected':'')+'>Disabled</option></select></div>'+
     '</div>'+
     '<div class="dlr-field" style="margin-bottom:8px"><label>Assigned SKUs</label></div>'+
     '<div class="dlr-picker">'+
@@ -204,12 +206,14 @@ function dlrSelectFiltered(on){
 function dlrSaveEditor(){
   var d=_DLR.editing;
   d.name=String(d.name||'').trim();
-  d.accessCode=String(d.accessCode||'').trim();
+  d.username=String(d.username||'').trim();
+  d.password=String(d.password||'').trim();
   d.discountPct=Math.max(0,Math.min(95,Number(d.discountPct)||0));
   if(!d.name){ _dlrToast('Dealer needs a name.'); return; }
-  if(!d.accessCode){ _dlrToast('Dealer needs an access code.'); return; }
-  var dup=_DLR.dealers.some(function(x){ return x.id!==d.id && String(x.accessCode)===d.accessCode; });
-  if(dup){ _dlrToast('That access code is already used by another dealer.'); return; }
+  if(!d.username){ _dlrToast('Dealer needs a username.'); return; }
+  if(!d.password){ _dlrToast('Dealer needs a password.'); return; }
+  var dup=_DLR.dealers.some(function(x){ return x.id!==d.id && String(x.username||'').toLowerCase()===d.username.toLowerCase(); });
+  if(dup){ _dlrToast('That username is already used by another dealer.'); return; }
   if(!(d.skus||[]).length && !confirm('No SKUs assigned — this dealer will see an empty list. Save anyway?')) return;
   var i=-1; _DLR.dealers.forEach(function(x,idx){ if(x.id===d.id) i=idx; });
   if(i>=0) _DLR.dealers[i]=d; else _DLR.dealers.push(d);
