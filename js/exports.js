@@ -395,7 +395,7 @@ async function _x_downloadPDF() {
       }
 
       hideLoading();
-      var fname = 'Iontech-UGREEN-Pricelist_' + APP_VERSION + '.pdf';
+      var fname = 'Iontech-UGREEN-Pricelist.pdf';
       doc.save(fname);
       showToast('PDF saved \u2013 '+filtered.length+' products, '+TOTAL+' pages');
     } catch(err) {
@@ -818,7 +818,7 @@ async function _doExcelExport(fmt, filtered) {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = (fmt === 'recommended' ? 'Iontech-UGREEN-Pricelist_Full_' + APP_VERSION + '.xlsx' : 'Iontech-UGREEN-Pricelist_' + APP_VERSION + '.xlsx');
+    a.download = (fmt === 'recommended' ? 'Iontech-UGREEN-Pricelist_Full.xlsx' : 'Iontech-UGREEN-Pricelist.xlsx');
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
     hideLoading();
@@ -927,7 +927,7 @@ function _doStyledPdf(filtered) {
     var parts = [];
     parts.push('<!DOCTYPE html><html lang="en"><head>');
     parts.push('<meta charset="UTF-8">');
-    parts.push('<title>Iontech-UGREEN-Pricelist_Styled_' + APP_VERSION + '</title>');
+    parts.push('<title>Iontech-UGREEN-Pricelist_Styled</title>');
     parts.push('<link href="https://fonts.cdnfonts.com/css/metropolis-2" rel="stylesheet">');
     parts.push('<style>' + CSS + '</style>');
     parts.push('</head><body>');
@@ -1177,7 +1177,7 @@ function _doCatalogPdf(filtered) {
     parts.push('<meta charset="UTF-8">');
     // Filename rule: popup <title> is used as the browser's default Save-as-PDF name.
     // Per spec, this is version-only: "Iontech-UGREEN-Catalog_vXX" (no month/year, no timestamp).
-    parts.push('<title>Iontech-UGREEN-Catalog_' + APP_VERSION + '</title>');
+    parts.push('<title>Iontech-UGREEN-Catalog</title>');
     parts.push('<link href="https://fonts.cdnfonts.com/css/metropolis-2" rel="stylesheet">');
     parts.push('<style>' + CSS + '.row-actions{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:none;gap:2px;z-index:5;background:var(--card);padding:2px 4px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.12)}tr:hover .row-actions{display:flex}.row-action-btn{background:none;border:none;cursor:pointer;padding:3px 6px;border-radius:3px;font-size:.7rem;color:var(--text-dim);line-height:1;transition:background .15s}.row-action-btn:hover{background:var(--hover);color:var(--text)}tr td:last-child{position:relative}.btn-reset-filters:hover{background:var(--accent)!important;color:#fff!important}</style>');
     parts.push('</head><body>');
