@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Iontech · UGREEN Dealer Pricelist</title>
+<style>
+  :root{--bg:#0e1117;--surface:#151922;--surface2:#1b212c;--border:#2a2f3a;--text:#e7ebf3;--text-muted:#8b93a5;--text-dim:#6b7280;--green:#007934;--green-lt:#2ecc71;--srp:#ff8a5b}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  /* login */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px 26px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .brand-mark{width:34px;height:34px;border-radius:9px;background:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1rem}
+  .brand-name{font-weight:800;letter-spacing:.5px;font-size:1.05rem}
+  .brand-name span{color:var(--green-lt)}
+  .tagline{color:var(--text-dim);font-size:.68rem;letter-spacing:2px;text-transform:uppercase;margin:0 0 22px 44px}
+  .login-title{font-size:1.15rem;font-weight:700;margin:6px 0 4px}
+  .login-desc{color:var(--text-muted);font-size:.85rem;margin:0 0 20px;line-height:1.5}
+  .fld label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);font-weight:600;margin-bottom:7px}
+  .fld input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px 14px;color:var(--text);font-size:1rem;letter-spacing:2px;text-align:center;text-transform:uppercase}
+  .fld input:focus{outline:none;border-color:var(--green)}
+  .btn{width:100%;margin-top:16px;background:var(--green);border:none;border-radius:10px;padding:13px;color:#fff;font-weight:700;font-size:.95rem;cursor:pointer}
+  .btn:hover{filter:brightness(1.08)}
+  .err{color:#ff6b6b;font-size:.8rem;margin-top:12px;text-align:center;display:none}
+  .login-foot{margin-top:20px;text-align:center;color:var(--text-dim);font-size:.72rem;line-height:1.5}
+  /* loading */
+  .load-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text-muted)}
+  .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  /* list */
+  .top{position:sticky;top:0;z-index:5;background:rgba(14,17,23,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+  .top-inner{max-width:1080px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .top .brand{margin:0}
+  .who{margin-left:2px}
+  .who h1{font-size:1.02rem;margin:0;font-weight:700}
+  .who .who-sub{font-size:.74rem;color:var(--green-lt);font-weight:600}
+  .top-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .top-search{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 12px;color:var(--text);font-size:.85rem;min-width:180px}
+  .tbtn{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 13px;color:var(--text);font-size:.8rem;font-weight:600;cursor:pointer}
+  .tbtn:hover{border-color:var(--green)}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px 18px 60px}
+  .count{color:var(--text-dim);font-size:.75rem;margin:2px 0 10px}
+  .tbl-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:.86rem;min-width:640px}
+  thead th{position:sticky;top:0;background:var(--surface2);text-align:left;padding:11px 14px;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap}
+  thead th.rt{text-align:right}
+  tbody td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.045);vertical-align:middle}
+  tbody tr:hover td{background:rgba(255,255,255,.02)}
+  tr.grp td{background:var(--surface);font-weight:700;font-size:.74rem;text-transform:uppercase;letter-spacing:.6px;color:var(--green-lt);padding:9px 14px}
+  .pn-name{display:block;font-weight:600}
+  .pn-meta{display:block;color:var(--text-dim);font-size:.72rem;margin-top:2px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;color:var(--text-muted)}
+  td.rt{text-align:right;white-space:nowrap}
+  td.srp{color:var(--text-muted);text-decoration:line-through;text-decoration-thickness:1px}
+  td.dp{color:var(--green-lt);font-weight:800;font-size:.95rem}
+  td.save{color:var(--text-muted);font-size:.8rem}
+  .save-pct{background:rgba(0,121,52,.16);color:var(--green-lt);border-radius:12px;padding:1px 7px;font-size:.68rem;font-weight:700;margin-left:2px}
+  .dlr-none{text-align:center;color:var(--text-muted);padding:34px 14px}
+  .foot{max-width:1080px;margin:0 auto;padding:0 18px;color:var(--text-dim);font-size:.72rem;line-height:1.6}
+  @media(max-width:640px){ .hide-sm{display:none} table{min-width:0} .top-search{min-width:0;flex:1} }
+  @media print{
+    .top,.top-actions,.foot-note{display:none!important}
+    body{background:#fff;color:#000}
+    .wrap{padding:0}
+    .tbl-scroll{border:none}
+    td.dp{color:#007934}
+    tr.grp td{color:#007934;background:#f0f0f0}
+    thead th{background:#f0f0f0;color:#333}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="view-login" class="login-wrap" style="display:none">
+  <div class="login-card">
+    <div class="brand"><div class="brand-mark">U</div><div class="brand-name">IONTECH <span>UGREEN</span></div></div>
+    <p class="tagline">More for you</p>
+    <h2 class="login-title">Dealer Pricelist</h2>
+    <p class="login-desc">Enter the private access code provided by your Iontech representative to view your pricing.</p>
+    <form id="login-form">
+      <div class="fld"><label for="code-input">Access code</label><input id="code-input" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="••••••••"></div>
+      <button class="btn" type="submit">View my pricelist</button>
+      <div id="login-err" class="err"></div>
+    </form>
+    <div class="login-foot">Pricing is confidential to your account.<br>Don’t have a code? Contact your Iontech rep.</div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="view-loading" class="load-wrap" style="display:none"><div class="spin"></div><div>Loading your pricelist…</div></div>
+
+<!-- LIST -->
+<div id="view-list" style="display:none">
+  <div class="top"><div class="top-inner">
+    <div class="brand"><div class="brand-mark">U</div><div class="brand-name">IONTECH <span>UGREEN</span></div></div>
+    <div class="who"><h1 id="dlr-name">Dealer</h1><div class="who-sub" id="dlr-sub"></div></div>
+    <div class="top-actions">
+      <input id="dlr-search" class="top-search" type="text" placeholder="Search your products…">
+      <button id="btn-print" class="tbtn" title="Save as PDF / print">Print / PDF</button>
+      <button id="btn-exit" class="tbtn">Exit</button>
+    </div>
+  </div></div>
+  <div class="wrap">
+    <div class="count" id="dlr-count"></div>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th>Product</th><th>Item Code</th><th class="hide-sm">Model</th>
+          <th class="rt">SRP</th><th class="rt">Your Price</th><th class="rt hide-sm">You Save</th>
+        </tr></thead>
+        <tbody id="dlr-tbody"></tbody>
+      </table>
+    </div>
+    <p class="foot foot-note" style="margin-top:16px">Prices are subject to change without prior notice. Your Price reflects your account’s agreed discount off SRP. Volume pricing, where applicable, is quoted separately by your Iontech rep.</p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/dealer.js?v=p1"></script>
+</body>
+</html>
