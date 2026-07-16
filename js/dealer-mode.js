@@ -96,9 +96,11 @@ function _dmSwapHeaders(on){
     if(thM && _DM_TH.moq===null){ _DM_TH.moq=thM.outerHTML; }
     if(thV){ thV.setAttribute('data-col','special_dp'); thV.setAttribute('onclick',"sortBy('special_dp')"); thV.style.opacity=''; thV.title='Your special dealer price'; thV.innerHTML='Special DP <span class="sa">↕</span>'; }
     if(thM){ thM.innerHTML='MCQ <span class="sa">↕</span>'; thM.title='Master Carton Quantity'; }
+    var lgOn=document.getElementById('legend-dpv-label'); if(lgOn) lgOn.textContent='Special Price';
   } else {
     if(thV && _DM_TH.dpv!==null){ thV.outerHTML=_DM_TH.dpv; }
     if(thM && _DM_TH.moq!==null){ thM.outerHTML=_DM_TH.moq; }
+    var lgOff=document.getElementById('legend-dpv-label'); if(lgOff) lgOff.textContent='DP Vol (Volume)';
   }
 }
 
