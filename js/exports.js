@@ -486,12 +486,19 @@ async function _doExcelExport(fmt, filtered) {
       PRICE_COLS = [7,8,9,10];   // SRP, DP, DP Vol, MOQ
       DP_COL = 8; MOQ_COL = 10;
     }
+    // Dealer exports omit the DP Vol column entirely (special pricing has no volume tier).
+    var DEALER = !!(typeof window!=='undefined' && window.DEALER_MODE);
+    if (DEALER) BASE_COLS = BASE_COLS.filter(function(c){ return c.key !== 'dpv'; });
+    var _ci = function(k){ for (var i=0;i<BASE_COLS.length;i++){ if (BASE_COLS[i].key===k) return i+1; } return 0; };
+    IMG_COL=_ci('img'); CODE_COL=_ci('ic'); DP_COL=_ci('dp'); MOQ_COL=_ci('moq');
+    PRICE_COLS=['srp','dp','dpv','moq'].map(_ci).filter(function(i){return i>0;});
+    var DESC_COL=_ci('desc'), FEATS_COL=_ci('feats'), UPC_COL=_ci('upc'), MATNO_COL=_ci('matno');
     ws.columns = BASE_COLS;
     var TOTAL_COLS = BASE_COLS.length;
 
     // v1.2.0: Hide Material No. column in Data Only mode (col 12, unhiddable by dealer)
     if (fmt !== 'recommended') {
-      ws.getColumn(12).hidden = true;
+      ws.getColumn(MATNO_COL || 12).hidden = true;
     }
 
     // -- Thin light-gray border (spec) --
@@ -512,8 +519,8 @@ async function _doExcelExport(fmt, filtered) {
     PRICE_COLS.forEach(function(_pc){ PRICE_SET[_pc] = true; });
     // Pre-built per-column alignment objects
     var COL_ALIGNS = [];
-    var WRAP_COLS = (fmt === 'recommended') ? {12:true, 13:true} : {};   // Description+Features in Full
-    var NAME_COL  = 4;   // v13: same in both modes (Image at col 3 in both)
+    var WRAP_COLS = {}; if (fmt === 'recommended') { WRAP_COLS[DESC_COL]=true; WRAP_COLS[FEATS_COL]=true; }   // Description+Features in Full
+    var NAME_COL  = _ci('name');
     for (var _c = 1; _c <= TOTAL_COLS; _c++) {
       var _ha = 'left';
       if (_c === CODE_COL || _c === IMG_COL) _ha = 'center';
@@ -648,6 +655,7 @@ async function _doExcelExport(fmt, filtered) {
           ];
         }
 
+        if (DEALER) rowArr.splice(8, 1);   // remove dp_volume value (column dropped)
         var row = ws.getRow(rowNum);
         row.values = rowArr;
         // v01.6.3: set row height for EVERY product row in image-capable modes.
@@ -670,7 +678,7 @@ async function _doExcelExport(fmt, filtered) {
           // Everything else gets default Calibri 10pt.
           if (_c === DP_COL && _cell.value != null && _cell.value !== '') {
             _cell.font = DP_FONT;
-          } else if (fmt === 'recommended' && (_c === 12 || _c === 13)) {
+          } else if (fmt === 'recommended' && (_c === DESC_COL || _c === FEATS_COL)) {
             _cell.font = SMALL_FONT;
           } else {
             _cell.font = DEFAULT_FONT;
@@ -680,7 +688,7 @@ async function _doExcelExport(fmt, filtered) {
             _cell.numFmt = (_c === MOQ_COL) ? '#,##0' : '#,##0.00';
           }
           // UPC + Material No.: force text format to preserve leading zeros
-          if ((_c === 11 || _c === 12) && !PRICE_SET[_c]) {
+          if ((_c === UPC_COL || _c === MATNO_COL) && !PRICE_SET[_c]) {
             _cell.numFmt = '@';
           }
           // Zebra fill (skip image col)
@@ -691,32 +699,21 @@ async function _doExcelExport(fmt, filtered) {
 
         // Content-width tracking (auto-size)
         // v11: trackLen indices depend on fmt (Quick has 10 cols, Detailed 13)
+        trackLen(_ci('model')-1, p.model);
+        trackLen(_ci('ic')-1, p.item_code);
+        trackLen(_ci('name')-1, p.product_name);
+        trackLen(_ci('color')-1, p.color);
+        trackLen(_ci('len')-1, p.length);
+        trackLen(_ci('srp')-1, p.srp != null ? Number(p.srp).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+        trackLen(_ci('dp')-1,  p.dp  != null ? Number(p.dp).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+        if (!DEALER) trackLen(_ci('dpv')-1, p.dp_volume != null ? Number(p.dp_volume).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+        trackLen(_ci('moq')-1, p.moq != null ? String(p.moq) : '');
+        trackLen(_ci('upc')-1, p.upc);
         if (fmt === 'recommended') {
-          trackLen(0, p.model);
-          trackLen(1, p.item_code);
-          trackLen(3, p.product_name);
-          trackLen(4, p.color);
-          trackLen(5, p.length);
-          trackLen(6, p.srp != null ? Number(p.srp).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
-          trackLen(7, p.dp  != null ? Number(p.dp).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
-          trackLen(8, p.dp_volume != null ? Number(p.dp_volume).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
-          trackLen(9, p.moq != null ? String(p.moq) : '');
-          trackLen(10, p.upc);
-          trackLen(11, parseBullets(p.description||'').join('\n'));
-          trackLen(12, parseFeats(p.features||'').join('\n'));
+          trackLen(_ci('desc')-1,  parseBullets(p.description||'').join('\n'));
+          trackLen(_ci('feats')-1, parseFeats(p.features||'').join('\n'));
         } else {
-          trackLen(0, p.model);
-          trackLen(1, p.item_code);
-          // col 2 (zero-based) = Image (skipped from auto-size)
-          trackLen(3, p.product_name);
-          trackLen(4, p.color);
-          trackLen(5, p.length);
-          trackLen(6, p.srp != null ? Number(p.srp).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
-          trackLen(7, p.dp  != null ? Number(p.dp).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
-          trackLen(8, p.dp_volume != null ? Number(p.dp_volume).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
-          trackLen(9, p.moq != null ? String(p.moq) : '');
-          trackLen(10, p.upc);
-          trackLen(11, p.material_number);
+          trackLen(_ci('matno')-1, p.material_number);
         }
 
         // v1.1.17: inline per-row image embed (restored from v05 proven pattern).
