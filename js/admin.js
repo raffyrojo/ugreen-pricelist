@@ -1615,14 +1615,13 @@ function renderAdminContent(){
               '<label class="adm-field-label" for="adm-pin-field">Password</label>'+
               '<div class="adm-field">'+
                 '<span class="adm-field-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>'+
-                '<input id="adm-pin-field" class="adm-field-input" type="password" maxlength="20" placeholder="Enter your password" autocomplete="current-password" aria-label="Password" onkeydown="if(event.key===\x27Enter\x27)submitPin()">'+
+                '<input id="adm-pin-field" class="adm-field-input" type="password" maxlength="20" placeholder="Enter your password" autocomplete="current-password" aria-label="Password" onkeydown="if(event.key===\x27Enter\x27)doLogin()">'+
                 '<button type="button" class="adm-show-btn" aria-label="Show password" onclick="admTogglePw(this)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>'+
               '</div>'+
             '</div>'+
             '<label class="adm-remember adm-anim" style="--d:440ms"><input type="checkbox" id="adm-remember"><span class="adm-check" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>Remember me</span></label>'+
-            '<div class="adm-error" id="adm-err"></div>'+
-            '<button class="adm-signin-btn adm-anim" style="--d:490ms" id="adm-login-btn" onclick="submitPin()"><span class="adm-btn-label">Sign In</span><span class="adm-btn-loading"><span class="adm-spin" aria-hidden="true"></span>Signing In\u2026</span></button>'+'<div class="adm-dlr-acc adm-anim" id="adm-dlr-acc" style="--d:560ms">'+'<button type="button" class="adm-dlr-toggle" id="adm-dlr-toggle" aria-expanded="false" aria-controls="adm-dlr-panel" onclick="admToggleDealer()">'+'<span class="adm-dlr-toggle-main"><span class="adm-dlr-toggle-title">Dealer Access</span><span class="adm-dlr-toggle-sub">Sign in to view your assigned pricelist.</span></span>'+'<svg class="adm-dlr-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'+'</button>'+'<div class="adm-dlr-panel" id="adm-dlr-panel"><div class="adm-dlr-panel-inner">'+'<label class="adm-field-label" for="dlr-user">Dealer username</label>'+'<div class="adm-field"><span class="adm-field-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><input id="dlr-user" class="adm-field-input" type="text" autocomplete="off" placeholder="Your dealer username" aria-label="Dealer username"></div>'+'<label class="adm-field-label" for="dlr-pass">Password</label>'+'<div class="adm-field"><span class="adm-field-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><input id="dlr-pass" class="adm-field-input" type="password" autocomplete="off" placeholder="Your password" aria-label="Dealer password" onkeydown="if(event.key===\x27Enter\x27)dealerSignIn()"></div>'+'<div class="dm-derr" id="dlr-err"></div>'+'<button class="adm-dlr-btn" id="dlr-login-btn" onclick="dealerSignIn()">View My Pricelist</button>'+'</div></div>'+'</div>'+
-            '<div class="adm-lr-foot adm-anim" style="--d:540ms">&copy; '+new Date().getFullYear()+' Iontech Inc. \u00b7 Authorized Personnel Only<br><span class="v">Version '+APP_VERSION+'</span></div>'+
+            '<div class="adm-error" id="adm-err"></div>'+'<div class="adm-error dm-derr" id="dlr-err" style="display:none"></div>'+
+            '<button class="adm-signin-btn adm-anim" style="--d:490ms" id="adm-login-btn" onclick="doLogin()"><span class="adm-btn-label">Sign In</span><span class="adm-btn-loading"><span class="adm-spin" aria-hidden="true"></span>Signing In\u2026</span></button>'+'<input id="dlr-user" type="text" tabindex="-1" aria-hidden="true" autocomplete="off" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">'+'<input id="dlr-pass" type="password" tabindex="-1" aria-hidden="true" autocomplete="off" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">'+'<div class="adm-mode-switch adm-anim" id="adm-mode-switch" style="--d:560ms">'+'<button type="button" class="adm-dlr-toggle" id="adm-mode-btn" onclick="setLoginMode(_loginMode===\x27admin\x27?\x27dealer\x27:\x27admin\x27)">'+'<span class="adm-dlr-toggle-main"><span class="adm-dlr-toggle-title" id="adm-mode-title">Dealer Access</span><span class="adm-dlr-toggle-sub" id="adm-mode-sub">Sign in to view your assigned pricelist.</span></span>'+'<svg class="adm-mode-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>'+'</button>'+'</div>'+'<div class="adm-lr-foot adm-anim" style="--d:540ms">&copy; '+new Date().getFullYear()+' Iontech Inc. \u00b7 Authorized Personnel Only<br><span class="v">Version '+APP_VERSION+'</span></div>'+
           '</div>'+
         '</section>'+
       '</div>';
@@ -1674,12 +1673,38 @@ function submitPin(){
   });
 }
 
-function admToggleDealer(){
-  var acc=document.getElementById('adm-dlr-acc'), tog=document.getElementById('adm-dlr-toggle');
-  if(!acc) return;
-  var open=acc.classList.toggle('open');
-  if(tog) tog.setAttribute('aria-expanded', open?'true':'false');
-  if(open){ setTimeout(function(){ var f=document.getElementById('dlr-user'); if(f){ try{f.focus();}catch(e){} } }, 300); }
+var _loginMode='admin';
+function doLogin(){
+  if(_loginMode==='dealer'){
+    var du=document.getElementById('dlr-user'), dp=document.getElementById('dlr-pass');
+    var vu=document.getElementById('adm-username'), vp=document.getElementById('adm-pin-field');
+    if(du&&vu) du.value=vu.value; if(dp&&vp) dp.value=vp.value;
+    if(typeof dealerSignIn==='function') dealerSignIn();
+  } else { submitPin(); }
+}
+function setLoginMode(mode){
+  if(mode!=='dealer'&&mode!=='admin') return;
+  _loginMode=mode; var isD=(mode==='dealer');
+  var card=document.getElementById('adm-lr-card'); if(card) card.classList.add('adm-mode-switching');
+  setTimeout(function(){
+    var el;
+    el=document.querySelector('.adm-lr-title'); if(el) el.textContent=isD?'Dealer Sign In':'Admin Sign In';
+    el=document.querySelector('.adm-lr-sub'); if(el) el.textContent=isD?'Access your assigned dealer pricelist.':'Secure access for authorized Iontech personnel.';
+    var u=document.getElementById('adm-username'), pw=document.getElementById('adm-pin-field');
+    if(u){ u.placeholder=isD?'Your dealer username':'Enter your username'; u.value=''; }
+    if(pw){ pw.placeholder=isD?'Your password':'Enter your password'; pw.value=''; if(pw.type==='text') pw.type='password'; }
+    var lbl=document.querySelector('#adm-login-btn .adm-btn-label'); if(lbl) lbl.textContent=isD?'View My Pricelist':'Sign In';
+    var rem=document.querySelector('.adm-remember'); if(rem) rem.style.visibility=isD?'hidden':'visible';
+    var ae=document.getElementById('adm-err'), de=document.getElementById('dlr-err');
+    if(ae){ ae.textContent=''; ae.style.color=''; ae.style.display=isD?'none':''; }
+    if(de){ de.textContent=''; de.style.color=''; de.style.display=isD?'':'none'; }
+    var mt=document.getElementById('adm-mode-title'), ms=document.getElementById('adm-mode-sub');
+    if(mt) mt.textContent=isD?'Admin Sign In':'Dealer Access';
+    if(ms) ms.textContent=isD?'Back to staff login.':'Sign in to view your assigned pricelist.';
+    var b=document.getElementById('adm-login-btn'); if(b){ b.disabled=false; b.classList.remove('is-loading'); }
+    if(card) card.classList.remove('adm-mode-switching');
+    try{ if(u) u.focus(); }catch(e){}
+  }, 170);
 }
 function admTogglePw(btn){
   var i=document.getElementById('adm-pin-field'); if(!i)return;
