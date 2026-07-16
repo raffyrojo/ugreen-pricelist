@@ -84,25 +84,27 @@ function renderDealersTab(){
       '<button class="dlr-btn primary" onclick="dlrNew()">+ Add dealer</button>'+
       '<button class="dlr-btn" onclick="dlrLoad()">Refresh</button>'+
     '</div>'+
-    (rows? '<div class="dlr-list">'+rows+'</div>' : '<div class="dlr-empty">No special dealers yet. Click “+ Add dealer” to create one.</div>')+
+    (rows? '<div class="dlr-list">'+rows+'</div>' : '<div class="dlr-empty"><b>Loaded — no dealers yet.</b><br>Click <b>+ Add dealer</b> above to create your first dealer.</div>')+
   '</div>';
 }
 
+function _dlrRenderMsg(html){ var el=document.getElementById('tab-dealers'); if(el) el.innerHTML='<div class="dlr-wrap"><div class="dlr-note" style="font-size:.9rem;line-height:1.6;padding:16px 0">'+html+'</div></div>'; }
 function dlrLoad(){
-  var ep=_dlrEndpoint(); if(!ep) return;
+  var ep=_dlrEndpoint(); if(!ep){ _dlrRenderMsg('No backend configured (config.js → backend.workerEndpoint).'); return; }
   var pw=window.prompt('Enter the admin save password to load dealers:');
-  if(pw===null) return;
-  if(!pw){ _dlrToast('Cancelled — no password.'); return; }
-  _dlrToast('Loading dealers…');
+  if(pw===null){ if(!_DLR.loaded) renderDealersTab(); return; }
+  if(!pw){ _dlrRenderMsg('No password entered. <button class="dlr-btn" onclick="dlrLoad()">Try again</button>'); return; }
+  _dlrRenderMsg('Loading dealers…');
   fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'dealersGet',password:pw})})
     .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){return {status:r.status,body:j};}); })
     .then(function(res){
-      if(res.status===401){ _dlrToast('Wrong password.'); return; }
-      if(res.status!==200||!res.body||!res.body.ok){ _dlrToast('Load failed: '+((res.body&&res.body.error)||('HTTP '+res.status))); return; }
-      _DLR.pw=pw; _DLR.loaded=true; _DLR.dealers=res.body.dealers||[]; renderDealersTab();
+      if(res.status===401){ _dlrRenderMsg('Wrong save password. <button class="dlr-btn" onclick="dlrLoad()">Try again</button>'); return; }
+      if(res.status!==200||!res.body||!res.body.ok){ _dlrRenderMsg('Load failed: '+((res.body&&res.body.error)||('HTTP '+res.status))+'. <button class="dlr-btn" onclick="dlrLoad()">Try again</button>'); return; }
+      _DLR.pw=pw; _DLR.loaded=true; _DLR.dealers=res.body.dealers||[];
+      try{ renderDealersTab(); }catch(e){ _dlrRenderMsg('Loaded '+_DLR.dealers.length+' dealer(s) but hit a render error: '+_dlrEsc(e.message||String(e))); return; }
       _dlrToast('Loaded '+_DLR.dealers.length+' dealer'+(_DLR.dealers.length===1?'':'s')+'.');
     })
-    .catch(function(e){ _dlrToast('Load error: '+(e.message||e)); });
+    .catch(function(e){ _dlrRenderMsg('Network error: '+_dlrEsc(e.message||String(e))+'. <button class="dlr-btn" onclick="dlrLoad()">Try again</button>'); });
 }
 
 function _dlrId(){ return 'd'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
