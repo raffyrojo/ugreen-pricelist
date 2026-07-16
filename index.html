@@ -67,7 +67,7 @@
   <div class="legend">
     <div class="legend-item"><div class="legend-dot" style="background:var(--srp)"></div>SRP (Retail)</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--dp)"></div>DP (Dealer)</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--dpvol)"></div>DP Vol (Volume)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--dpvol)"></div><span id="legend-dpv-label">DP Vol (Volume)</span></div>
     <div class="legend-right" style="margin-left:auto;display:flex;align-items:center;gap:1rem">
       <span class="legend-hint" style="font-size:0.68rem;color:var(--text-dim)">Click any row / card for full details</span>
       <div class="view-toggle"><button class="view-btn active" id="btn-table" onclick="setView('table')" title="Table view" aria-label="Table view"><span class="vb-ico">≡</span><span class="vb-txt"> Table</span></button><button class="view-btn" id="btn-grid" onclick="setView('grid')" title="Grid view" aria-label="Grid view"><span class="vb-ico">⊞</span><span class="vb-txt"> Grid</span></button></div>
@@ -186,7 +186,7 @@
 <script src="js/dealers-admin.js?v=p5"></script>
 <script src="js/github-save.js?v=p6"></script>
 <script src="js/search-overlay.js?v=p6"></script>
-<script src="js/dealer-mode.js?v=p4"></script>
+<script src="js/dealer-mode.js?v=p5"></script>
 <script>
 /* Integrity guard (Phase 10 review): if any core script fails to load fully — e.g. a
    file was truncated on save — this makes the failure LOUD instead of a silent broken
