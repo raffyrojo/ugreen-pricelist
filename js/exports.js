@@ -120,6 +120,9 @@ async function _x_downloadPDF() {
         {w:10,  label:'MOQ',           a:'r'},
         {w:23,  label:'UPC',           a:'l'}
       ];
+      if (typeof window!=='undefined' && window.DEALER_MODE) {
+        for (var _di=0;_di<C.length;_di++){ if(C[_di].label==='DP VOL'){ C[_di].w=0; C[_di].label=''; } else if(C[_di].label==='PRODUCT NAME'){ C[_di].w+=20; } }
+      }
       var xOff = 0;
       C.forEach(function(c){ c.x=xOff; xOff+=c.w; });
 
@@ -341,7 +344,7 @@ async function _x_downloadPDF() {
 
             // DP Volume (C[8], right-aligned blue -- MOQ has its own column)
             var volTxt = fmtPHP(p.dp_volume);
-            if (volTxt) {
+            if (volTxt && !(typeof window!=='undefined' && window.DEALER_MODE)) {
               doc.setFont('helvetica','normal');
               doc.setFontSize(6.5);
               doc.setTextColor.apply(doc,BLUE);
@@ -846,6 +849,7 @@ function _x_openStyledPdf() {
 
 function _doStyledPdf(filtered) {
   try {
+    var DEALER = !!(typeof window!=='undefined' && window.DEALER_MODE);
     // Same sort order as Excel export
     var sorted = sortProducts(filtered.slice());
 
@@ -882,6 +886,7 @@ function _doStyledPdf(filtered) {
       ['22.0%','Description'],
       ['17.2%','Features']
     ];
+    if (DEALER) COLS = COLS.filter(function(_c){ return _c[1].indexOf('DP Vol') !== 0; });
     var TOTAL_COLS = COLS.length;
 
     // CSS -- mirrors Excel styling: slate header, green section bars,
@@ -979,7 +984,7 @@ function _doStyledPdf(filtered) {
         parts.push('<td>' + esc(p.length||'') + '</td>');
         parts.push('<td class="num">' + esc(fmtCell(p.srp)) + '</td>');
         parts.push('<td class="num dp">' + esc(fmtCell(p.dp)) + '</td>');
-        parts.push('<td class="num">' + esc(fmtCell(p.dp_volume)) + '</td>');
+        if (!DEALER) parts.push('<td class="num">' + esc(fmtCell(p.dp_volume)) + '</td>');
         parts.push('<td class="num">' + esc(p.moq==null?'':String(p.moq)) + '</td>');
         parts.push('<td class="mono small">' + esc(p.upc||'') + '</td>');
         parts.push('<td class="txt"><div class="clamp">' + esc(descText) + '</div></td>');
@@ -1036,6 +1041,7 @@ function _x_openCatalogPdf() {
 
 function _doCatalogPdf(filtered) {
   try {
+    var DEALER = !!(typeof window!=='undefined' && window.DEALER_MODE);
     var sorted = sortProducts(filtered.slice());
     var fmtPrice = function(v) {
       if (v === null || v === undefined || v === '') return '\u2014';
@@ -1275,7 +1281,7 @@ function _doCatalogPdf(filtered) {
         parts.push('</div>');
         parts.push('<div class="card-secondary">');
         parts.push('<div class="srp"><span class="lbl">SRP</span>' + esc(fmtPrice(p.srp)) + '</div>');
-        if (p.dp_volume) {
+        if (p.dp_volume && !DEALER) {
           var volHtml = '<span class="lbl">Vol</span>' + esc(fmtPrice(p.dp_volume));
           if (p.moq) volHtml += '<span class="sep">\u00b7</span><span class="lbl">MOQ</span>' + p.moq;
           parts.push('<div class="vol">' + volHtml + '</div>');
@@ -1367,7 +1373,7 @@ function _doCaptureSkuCard(itemCode, btn) {
         '<div style="display:flex;gap:.5rem">'+
           '<div style="flex:1;background:#f5f7fa;border:1px solid #e0e7f0;border-radius:8px;padding:.55rem .6rem;text-align:center"><div style="font-size:.58rem;color:#475569;margin-bottom:.2rem">SRP</div><div style="font-family:Metropolis,sans-serif;font-size:.85rem;font-weight:600;color:#475569">'+fmt(p.srp)+'</div></div>'+
           '<div style="flex:1.1;background:rgba(0,121,52,.07);border:1px solid rgba(0,121,52,.22);border-radius:8px;padding:.55rem .6rem;text-align:center"><div style="font-size:.58rem;color:#009632;margin-bottom:.2rem;font-weight:600;letter-spacing:.05em">DEALER PRICE</div><div style="font-family:Metropolis,sans-serif;font-size:1.05rem;font-weight:700;color:#009632">'+fmt(p.dp)+'</div></div>'+
-          '<div style="flex:1;background:#f5f7fa;border:1px solid #e0e7f0;border-radius:8px;padding:.55rem .6rem;text-align:center"><div style="font-size:.58rem;color:#475569;margin-bottom:.2rem">DP VOLUME</div><div style="font-family:Metropolis,sans-serif;font-size:.85rem;font-weight:600;color:#475569">'+fmt(p.dp_volume)+'</div></div>'+
+          (DEALER ? '' : '<div style="flex:1;background:#f5f7fa;border:1px solid #e0e7f0;border-radius:8px;padding:.55rem .6rem;text-align:center"><div style="font-size:.58rem;color:#475569;margin-bottom:.2rem">DP VOLUME</div><div style="font-family:Metropolis,sans-serif;font-size:.85rem;font-weight:600;color:#475569">'+fmt(p.dp_volume)+'</div></div>')+
         '</div>'+
         (p.moq?'<div style="margin-top:.55rem;font-size:.68rem;color:#475569;font-family:Metropolis,sans-serif">MOQ: '+esc(String(p.moq))+'</div>':'')+
       '</div>'+
