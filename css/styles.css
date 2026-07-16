@@ -1910,3 +1910,10 @@ body.so-lock{ overflow:hidden; }
 .adm-dlr-btn{width:100%;height:46px;margin-top:.9rem;background:#fff;border:1.5px solid #007934;color:#007934;border-radius:10px;font-weight:700;font-size:.9rem;font-family:'Metropolis',sans-serif;cursor:pointer;transition:background .2s ease,color .2s ease}
 .adm-dlr-btn:hover{background:#007934;color:#fff}
 @media (max-width:640px){ .adm-dlr-acc.open .adm-dlr-panel{max-height:420px} }
+
+/* ── Login: Admin/Dealer single-form mode switch (p33) ────────────────── */
+#adm-lr-card{transition:opacity .22s ease}
+#adm-lr-card.adm-mode-switching{opacity:.18}
+.adm-mode-switch{margin-top:1.6rem;padding-top:1.35rem;border-top:1px solid var(--border)}
+.adm-mode-arrow{flex-shrink:0;color:#007934;transition:transform .2s ease}
+.adm-dlr-toggle:hover .adm-mode-arrow{transform:translateX(3px)}
