@@ -1891,3 +1891,22 @@ body.so-lock{ overflow:hidden; }
   .modal-price .pval,.modal-price .pval.price-srp,.modal-price .pval.price-dpv{font-size:1.1rem}
   .modal-price.dp-highlight .pval{font-size:1.35rem}
 }
+
+/* ── Login: Dealer Access accordion (p32) ─────────────────────────────── */
+.adm-dlr-acc{margin-top:1.6rem;padding-top:1.35rem;border-top:1px solid var(--border)}
+.adm-dlr-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:.75rem;background:#F6F8F9;border:1px solid var(--border);border-radius:12px;padding:.85rem 1rem;cursor:pointer;text-align:left;font-family:'Metropolis',sans-serif;transition:border-color .2s ease,background .2s ease}
+.adm-dlr-toggle:hover{border-color:#007934;background:#EFF6F1}
+.adm-dlr-toggle:focus-visible{outline:2px solid #007934;outline-offset:2px}
+.adm-dlr-toggle-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.adm-dlr-toggle-title{font-weight:700;font-size:.92rem;color:#0F172A;line-height:1.2}
+.adm-dlr-toggle-sub{font-size:.72rem;color:var(--text-muted,#64748B);font-weight:500;line-height:1.3}
+.adm-dlr-chev{flex-shrink:0;color:#007934;transition:transform .28s ease}
+.adm-dlr-acc.open .adm-dlr-chev{transform:rotate(180deg)}
+.adm-dlr-acc.open .adm-dlr-toggle{border-color:#007934;background:#EFF6F1;border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-color:transparent}
+.adm-dlr-panel{max-height:0;overflow:hidden;opacity:0;transition:max-height .28s ease,opacity .24s ease}
+.adm-dlr-acc.open .adm-dlr-panel{max-height:360px;opacity:1}
+.adm-dlr-panel-inner{border:1px solid #007934;border-top:none;border-radius:0 0 12px 12px;padding:1.05rem 1rem 1.15rem}
+.adm-dlr-panel-inner .adm-field-label{margin-top:.2rem}
+.adm-dlr-btn{width:100%;height:46px;margin-top:.9rem;background:#fff;border:1.5px solid #007934;color:#007934;border-radius:10px;font-weight:700;font-size:.9rem;font-family:'Metropolis',sans-serif;cursor:pointer;transition:background .2s ease,color .2s ease}
+.adm-dlr-btn:hover{background:#007934;color:#fff}
+@media (max-width:640px){ .adm-dlr-acc.open .adm-dlr-panel{max-height:420px} }
