@@ -26,10 +26,6 @@ function _dmInjectCss(){
    '#dm-banner .dm-spacer{margin-left:auto}',
    '#dm-banner .dm-logout{background:#fff;color:#00612a;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:.8rem;cursor:pointer}',
    '#dm-banner .dm-logout:hover{filter:brightness(.95)}',
-   '.adm-dlr-sep{display:flex;align-items:center;gap:10px;margin:20px 0 14px;color:var(--text-muted,#8b93a5);font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;font-weight:700}',
-   '.adm-dlr-sep::before,.adm-dlr-sep::after{content:"";flex:1;height:1px;background:var(--border,#2a2f3a)}',
-   '.adm-dlr-btn{width:100%;margin-top:4px;background:transparent;border:1.5px solid #007934;color:#007934;border-radius:10px;padding:12px;font-weight:700;font-size:.9rem;cursor:pointer}',
-   '.adm-dlr-btn:hover{background:#007934;color:#fff}',
    '.dm-derr{color:#ff6b6b;font-size:.8rem;margin-top:8px;min-height:1em}'
   ].join('');
   document.head.appendChild(st);
