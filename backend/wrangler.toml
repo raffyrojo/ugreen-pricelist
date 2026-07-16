@@ -20,3 +20,9 @@ GH_BRANCH = "main"
 [[kv_namespaces]]
 binding = "TRENDING"
 id = "e7a966fb31b942689e08befed4f3d1d6"
+
+# Dealer portal store (Workers KV). Create it once, then paste the id below:
+#   wrangler kv namespace create DEALERS
+[[kv_namespaces]]
+binding = "DEALERS"
+id = "REPLACE_WITH_DEALERS_KV_ID"
