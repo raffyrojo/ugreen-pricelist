@@ -25,4 +25,4 @@ id = "e7a966fb31b942689e08befed4f3d1d6"
 #   wrangler kv namespace create DEALERS
 [[kv_namespaces]]
 binding = "DEALERS"
-id = "REPLACE_WITH_DEALERS_KV_ID"
+id = "de4ad9f6c33d4b25a8e9aae8d8ef7784"
