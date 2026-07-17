@@ -1348,6 +1348,7 @@ function _x_captureSkuCard(itemCode, btn) {
 function _doCaptureSkuCard(itemCode, btn) {
   var p = ALL_PRODUCTS.find(function(x){ return String(x.item_code) === String(itemCode); });
   if (!p) { showToast('Product not found for item: ' + itemCode); _resetScreenshotBtn(btn); return; }
+  var DEALER = !!(typeof window!=='undefined' && window.DEALER_MODE);
   var cap = document.createElement('div');
   cap.style.cssText = 'position:fixed;left:-2000px;top:0;width:620px;pointer-events:none;background:#ffffff;color:#0f172a;padding:1.75rem;border:1px solid #e0e7f0;border-radius:12px;font-family:Metropolis,Arial,Helvetica,sans-serif;box-sizing:border-box;';
   var img = p.image ? _exImg(p.image) : null;
