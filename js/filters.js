@@ -2,12 +2,25 @@
 
 function getFiltered(){
   var q=currentSearch.trim().toLowerCase();
+  /* Smart SKU extraction: split the query into alphanumeric tokens so a pasted
+     string like "UGREEN CM681/15978 13-IN-1 MULTIADAPTER" resolves to SKU 15978
+     via an exact token match on item_code / upc / material_number. */
+  var toks=q?q.split(/[^a-z0-9]+/).filter(function(t){return t.length>=4;}):[];
   var f=ALL_PRODUCTS.filter(function(p){
-    if(currentFilter.type==='new'){if(!(typeof isNewArrival==='function'&&isNewArrival(p)))return false;}
-    if(currentFilter.type==='sheet'&&p.sheet!==currentFilter.value)return false;
-    if(currentFilter.type==='category'){if(p.category!==currentFilter.value)return false;if(currentFilter.section&&p.sheet!==currentFilter.section)return false;}
-    if(!q)return true;
-    return String(p.item_code||'').toLowerCase().includes(q)||String(p.model||'').toLowerCase().includes(q)||
+    if(!q){
+      /* No search: honor the selected tab/category (section-aware). */
+      if(currentFilter.type==='new'){if(!(typeof isNewArrival==='function'&&isNewArrival(p)))return false;}
+      if(currentFilter.type==='sheet'&&p.sheet!==currentFilter.value)return false;
+      if(currentFilter.type==='category'){if(p.category!==currentFilter.value)return false;if(currentFilter.section&&p.sheet!==currentFilter.section)return false;}
+      return true;
+    }
+    /* Active search = GLOBAL across all products, regardless of the selected tab/category. */
+    var ic=String(p.item_code||'').toLowerCase();
+    if(toks.length){
+      var up=String(p.upc||'').toLowerCase(),mn=String(p.material_number||'').toLowerCase();
+      for(var i=0;i<toks.length;i++){var t=toks[i];if(t===ic||t===up||t===mn)return true;}
+    }
+    return ic.includes(q)||String(p.model||'').toLowerCase().includes(q)||
            String(p.product_name||'').toLowerCase().includes(q)||String(p.upc||'').toLowerCase().includes(q)||
            String(p.material_number||'').toLowerCase().includes(q)||String(p.category||'').toLowerCase().includes(q)||
            String(p.color||'').toLowerCase().includes(q)||String(p.length||'').toLowerCase().includes(q)||String(p.features||'').toLowerCase().includes(q)||
