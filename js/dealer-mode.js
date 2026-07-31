@@ -59,7 +59,7 @@ function enterDealerMode(profile, fromSession){
   if(!_PUBLIC_PRODUCTS) _PUBLIC_PRODUCTS = ALL_PRODUCTS;      // capture once
   var pct=Math.max(0,Math.min(95,Number(profile.discountPct)||0));
   var set={}; (profile.skus||[]).forEach(function(c){ set[String(c)]=1; });
-  var dealerProducts=_PUBLIC_PRODUCTS.filter(function(p){ return set[String(p.item_code)]; }).map(function(p){
+  var dealerProducts=_PUBLIC_PRODUCTS.filter(function(p){ return set[String(p.item_code)] && !p.disabled; }).map(function(p){
     var srp=Number(p.srp)||0, sp=_dmRound(srp*(1-pct/100));  // Special Price = round(SRP x (1 - margin%)) to nearest peso; shown 2-dec via fmt
     return Object.assign({}, p, { dp_std:p.dp, dp:sp, special_dp:sp, dp_volume:'' });
   });

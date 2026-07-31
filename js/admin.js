@@ -745,6 +745,19 @@ function adminDeleteProduct(ic) {
   });
 }
 
+function adminToggleDisableProduct(ic){
+  requireAdmin(function(){
+    var p=ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(ic);});
+    if(!p){showToast('SKU not found: '+ic);return;}
+    p.disabled=!p.disabled;
+    try{var cs=loadNewSkus();var m=cs.find(function(x){return String(x.item_code)===String(ic);});if(m){m.disabled=p.disabled;saveNewSkus(cs);}}catch(e){}
+    if(typeof updateAll==='function')updateAll();
+    if(typeof autoSave==='function')autoSave(); if(typeof markUnsaved==='function')markUnsaved();
+    if(typeof logActivity==='function')logActivity(p.disabled?'disabled':'enabled',ic,p.product_name||ic);
+    if(typeof renderSkuTable==='function')renderSkuTable();
+    showToast('"'+ic+'" '+(p.disabled?'disabled \u2014 hidden from pricelist & exports':'enabled \u2014 visible again')+'.');
+  });
+}
 function deleteSku(ic) {
   var p = loadNewSkus().find(function(x){return String(x.item_code)===String(ic);});
   var name = p ? p.product_name : ic;
@@ -1094,7 +1107,7 @@ function _admTabSkuHtml(){
     '<div class="adm-sku-filters">'+
       '<input id="sku-search" class="adm-input" placeholder="Search name, model, code, material, UPC…" oninput="skuFilter()">'+
       '<select id="sku-cat" class="adm-input" onchange="skuFilter()">'+renderSkuCatOptions()+'</select>'+
-      '<select id="sku-status" class="adm-input" onchange="skuFilter()"><option value="">All status</option><option value="active">Active</option><option value="new">New</option></select>'+
+      '<select id="sku-status" class="adm-input" onchange="skuFilter()"><option value="">All status</option><option value="active">Active</option><option value="new">New</option><option value="disabled">Disabled</option></select>'+
       '<select id="sku-price" class="adm-input" onchange="skuFilter()"><option value="">All prices</option><option value="a">₱0 – 500</option><option value="b">₱500 – 2,000</option><option value="c">₱2,000 – 5,000</option><option value="d">₱5,000+</option></select>'+
       '<select id="sku-sort" class="adm-input" onchange="skuFilter()"><option value="name">Product name</option><option value="code">Item code</option><option value="srp-asc">SRP: low to high</option><option value="srp-desc">SRP: high to low</option></select>'+
     '</div>'+
@@ -1113,7 +1126,7 @@ function _skuRows(){
   var r=ALL_PRODUCTS.filter(function(p){
     if(cat && String(p.sheet_display||p.sheet||p.category)!==cat) return false;
     if(pr){var s=Number(p.srp)||0; if(pr==='a'&&!(s<500))return false; if(pr==='b'&&!(s>=500&&s<2000))return false; if(pr==='c'&&!(s>=2000&&s<5000))return false; if(pr==='d'&&!(s>=5000))return false;}
-    if(st){var nw=(typeof isNewSku==='function'&&isNewSku(p)); if(st==='new'&&!nw)return false; if(st==='active'&&nw)return false;}
+    if(st){ if(st==='disabled'){ if(!p.disabled)return false; } else { if(p.disabled)return false; var nw=(typeof isNewSku==='function'&&isNewSku(p)); if(st==='new'&&!nw)return false; if(st==='active'&&nw)return false; } }
     if(q){var h=((p.product_name||'')+' '+(p.model||'')+' '+(p.item_code||'')+' '+(p.color||'')+' '+(p.upc||'')+' '+(p.material_number||'')).toLowerCase(); if(h.indexOf(q)<0)return false;}
     return true;
   });
@@ -1145,9 +1158,10 @@ function renderSkuTable(){
     var src=imgSrc(p.image);
     var img=src?'<img src="'+src+'" alt="" loading="lazy">':'<div class="adm-sku-noimg"></div>';
     var isNew=(typeof isNewSku==='function'&&isNewSku(p));
-    var status=isNew?'<span class="adm-sku-status adm-sku-status-new">New</span>':'<span class="adm-sku-status">Active</span>';
+    var status=p.disabled?'<span class="adm-sku-status adm-sku-status-off">Disabled</span>':(isNew?'<span class="adm-sku-status adm-sku-status-new">New</span>':'<span class="adm-sku-status">Active</span>');
     var checked=_skuSel[String(code)]?' checked':'';
-    return '<tr'+(_skuSel[String(code)]?' class="sel"':'')+'>'+
+    var _rowcls=((_skuSel[String(code)]?'sel':'')+(p.disabled?' adm-sku-off':'')).trim();
+    return '<tr'+(_rowcls?(' class="'+_rowcls+'"'):'')+'>'+
       '<td class="adm-sku-check"><input type="checkbox"'+checked+' onclick="skuSelToggle(\''+ec+'\',this.checked,this)"></td>'+
       '<td class="adm-sku-imgcell">'+img+'</td>'+
       '<td><div class="adm-sku-pname">'+escAttr(p.product_name||'')+'</div><div class="adm-sku-pmeta">'+(p.color?escAttr(p.color):'')+((p.color&&p.length)?' · ':'')+(p.length?escAttr(p.length):'')+'</div></td>'+
@@ -1164,6 +1178,7 @@ function renderSkuTable(){
           '<button onclick="skuView(\''+ec+'\')">View</button>'+
           '<button onclick="skuMenuClose();adminEditProduct(\''+ec+'\')">Edit</button>'+
           '<button onclick="skuMenuClose();adminDuplicateProduct(\''+ec+'\')">Duplicate</button>'+
+          '<button onclick="skuMenuClose();adminToggleDisableProduct(\''+ec+'\')">'+(p.disabled?'Enable':'Disable')+'</button>'+
           '<button class="danger" onclick="skuMenuClose();adminDeleteProduct(\''+ec+'\')">Delete</button>'+
         '</div></div></td>'+
     '</tr>';
@@ -1514,7 +1529,7 @@ function renderAdminContent(){
   if(_ac.check()){
     modal.classList.remove('adm-compact');modal.classList.remove('adm-login');modal.classList.add('adm-dash');
     el.innerHTML=
-      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-dealers"></div>'+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
+      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="adm-save-global" onclick="saveCurrentVersion()" title="Save &amp; publish all changes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Save &amp; Publish</span></button><button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-dealers"></div>'+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
         '<div class="adm-card-header">'+
           '<span class="adm-card-icon promo" id="sec-promo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>'+
           '<div><div class="adm-card-title">Promo Popup</div><div class="adm-card-sub">Session-based promotional overlay</div></div>'+

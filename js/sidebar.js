@@ -26,10 +26,10 @@ function rebuildSidebar(){
   var container=document.getElementById('sidebar-sections');
   if(!container)return;
   container.innerHTML='';
-  var secCatMap=buildSectionCategoryMap(ALL_PRODUCTS);
+  var secCatMap=buildSectionCategoryMap(ALL_PRODUCTS.filter(function(p){return !p.disabled;}));
 
   // New Arrivals shortcut (public, auto-expiring). Only shown when >0 so it is never a dead "(0)" link.
-  var _naCount=0; try{ for(var _i=0;_i<ALL_PRODUCTS.length;_i++){ if(typeof isNewArrival==='function'&&isNewArrival(ALL_PRODUCTS[_i]))_naCount++; } }catch(e){}
+  var _naCount=0; try{ for(var _i=0;_i<ALL_PRODUCTS.length;_i++){ if(ALL_PRODUCTS[_i].disabled)continue; if(typeof isNewArrival==='function'&&isNewArrival(ALL_PRODUCTS[_i]))_naCount++; } }catch(e){}
   if(_naCount>0){
     var naWrap=document.createElement('div'); naWrap.className='sb-group sb-newarrivals';
     var na=document.createElement('button');
@@ -96,7 +96,7 @@ function rebuildSidebar(){
   });
 
   var allBtn=document.querySelector('.filter-btn[data-filter-type="all"]');
-  if(allBtn){var badge=allBtn.querySelector('.badge');if(badge)badge.textContent=ALL_PRODUCTS.length;allBtn.classList.toggle('active',currentFilter.type==='all');}
+  if(allBtn){var badge=allBtn.querySelector('.badge');if(badge)badge.textContent=ALL_PRODUCTS.filter(function(p){return !p.disabled;}).length;allBtn.classList.toggle('active',currentFilter.type==='all');}
 }
 
 function toggleSidebar(){var aside=document.getElementById('sidebar');if(!aside)return;if(aside.classList.contains('sidebar-open'))closeSidebar();else openSidebar();}

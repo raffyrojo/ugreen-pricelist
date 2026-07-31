@@ -7,6 +7,7 @@ function getFiltered(){
      via an exact token match on item_code / upc / material_number. */
   var toks=q?q.split(/[^a-z0-9]+/).filter(function(t){return t.length>=4;}):[];
   var f=ALL_PRODUCTS.filter(function(p){
+    if(p.disabled)return false;                                   /* disabled SKUs never appear on public surfaces or exports */
     if(!q){
       /* No search: honor the selected tab/category (section-aware). */
       if(currentFilter.type==='new'){if(!(typeof isNewArrival==='function'&&isNewArrival(p)))return false;}

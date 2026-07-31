@@ -4,7 +4,7 @@
 
 function render(){
   applyFilters();
-  var _disp=DISPLAYED_PRODUCTS.length, _all=ALL_PRODUCTS.length;
+  var _disp=DISPLAYED_PRODUCTS.length, _all=ALL_PRODUCTS.filter(function(p){return !p.disabled;}).length;
   var _countEl=document.getElementById('count');
   if(_countEl)_countEl.textContent=(_disp===_all)?_disp.toLocaleString():(_disp.toLocaleString()+' / '+_all.toLocaleString());
   if(currentView==='table')renderTable(DISPLAYED_PRODUCTS,currentSearch.trim().toLowerCase());
