@@ -1210,8 +1210,35 @@ function skuBulkArchive(){
   renderSkuTable();
   try{ showToast(moved+' product'+(moved===1?'':'s')+' archived.'); }catch(e){}
 }
-function skuMenuClose(except){ var ms=document.querySelectorAll('.adm-sku-menu.open'); for(var i=0;i<ms.length;i++){ if(ms[i]!==except)ms[i].classList.remove('open'); } }
-function skuRowMenu(ev,code){ if(ev&&ev.stopPropagation)ev.stopPropagation(); var m=document.getElementById('skumenu-'+code); skuMenuClose(m); if(m)m.classList.toggle('open'); }
+function skuMenuClose(except){ var ms=document.querySelectorAll('.adm-sku-menu.open'); for(var i=0;i<ms.length;i++){ if(ms[i]!==except){ ms[i].classList.remove('open'); ms[i].style.position=''; ms[i].style.left=''; ms[i].style.top=''; ms[i].style.right=''; ms[i].style.zIndex=''; } } }
+/* Actions menu opens as a viewport-anchored popover (position:fixed) so the
+   table wrapper's overflow no longer clips it; flips upward when there is no
+   room below. Fixes the "must scroll to see the action button" issue. */
+function skuRowMenu(ev,code){
+  if(ev&&ev.stopPropagation)ev.stopPropagation();
+  var m=document.getElementById('skumenu-'+code);
+  var wasOpen=m&&m.classList.contains('open');
+  skuMenuClose();
+  if(!m||wasOpen)return;
+  var t=(ev&&(ev.currentTarget||ev.target))||null;
+  var anchor=(t&&t.closest)?(t.closest('.adm-sku-act')||t):(m.parentNode);
+  m.classList.add('open');
+  try{
+    m.style.position='fixed'; m.style.right='auto'; m.style.zIndex='9999';
+    var r=anchor.getBoundingClientRect();
+    var mw=m.offsetWidth||160, mh=m.offsetHeight||10;
+    var left=r.right-mw; if(left<8)left=8; if(left+mw>window.innerWidth-8)left=window.innerWidth-8-mw;
+    var top=r.bottom+4;
+    if(top+mh>window.innerHeight-8) top=r.top-mh-4;   /* flip up */
+    if(top<8)top=8;
+    m.style.left=Math.round(left)+'px'; m.style.top=Math.round(top)+'px';
+  }catch(e){}
+}
+if(!window._admSkuMenuDocBound){window._admSkuMenuDocBound=true;
+  document.addEventListener('click',function(e){ if(!(e.target.closest&&e.target.closest('.adm-sku-menuwrap'))) skuMenuClose(); });
+  window.addEventListener('resize',function(){ skuMenuClose(); });
+  document.addEventListener('scroll',function(){ skuMenuClose(); }, true);
+}
 function skuView(code){ skuMenuClose(); var p=ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(code);}); if(!p){ try{showToast('Product not found');}catch(e){} return; } closeAdminModal(); if(typeof openModal==='function')openModal(p); }
 if(!window._skuMenuDocBound){ window._skuMenuDocBound=true; document.addEventListener('click',function(e){ if(!(e.target.closest&&e.target.closest('.adm-sku-menuwrap')))skuMenuClose(); }); }
 
