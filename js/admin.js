@@ -318,11 +318,13 @@ function switchTab(tab) {
 }
 
 function getCategoryOptions() {
-  return categories.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+  var cats=(typeof ALL_PRODUCTS!=='undefined'&&ALL_PRODUCTS.length)?[...new Set(ALL_PRODUCTS.map(function(p){return p.category;}).filter(Boolean))].sort():(categories||[]);
+  return cats.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
 }
 
 function getSheetOptions() {
-  return sheets.map(function(s){
+  var shs=(typeof ALL_PRODUCTS!=='undefined'&&ALL_PRODUCTS.length)?[...new Set(ALL_PRODUCTS.map(function(p){return p.sheet;}).filter(Boolean))].sort():(sheets||[]);
+  return shs.map(function(s){
     var d = s.replace('A&V-','A&V: ').replace('Mobile-','Mobile: ').replace('Transmission-','Transmission: ').replace('Flash-','Flash: ').replace('Others-','Others: ');
     return '<option value="'+esc(s)+'">'+esc(d)+'</option>';
   }).join('');
