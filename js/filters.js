@@ -12,6 +12,7 @@ function getFiltered(){
     if(!q){
       /* No search: honor the selected tab/category (section-aware). */
       if(currentFilter.type==='new'){if(!(typeof isNewArrival==='function'&&isNewArrival(p)))return false;}
+      if(currentFilter.type==='pricechange'){if(!(typeof pcHasRecent==='function'&&pcHasRecent(p)))return false;}   /* Price Changes group: active SRP or DP change only */
       if(currentFilter.type==='sheet'&&p.sheet!==currentFilter.value)return false;
       if(currentFilter.type==='category'){if(p.category!==currentFilter.value)return false;if(currentFilter.section&&p.sheet!==currentFilter.section)return false;}
       return true;

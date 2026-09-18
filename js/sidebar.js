@@ -40,6 +40,19 @@ function rebuildSidebar(){
     naWrap.appendChild(na); container.appendChild(naWrap);
   }
 
+  // Price Changes shortcut (public, auto-expiring via pcHasRecent — SRP or DP only,
+  // volume-only changes excluded). Mirrors New Arrivals. Only shown when >0.
+  var _pcCount=0; try{ for(var _j=0;_j<ALL_PRODUCTS.length;_j++){ if(ALL_PRODUCTS[_j].disabled)continue; if(typeof pcHasRecent==='function'&&pcHasRecent(ALL_PRODUCTS[_j]))_pcCount++; } }catch(e){}
+  if(_pcCount>0){
+    var pcWrap=document.createElement('div'); pcWrap.className='sb-group sb-pricechanges';
+    var pcb=document.createElement('button');
+    pcb.className='filter-btn pcchg-btn'+(currentFilter.type==='pricechange'?' active':'');
+    pcb.dataset.filterType='pricechange';
+    pcb.innerHTML='<span class="pcchg-dot">\u21C5</span><span style="flex:1;min-width:0;word-break:break-word">Price Changes</span><span class="badge pcchg-badge">'+_pcCount+'</span>';
+    pcb.onclick=function(){setFilter('pricechange','');};
+    pcWrap.appendChild(pcb); container.appendChild(pcWrap);
+  }
+
   secCatMap.forEach(function(sec){
     var cats=Object.keys(sec.cats).map(function(k){return sec.cats[k];})
       .filter(function(c){return c.count>0;})
