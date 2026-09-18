@@ -6,6 +6,46 @@ current production system. For the deep pre-CMS history see the project-root
 
 ---
 
+## 2026-09-18 — Price Change SIMPLIFIED (supersedes the baseline design below)
+
+**Status: implemented + tested; publishing.** The original publish-time / baseline
+design (next section) is **RETIRED**. `pubSRP`, `pubDP`, `priceHistory`, `_pcDetect`,
+and the mandatory **baseline-only publish are all removed.**
+
+### New model — per-SKU indicator metadata (like the NEW flag)
+Stamped ONLY when a price actually changes, comparing against the price that existed
+immediately before the change:
+- `previousSRP`, `priceChangeSRP` (`up|down`), `srpChangeDate`
+- `previousDP`,  `priceChangeDP`  (`up|down`), `dpChangeDate`
+
+Rules: SRP/DP independent; **multiple changes overwrite** the metadata with the
+immediate-prior price (999→1099 then 1099→1049 stores `previousSRP=1099`, never 999);
+`new=prev` does nothing and does not reset the date; new SKUs / non-price edits /
+volume-only changes never stamp; indicator auto-expires after `indicatorDays` (default
+30), price stays.
+
+### Where stamped
+`saveSku` (manual edit) and `bpuApply` (Bulk Price Update) both call the same
+`pcStamp(p, oldSRP, oldDP, effDate)` in `helpers.js`. **No detection at publish** —
+`github-save.js` just publishes. Reference price = the current price immediately before
+the change; **no baseline-only publish is ever required.**
+
+### Files
+`helpers.js` (pcStamp + reimplemented pcBadge/pcHasRecent/pcRecentEntry), `admin.js`
+(stamp on edit + bulk; `_pcAllRows` from metadata), `exports.js` (`_pcReportRows` from
+metadata), `github-save.js` (price-change logic removed). `render.js`/`filters.js`
+unchanged. Tests: `tests/price-change.test.js`.
+
+### Deferred (unchanged)
+Inline Price Change columns inside the Excel Full Details export — standalone report covers this.
+
+---
+
+## [SUPERSEDED 2026-09-18] Price Change Indicator & Price History (baseline design)
+
+> **This design was replaced the same day by the simplified per-SKU indicator model above.
+> `pubSRP`/`pubDP`/`priceHistory`/baseline-only-publish are no longer used. Kept for history.**
+
 ## 2026-09-18 — Price Change Indicator & Price History (LIVE)
 
 **Status: LIVE and verified in production.**
