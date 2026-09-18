@@ -34,6 +34,9 @@ Rules:
 - **Comparison is against the last *published* price** (`pubSRP`/`pubDP`), **not** draft edits. Detection runs at **Publish**, on the deep-copied products, then mirrors the price fields back to live `ALL_PRODUCTS` on success (same pattern as the image `rewrites`).
 - The indicator-days setting persists to `data/price-settings.json` via the same `newImages` channel `promo.json` already uses (no Worker change).
 
+>
+> **ROLLOUT BASELINE (mandatory):** Price Change rollout baseline initialized before first bulk price update. Future price updates must compare against `pubSRP`/`pubDP` and must never silently reseed an existing baseline. Do a **baseline-only publish** (current prices, no edits) FIRST to seed baselines with 0 history; only then run the bulk price update. Never combine baseline initialization with the first real price change.
+
 ### First-publish rollout behavior (safe)
 On the first publish after this feature shipped, existing SKUs have no
 `pubSRP`/`pubDP`. Detection **initializes those baselines silently to the
