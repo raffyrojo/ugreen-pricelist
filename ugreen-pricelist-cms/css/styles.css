@@ -1794,6 +1794,12 @@ body.so-lock{ overflow:hidden; }
 .na-btn .na-dot{margin-right:.4rem;font-size:.85em}
 .na-btn.active,.na-btn:hover{border-color:var(--accent)}
 .na-badge{background:var(--accent);color:#fff}
+/* ===== Price Changes group (public, auto-expiring via pcHasRecent) — mirrors New Arrivals ===== */
+.sb-pricechanges{margin-bottom:.4rem}
+.pcchg-btn{font-weight:600}
+.pcchg-btn .pcchg-dot{margin-right:.4rem;font-size:.9em;color:var(--accent2)}
+.pcchg-btn.active,.pcchg-btn:hover{border-color:var(--accent2)}
+.pcchg-badge{background:var(--accent2);color:#fff}
 .grid-name .sku-new-badge{vertical-align:middle}
 
 
