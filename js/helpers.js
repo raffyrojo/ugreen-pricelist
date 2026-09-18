@@ -111,11 +111,13 @@ function pcHasRecent(p,dir){
 /* Render a badge. type='SRP'|'DP'. full=true -> prev->new + label; compact -> arrow+label. */
 function pcBadge(p,type,full){
   var e=pcRecentEntry(p,type); if(!e) return '';
-  var up=e.dir==='up', cls=up?'pc-up':'pc-down', arrow=up?'↑':'↓', label=up?'Price Increase':'Price Decrease';
-  if(full){
-    return '<div class="pc-ind '+cls+'"><span class="pc-old">'+fmt(e.prev)+'</span> <span class="pc-arrow">→</span> '+fmt(e['new'])+' <span class="pc-delta">'+arrow+' '+label+'</span></div>';
-  }
-  return '<span class="pc-ind '+cls+'">'+arrow+' '+(up?'Increase':'Decrease')+'</span>';
+  var up=e.dir==='up', cls=up?'pc-up':'pc-down', arrow=up?'↑':'↓', label=up?'Increase':'Decrease';
+  /* Hierarchy (2026-09-18): current price (rendered by the card) -> indicator ->
+     Before: <old price>. Old price comes straight from previousSRP/previousDP via
+     pcRecentEntry(e.prev) -- never reconstructed from a percentage. `full` kept for
+     call-site compatibility; both modes now use the same stacked layout. */
+  return '<span class="pc-ind '+cls+'">'+arrow+' '+label+'</span>'+
+         '<span class="pc-before '+(up?'pcb-up':'pcb-down')+'">Before: <span class="pc-before-val">'+fmt(e.prev)+'</span></span>';
 }
 /* Stamp change metadata when SRP/DP actually change, comparing NEW values (already
    on p) vs supplied OLD values. Only sets fields for changed prices; leaves an
