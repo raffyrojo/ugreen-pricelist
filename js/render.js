@@ -44,8 +44,8 @@ function renderTable(filtered,q){
       '<td class="td-model">'+(p.model?hl(p.model,q):'—')+'</td>'+
       '<td class="td-code">'+hl(p.item_code,q)+'</td>'+
       '<td class="td-specs">'+(p.color?'<span class="spec-tag">'+hl(p.color,q)+'</span>':'')+(p.length?'<span class="spec-tag">'+hl(p.length,q)+'</span>':'')+'</td>'+
-      '<td class="td-price price-srp">'+fmt(p.srp)+'</td>'+
-      '<td class="td-price price-dp">'+fmt(window.DEALER_MODE?p.dp_std:p.dp)+'</td>'+
+      '<td class="td-price price-srp">'+fmt(p.srp)+pcBadge(p,'SRP')+'</td>'+
+      '<td class="td-price price-dp">'+fmt(window.DEALER_MODE?p.dp_std:p.dp)+pcBadge(p,'DP')+'</td>'+
       '<td class="td-price '+(window.DEALER_MODE?'price-dp':'price-dpv')+'">'+(window.DEALER_MODE?fmt(p.special_dp):dpvCellHtml(p))+'</td>'+
       '<td class="td-moq">'+esc(p.moq||'—')+'</td>'+
       '</tr>'
@@ -68,8 +68,8 @@ function renderGrid(filtered,q){
         '<div class="grid-name">'+hl(p.product_name,q)+((typeof isNewArrival==='function'&&isNewArrival(p))?'<span class="sku-new-badge" style="margin-left:6px">NEW</span>':'')+'</div>'+
         ((p.short_desc||p.description)?'<div class="grid-desc">'+esc(p.short_desc||firstBullet(p.description))+'</div>':'')+
         '<div class="grid-prices">'+
-          '<div class="grid-price"><div class="plabel" style="opacity:.75">SRP</div><div class="pval price-srp" style="font-size:.7rem;opacity:.8">'+fmtS(p.srp)+'</div></div>'+
-          '<div class="grid-price"><div class="plabel" style="color:var(--dp);font-weight:600">'+(window.DEALER_MODE?'DP':'Dealer ₱')+'</div><div class="pval price-dp" style="font-size:.85rem;font-weight:700">'+fmtS(window.DEALER_MODE?p.dp_std:p.dp)+'</div></div>'+
+          '<div class="grid-price"><div class="plabel" style="opacity:.75">SRP</div><div class="pval price-srp" style="font-size:.7rem;opacity:.8">'+fmtS(p.srp)+'</div>'+pcBadge(p,'SRP')+'</div>'+
+          '<div class="grid-price"><div class="plabel" style="color:var(--dp);font-weight:600">'+(window.DEALER_MODE?'DP':'Dealer ₱')+'</div><div class="pval price-dp" style="font-size:.85rem;font-weight:700">'+fmtS(window.DEALER_MODE?p.dp_std:p.dp)+'</div>'+pcBadge(p,'DP')+'</div>'+
           (window.DEALER_MODE?('<div class="grid-price"><div class="plabel" style="color:var(--dp);font-weight:600">Special ₱</div><div class="pval price-dp" style="font-size:.8rem;font-weight:700">'+fmt(p.special_dp)+'</div>'+(p.moq?'<div class="dpv-moq-note" style="font-size:.52rem">MCQ: '+esc(String(p.moq))+'</div>':'')+'</div>'):('<div class="grid-price"><div class="plabel" style="opacity:.7">Vol (MOQ)</div><div class="pval price-dpv" style="font-size:.68rem;opacity:.7">'+fmtS(p.dp_volume)+'</div>'+(p.moq?'<div class="dpv-moq-note" style="font-size:.52rem">MOQ: '+esc(String(p.moq))+'</div>':'')+'</div>'))+
         '</div>'+
       '</div></div>';
@@ -126,8 +126,8 @@ function openModal(itemCode){
   document.getElementById('modal-name').textContent=p.product_name;
   document.getElementById('modal-code').textContent='Item: '+p.item_code+(p.model?' · Model: '+p.model:'');
   document.getElementById('modal-prices').innerHTML=
-    '<div class="modal-price"><div class="plabel" style="opacity:.75">SRP</div><div class="pval price-srp">'+fmt(p.srp)+'</div></div>'+
-    '<div class="modal-price dp-highlight"><div class="plabel" style="color:var(--dp)">Dealer Price</div><div class="pval price-dp">'+fmt(window.DEALER_MODE?p.dp_std:p.dp)+'</div></div>'+
+    '<div class="modal-price"><div class="plabel" style="opacity:.75">SRP</div><div class="pval price-srp">'+fmt(p.srp)+'</div>'+pcBadge(p,'SRP',true)+'</div>'+
+    '<div class="modal-price dp-highlight"><div class="plabel" style="color:var(--dp)">Dealer Price</div><div class="pval price-dp">'+fmt(window.DEALER_MODE?p.dp_std:p.dp)+'</div>'+pcBadge(p,'DP',true)+'</div>'+
     (window.DEALER_MODE?('<div class="modal-price dp-highlight"><div class="plabel" style="color:var(--dp)">Special DP</div><div class="pval price-dp">'+fmt(p.special_dp)+'</div>'+(p.moq?'<div class="dpv-moq-note" style="margin-top:4px;font-size:.58rem">MCQ: '+p.moq+'</div>':'')+'</div>'):('<div class="modal-price"><div class="plabel" style="opacity:.7">DP Volume</div><div class="pval price-dpv">'+fmt(p.dp_volume)+'</div>'+(p.moq?'<div class="dpv-moq-note" style="margin-top:4px;font-size:.58rem">Valid only for orders ≥ '+p.moq+' units</div>':'')+'</div>'));
   var bottomParts=[];
   bottomParts.push('<div class="sku-action-bar" style="margin-bottom:.8rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)"><button class="btn-screenshot" onclick="captureSkuCard(\''+p.item_code+'\',this)">📸 Screenshot</button></div>');

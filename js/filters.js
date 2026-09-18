@@ -8,6 +8,7 @@ function getFiltered(){
   var toks=q?q.split(/[^a-z0-9]+/).filter(function(t){return t.length>=4;}):[];
   var f=ALL_PRODUCTS.filter(function(p){
     if(p.disabled)return false;                                   /* disabled SKUs never appear on public surfaces or exports */
+    if(window.PRICE_FILTER&&window.PRICE_FILTER!=='all'){ if(typeof pcHasRecent!=='function'||!pcHasRecent(p,window.PRICE_FILTER))return false; }  /* customer price-change filter */
     if(!q){
       /* No search: honor the selected tab/category (section-aware). */
       if(currentFilter.type==='new'){if(!(typeof isNewArrival==='function'&&isNewArrival(p)))return false;}
@@ -52,6 +53,7 @@ function setFilter(type,value,section){
   render();
 }
 
+function setPriceFilter(v){ window.PRICE_FILTER=(v||'all'); if(typeof render==='function')render(); }
 function resetAllFilters(){
   currentFilter={type:'all',value:'',section:''};
   currentSearch='';expandedKey=null;sortCol=null;

@@ -911,7 +911,7 @@ function renderSectionChartHtml(){var a=_admSectionCounts();if(!a.length)return 
 
 function renderAdminSnapshotHtml(){var a=_admSectionCounts();var lg=a.length?a[0]:{k:'-',v:0};function row(l,v){return '<div class="adm-snap-row"><span>'+l+'</span><b>'+v+'</b></div>';}return row('Sections',a.length)+row('Largest',_admEsc(lg.k)+' ('+lg.v+')')+row('Products',ALL_PRODUCTS.length)+row('Hidden',DELETED_PRODUCTS.length)+row('Pending edits',loadNewSkus().length);}
 
-function admTab(el,id){var items=el.parentNode.querySelectorAll('.adm-rail-item');for(var i=0;i<items.length;i++)items[i].classList.remove('active');el.classList.add('active');var tabs=document.querySelectorAll('.adm-tab');for(var j=0;j<tabs.length;j++)tabs[j].classList.remove('active');var t=document.getElementById(id);if(t)t.classList.add('active');if(id==='tab-sku'&&typeof renderSkuTable==='function')renderSkuTable();if(id==='tab-dealers'&&typeof renderDealersTab==='function')renderDealersTab();var tt=document.getElementById('adm-tab-title');if(tt)tt.textContent=(el.textContent||'').replace(/\s+/g,' ').trim();var cr=document.getElementById('adm-crumb');if(cr)cr.textContent=(el.textContent||'').replace(/\s+/g,' ').trim();if(typeof admCloseRail==='function')admCloseRail();var sc=document.querySelector('.adm-main-scroll');if(sc)sc.scrollTop=0;}
+function admTab(el,id){var items=el.parentNode.querySelectorAll('.adm-rail-item');for(var i=0;i<items.length;i++)items[i].classList.remove('active');el.classList.add('active');var tabs=document.querySelectorAll('.adm-tab');for(var j=0;j<tabs.length;j++)tabs[j].classList.remove('active');var t=document.getElementById(id);if(t)t.classList.add('active');if(id==='tab-sku'&&typeof renderSkuTable==='function')renderSkuTable();if(id==='tab-dealers'&&typeof renderDealersTab==='function')renderDealersTab();if(id==='tab-pricechanges'&&typeof renderPriceChangesTab==='function')renderPriceChangesTab();var tt=document.getElementById('adm-tab-title');if(tt)tt.textContent=(el.textContent||'').replace(/\s+/g,' ').trim();var cr=document.getElementById('adm-crumb');if(cr)cr.textContent=(el.textContent||'').replace(/\s+/g,' ').trim();if(typeof admCloseRail==='function')admCloseRail();var sc=document.querySelector('.adm-main-scroll');if(sc)sc.scrollTop=0;}
 
 function renderPriceDistHtml(){var b=[["₱0 – 500",0,500,0],["₱500 – 2,000",500,2000,0],["₱2,000 – 5,000",2000,5000,0],["₱5,000+",5000,Infinity,0]];for(var i=0;i<ALL_PRODUCTS.length;i++){var v=Number(ALL_PRODUCTS[i].srp)||0;for(var k=0;k<b.length;k++){if(v>=b[k][1]&&v<b[k][2]){b[k][3]++;break;}}}var mx=Math.max.apply(null,b.map(function(x){return x[3];}))||1;return b.map(function(x){var p=Math.max(3,Math.round(x[3]/mx*100));return '<div class="adm-chart-row"><span class="adm-chart-label">'+x[0]+'</span><span class="adm-chart-track"><span class="adm-chart-fill" style="width:'+p+'%"></span></span><span class="adm-chart-num">'+x[3]+'</span></div>';}).join('');}
 
@@ -961,7 +961,7 @@ function _admRailHtml(){
       _admRailItem('tab-sku','SKU Management',_ADM_ICONS.sku,false)+
       _admRailItem('tab-categories','Categories',_ADM_ICONS.cats,false)+
       '<div class="adm-rail-group">Catalog</div>'+
-      _admRailItem('tab-pricing','Pricing',_ADM_ICONS.pricing,false)+
+      _admRailItem('tab-pricing','Pricing',_ADM_ICONS.pricing,false)+_admRailItem('tab-pricechanges','Price Changes',_ADM_ICONS.pricing,false)+
       _admRailItem('tab-images','Images',_ADM_ICONS.images,false)+
       '<div class="adm-rail-group">Data</div>'+
       _admRailItem('tab-import','Import',_ADM_ICONS.imp,false)+
@@ -1558,7 +1558,7 @@ function renderAdminContent(){
   if(_ac.check()){
     modal.classList.remove('adm-compact');modal.classList.remove('adm-login');modal.classList.add('adm-dash');
     el.innerHTML=
-      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="adm-save-global" onclick="saveCurrentVersion()" title="Save &amp; publish all changes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Save &amp; Publish</span></button><button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-dealers"></div>'+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
+      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="adm-save-global" onclick="saveCurrentVersion()" title="Save &amp; publish all changes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Save &amp; Publish</span></button><button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-pricechanges"></div>'+'<div class="adm-tab" id="tab-dealers"></div>'+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
         '<div class="adm-card-header">'+
           '<span class="adm-card-icon promo" id="sec-promo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>'+
           '<div><div class="adm-card-title">Promo Popup</div><div class="adm-card-sub">Session-based promotional overlay</div></div>'+
@@ -2643,4 +2643,96 @@ if(typeof window!=='undefined'){ window.resetTrending=resetTrending; }
    also persisted and restored by applyPendingOverlay; this is just a reminder). */
 window.addEventListener('beforeunload', function(e){
   if (typeof HAS_UNSAVED_CHANGES !== 'undefined' && HAS_UNSAVED_CHANGES) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ── Price Changes admin (added 2026-09-18) ──────────────────────────────── */
+var _pcFilterType='all';   // all | up | down | SRP | DP
+var _pcSearchQ='';
+window._PRICE_EFFECTIVE_DATE = window._PRICE_EFFECTIVE_DATE || (function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
+
+function _pcAllRows(){
+  var rows=[];
+  for(var i=0;i<ALL_PRODUCTS.length;i++){ var p=ALL_PRODUCTS[i]; if(!p||!p.priceHistory)continue;
+    for(var j=0;j<p.priceHistory.length;j++){ var e=p.priceHistory[j];
+      rows.push({ item_code:p.item_code, product_name:p.product_name, type:e.type, prev:e.prev, "new":e["new"], diff:e.diff, pct:e.pct, dir:e.dir, effectiveDate:e.effectiveDate, dateChanged:e.dateChanged, user:e.user });
+    }
+  }
+  rows.sort(function(a,b){ return new Date(b.dateChanged)-new Date(a.dateChanged); });
+  return rows;
+}
+function _pcFilteredRows(){
+  var q=_pcSearchQ.trim().toLowerCase(), ft=_pcFilterType;
+  return _pcAllRows().filter(function(r){
+    if(ft==='up'&&r.dir!=='up')return false;
+    if(ft==='down'&&r.dir!=='down')return false;
+    if(ft==='SRP'&&r.type!=='SRP')return false;
+    if(ft==='DP'&&r.type!=='DP')return false;
+    if(q){ var h=((r.item_code||'')+' '+(r.product_name||'')).toLowerCase(); if(h.indexOf(q)<0)return false; }
+    return true;
+  });
+}
+function _pcFmtDate(iso){ if(!iso)return '—'; var d=new Date(iso); if(isNaN(d.getTime()))return String(iso); return d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
+function _pcFmtEff(sx){ if(!sx)return '—'; var d=new Date(String(sx)+'T00:00:00'); if(isNaN(d.getTime()))return String(sx); return d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
+function pcFilter(t){ _pcFilterType=t; renderPriceChangesTable(); var wrap=document.getElementById('pc-filterbar'); if(wrap){var bs=wrap.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.toggle('active',bs[i].getAttribute('data-f')===t);} }
+function pcSearchInput(v){ _pcSearchQ=v||''; renderPriceChangesTable(); }
+function pcSetDays(v){ var n=parseInt(v,10); if(!n||n<1)n=30; if(!window.PRICE_SETTINGS)window.PRICE_SETTINGS={}; window.PRICE_SETTINGS.indicatorDays=n; if(typeof markUnsaved==='function')markUnsaved(); showToast('Indicator window set to '+n+' day(s) — publish to apply.'); }
+function pcSetEffective(v){ if(v)window._PRICE_EFFECTIVE_DATE=v; }
+
+function renderPriceChangesTab(){
+  var el=document.getElementById('tab-pricechanges'); if(!el)return;
+  var days=(typeof pcIndicatorDays==='function')?pcIndicatorDays():30;
+  var eff=window._PRICE_EFFECTIVE_DATE;
+  el.innerHTML =
+    '<div class="adm-panel">'+
+      '<div class="adm-panel-head"><div class="adm-panel-title">Price Changes</div><div class="adm-panel-sub">Automatic SRP / DP change tracking · permanent history per SKU</div></div>'+
+      '<div class="pc-settings">'+
+        '<label class="pc-set-fld">Show indicator for <input type="number" min="1" id="pc-days" value="'+days+'" onchange="pcSetDays(this.value)"> days</label>'+
+        '<label class="pc-set-fld">Effective date (next publish) <input type="date" id="pc-eff" value="'+escAttr(eff)+'" onchange="pcSetEffective(this.value)"></label>'+
+        '<button class="adm-btn-cta" onclick="exportPriceChangeReport()">Export Price Change Report</button>'+
+      '</div>'+
+      '<div class="pc-toolbar">'+
+        '<div class="pc-filterbar" id="pc-filterbar">'+
+          '<button data-f="all" class="active" onclick="pcFilter(\x27all\x27)">All</button>'+
+          '<button data-f="up" onclick="pcFilter(\x27up\x27)">↑ Increase</button>'+
+          '<button data-f="down" onclick="pcFilter(\x27down\x27)">↓ Decrease</button>'+
+          '<button data-f="SRP" onclick="pcFilter(\x27SRP\x27)">SRP</button>'+
+          '<button data-f="DP" onclick="pcFilter(\x27DP\x27)">DP</button>'+
+        '</div>'+
+        '<input type="text" class="adm-input" id="pc-search" placeholder="Search SKU or product name…" oninput="pcSearchInput(this.value)">'+
+      '</div>'+
+      '<div class="adm-sku-tablewrap"><table class="adm-sku-table adm-sku-table-pro"><thead><tr>'+
+        '<th>SKU</th><th>Product</th><th>Type</th><th class="adm-sku-thr">Previous</th><th class="adm-sku-thr">New</th><th class="adm-sku-thr">Diff</th><th class="adm-sku-thr">% Change</th><th>Direction</th><th>Effective</th><th>Changed</th>'+
+      '</tr></thead><tbody id="pc-tbody"></tbody></table></div>'+
+    '</div>';
+  _pcFilterType='all'; _pcSearchQ='';
+  renderPriceChangesTable();
+}
+function renderPriceChangesTable(){
+  var tb=document.getElementById('pc-tbody'); if(!tb)return;
+  var rows=_pcFilteredRows();
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="10" class="adm-sku-more">No price changes'+((_pcSearchQ||_pcFilterType!=='all')?' match your filters':' recorded yet')+'.</td></tr>'; return; }
+  tb.innerHTML=rows.map(function(r){
+    var up=r.dir==='up', dcls=up?'pc-up':'pc-down', arrow=up?'↑':'↓';
+    return '<tr>'+
+      '<td class="adm-sku-code">'+escAttr(String(r.item_code||''))+'</td>'+
+      '<td><div class="adm-sku-pname">'+escAttr(r.product_name||'')+'</div></td>'+
+      '<td>'+escAttr(r.type)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r.prev)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r["new"])+'</td>'+
+      '<td class="adm-sku-thr '+dcls+'">'+(up?'+':'−')+fmt(Math.abs(Number(r.diff)||0))+'</td>'+
+      '<td class="adm-sku-thr '+dcls+'">'+arrow+' '+Math.abs(Number(r.pct)||0).toFixed(2)+'%</td>'+
+      '<td class="'+dcls+'">'+(up?'Increase':'Decrease')+'</td>'+
+      '<td>'+_pcFmtEff(r.effectiveDate)+'</td>'+
+      '<td>'+_pcFmtDate(r.dateChanged)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+/* Load persisted indicator-days setting on startup (default 30). */
+document.addEventListener('DOMContentLoaded', function(){
+  try{
+    fetch('data/price-settings.json?v='+Date.now(),{cache:'no-cache'})
+      .then(function(r){ return r.ok?r.json():null; })
+      .then(function(j){ if(j&&j.indicatorDays){ window.PRICE_SETTINGS=window.PRICE_SETTINGS||{}; window.PRICE_SETTINGS.indicatorDays=Number(j.indicatorDays)||30; if(typeof render==='function')render(); } })
+      .catch(function(){});
+  }catch(e){}
 });

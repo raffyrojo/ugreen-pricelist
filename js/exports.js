@@ -1571,3 +1571,47 @@ function downloadExcel(fmt){ ensureExportImages().then(function(){ _x_downloadEx
 function openStyledPdf(){ ensureExportImages().then(function(){ _x_openStyledPdf(); }); }
 function openCatalogPdf(){ ensureExportImages().then(function(){ _x_openCatalogPdf(); }); }
 function captureSkuCard(itemCode, btn){ if(btn){btn.disabled=true;btn.innerHTML='\u23F3 Loading\u2026';} ensureExportImages().then(function(){ _x_captureSkuCard(itemCode, btn); }); }
+
+/* ── Export Price Change Report (standalone; added 2026-09-18) ─────────────
+   Own workbook/CSV — does NOT touch the main pricelist exporters, so existing
+   Excel/PDF exports are unaffected. */
+function _pcReportRows(){
+  var rows=[];
+  for(var i=0;i<ALL_PRODUCTS.length;i++){ var p=ALL_PRODUCTS[i]; if(!p||!p.priceHistory)continue;
+    for(var j=0;j<p.priceHistory.length;j++){ var e=p.priceHistory[j];
+      rows.push([ p.item_code||'', p.product_name||'', e.type, e.prev, e["new"], e.diff, (Number(e.pct)||0), e.effectiveDate||'', e.dateChanged||'' ]);
+    }
+  }
+  rows.sort(function(a,b){ return new Date(b[8])-new Date(a[8]); });
+  return rows;
+}
+function exportPriceChangeReport(){
+  var rows=_pcReportRows();
+  if(!rows.length){ showToast('No price changes to export yet.'); return; }
+  var headers=['SKU','Product Name','Price Type','Previous Price','New Price','Difference','% Change','Effective Date','Date Changed'];
+  if(typeof ExcelJS!=='undefined'){
+    try{
+      var wb=new ExcelJS.Workbook(); var ws=wb.addWorksheet('Price Changes');
+      ws.addRow(headers); ws.getRow(1).font={bold:true};
+      rows.forEach(function(r){ ws.addRow(r); });
+      ws.columns=[{width:14},{width:44},{width:10},{width:14},{width:14},{width:12},{width:11},{width:14},{width:22}];
+      for(var c=4;c<=6;c++){ ws.getColumn(c).numFmt='#,##0.00'; }
+      ws.getColumn(7).numFmt='0.00';
+      var thin={style:'thin',color:{argb:'FFE0E7F0'}};
+      ws.eachRow(function(row){ row.eachCell(function(cell){ cell.border={top:thin,left:thin,bottom:thin,right:thin}; }); });
+      wb.xlsx.writeBuffer().then(function(buf){
+        var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Iontech-UGREEN-Price-Change-Report.xlsx';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},600);
+        showToast('Price Change Report exported ('+rows.length+' change(s)).');
+      });
+      return;
+    }catch(e){ /* fall through to CSV */ }
+  }
+  function q(v){ v=(v===null||v===undefined)?'':String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+  var csv=[headers.join(',')].concat(rows.map(function(r){ return r.map(q).join(','); })).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Iontech-UGREEN-Price-Change-Report.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},600);
+  showToast('Price Change Report exported ('+rows.length+' change(s)).');
+}

@@ -75,3 +75,42 @@ function isAdmin(){ return false; }
 function showToast(msg){var t=document.getElementById('toast');if(!t){console.warn('[Toast]',msg);return;}t.textContent=msg;t.classList.add('show');setTimeout(function(){if(t)t.classList.remove('show');},2800);}
 function showLoading(msg){var lbl=document.getElementById('loading-label');var ov=document.getElementById('loading-overlay');if(lbl)lbl.textContent=msg||'Please wait…';if(ov)ov.classList.add('show');}
 function hideLoading(){var ov=document.getElementById('loading-overlay');if(ov)ov.classList.remove('show');}
+
+/* ── Price Change indicators (shared, added 2026-09-18) ────────────────────
+   Price history lives per-SKU in products.json as p.priceHistory[] with a
+   pubSRP/pubDP baseline. These helpers read that history for the UI. */
+function pcIndicatorDays(){ try{ var d=window.PRICE_SETTINGS&&Number(window.PRICE_SETTINGS.indicatorDays); return (d&&d>0)?d:30; }catch(e){ return 30; } }
+function pcWithinWindow(entry){
+  if(!entry||!entry.effectiveDate) return false;
+  var eff=new Date(String(entry.effectiveDate)+'T00:00:00'); if(isNaN(eff.getTime())) return false;
+  var end=new Date(eff.getTime()); end.setDate(end.getDate()+pcIndicatorDays());
+  return new Date() <= end;              // shows from effective date through +N days (future-dated shows early)
+}
+function pcRecentEntry(p,type){          // type: 'SRP' | 'DP' | undefined(any). Latest in-window entry.
+  if(!p||!p.priceHistory||!p.priceHistory.length) return null;
+  var best=null;
+  for(var i=0;i<p.priceHistory.length;i++){ var e=p.priceHistory[i];
+    if(type&&e.type!==type) continue;
+    if(!pcWithinWindow(e)) continue;
+    if(!best||new Date(e.dateChanged)>new Date(best.dateChanged)) best=e;
+  }
+  return best;
+}
+function pcHasRecent(p,dir){             // dir: 'up' | 'down' | undefined(any)
+  if(!p||!p.priceHistory) return false;
+  for(var i=0;i<p.priceHistory.length;i++){ var e=p.priceHistory[i];
+    if(!pcWithinWindow(e)) continue;
+    if(!dir||e.dir===dir) return true;
+  }
+  return false;
+}
+/* Render a badge for a price cell. type='SRP'|'DP'. full=true → old→new + delta. */
+function pcBadge(p,type,full){
+  var e=pcRecentEntry(p,type); if(!e) return '';
+  var up=e.dir==='up', cls=up?'pc-up':'pc-down', arrow=up?'↑':'↓';
+  var pct=Math.abs(Number(e.pct)||0).toFixed(2);
+  if(full){
+    return '<div class="pc-ind '+cls+'"><span class="pc-old">'+fmt(e.prev)+'</span> <span class="pc-arrow">→</span> '+fmt(e.new)+' <span class="pc-delta">'+arrow+' '+pct+'%</span></div>';
+  }
+  return '<span class="pc-ind '+cls+'">'+arrow+' '+pct+'%</span>';
+}
