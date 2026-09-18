@@ -9,44 +9,8 @@
    ALL_PRODUCTS is NOT mutated here — only on confirmed success (rollback-safe). */
 function _b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
 
-/* ── Price-change detection (runs at publish, on the deep-copied products so
-   live ALL_PRODUCTS is untouched until success). Compares each SKU's SRP/DP
-   against its last-published baseline (pubSRP/pubDP); appends an immutable
-   entry per genuine change and advances the baseline. First publish after
-   rollout (no baseline) sets the baseline silently — no false history. */
-function _pcToday(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function _pcNum(v){ if(v===''||v===null||v===undefined) return null; var n=Number(v); return isNaN(n)?null:n; }
-function _pcDetectOne(p, field, baseKey, typeLabel, effDate, user){
-  var cur=_pcNum(p[field]);
-  var base=_pcNum(p[baseKey]);
-  if(base===null||base<=0){                 // no valid baseline yet → establish silently (rollout / new SKU / prev 0 or blank)
-    if(cur!==null) p[baseKey]=cur;
-    return null;
-  }
-  if(cur===null) return null;               // new price blank → leave baseline, no record
-  if(cur===base) return null;               // unchanged → no record
-  var diff=Math.round((cur-base)*100)/100;
-  var pct=Math.round(((cur-base)/base)*10000)/100;
-  var entry={ type:typeLabel, prev:base, new:cur, diff:diff, pct:pct,
-              dir:(cur>base?'up':'down'), effectiveDate:effDate,
-              dateChanged:new Date().toISOString(), user:user||'Admin' };
-  if(!Array.isArray(p.priceHistory)) p.priceHistory=[];
-  p.priceHistory.push(entry);
-  p[baseKey]=cur;                           // advance baseline
-  return entry;
-}
-function _pcDetect(products, effDate){
-  var eff = effDate || (window._PRICE_EFFECTIVE_DATE) || _pcToday();
-  var changes=[];
-  for(var i=0;i<products.length;i++){ var p=products[i]; if(!p) continue;
-    var a=_pcDetectOne(p,'srp','pubSRP','SRP',eff,window._PRICE_CHANGE_USER);
-    var b=_pcDetectOne(p,'dp','pubDP','DP',eff,window._PRICE_CHANGE_USER);
-    if(a) changes.push(Object.assign({item_code:p.item_code,product_name:p.product_name},a));
-    if(b) changes.push(Object.assign({item_code:p.item_code,product_name:p.product_name},b));
-  }
-  return changes;
-}
-
+/* Price-change indicators are stamped at edit/apply time (see pcStamp in helpers.js);
+   no publish-time detection or pubSRP/pubDP baseline is used. */
 function _buildSavePayload(){
   var products = JSON.parse(JSON.stringify(ALL_PRODUCTS));
   var newImages = {};
@@ -93,15 +57,12 @@ function _buildSavePayload(){
       newImages['data/promo.json'] = 'data:application/json;base64,' + _b64utf8(JSON.stringify(promoOut, null, 2));
     }
   }catch(e){}
-  // Price-change detection on the copy (advances baselines + appends history in the committed JSON).
-  var priceChanges = [];
-  try { priceChanges = _pcDetect(products, window._PRICE_EFFECTIVE_DATE); } catch(e){ try{console.warn('[pc-detect]',e);}catch(_){} }
   // Persist the indicator-days setting alongside the data (rides the newImages channel, no Worker change).
   try {
     var _days = (typeof pcIndicatorDays==='function') ? pcIndicatorDays() : 30;
     newImages['data/price-settings.json'] = 'data:application/json;base64,' + _b64utf8(JSON.stringify({ indicatorDays: _days }, null, 2));
   } catch(e){}
-  return { products: products, newImages: newImages, rewrites: rewrites, priceChanges: priceChanges };
+  return { products: products, newImages: newImages, rewrites: rewrites };
 }
 
 
@@ -194,8 +155,7 @@ function saveToGitHub(){
   var summary = 'Publish to the LIVE site?\n\n' +
     '\u2022 ' + built.products.length + ' products' +
     (pendingCnt ? '\n\u2022 ' + pendingCnt + ' unpublished change(s) included' : '') +
-    (imgCount ? '\n\u2022 ' + imgCount + ' new image(s) to commit' : '') +
-    ((built.priceChanges && built.priceChanges.length) ? '\n\u2022 ' + built.priceChanges.length + ' price change(s) recorded (effective ' + (window._PRICE_EFFECTIVE_DATE || 'today') + ')' : '');
+    (imgCount ? '\n\u2022 ' + imgCount + ' new image(s) to commit' : '');
   if (warn.length) summary += '\n\n\u26A0 WARNINGS \u2014 review before continuing:\n' + warn.join('\n');
   if (!confirm(summary)) return;
 
@@ -253,15 +213,6 @@ function _doPublish(endpoint, cfg, pw, built){
         if (p) p.image = rw.path;
         if (window.IMAGES) delete window.IMAGES[rw.key];
       });
-      // Adopt the just-published price history + advanced baselines into live memory,
-      // so the next publish compares against the new baseline (no double-counting).
-      try {
-        built.products.forEach(function(bp){
-          var lp = ALL_PRODUCTS.find(function(x){ return String(x.item_code) === String(bp.item_code); });
-          if (lp) { lp.priceHistory = bp.priceHistory; lp.pubSRP = bp.pubSRP; lp.pubDP = bp.pubDP; }
-        });
-        if (typeof render === 'function') render();
-      } catch(e){}
       if (typeof removeDownloadHighlight === 'function') removeDownloadHighlight();
       try{ if (typeof PROMO_CONFIG !== 'undefined' && PROMO_CONFIG && PROMO_CONFIG._pendingImagePath){ PROMO_CONFIG.imageData = PROMO_CONFIG._pendingImagePath; delete PROMO_CONFIG._pendingImagePath; } }catch(e){}
       if (typeof updateSaveIndicator === 'function') { try { window.HAS_UNSAVED_CHANGES = false; updateSaveIndicator(); } catch(e){} }

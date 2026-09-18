@@ -76,41 +76,58 @@ function showToast(msg){var t=document.getElementById('toast');if(!t){console.wa
 function showLoading(msg){var lbl=document.getElementById('loading-label');var ov=document.getElementById('loading-overlay');if(lbl)lbl.textContent=msg||'Please wait…';if(ov)ov.classList.add('show');}
 function hideLoading(){var ov=document.getElementById('loading-overlay');if(ov)ov.classList.remove('show');}
 
-/* ── Price Change indicators (shared, added 2026-09-18) ────────────────────
-   Price history lives per-SKU in products.json as p.priceHistory[] with a
-   pubSRP/pubDP baseline. These helpers read that history for the UI. */
+/* == Price Change indicators (SIMPLIFIED 2026-09-18) =======================
+   When a price CHANGES (manual edit or bulk apply) the SKU stores lightweight
+   per-field metadata -- like the NEW-product flag -- stamped against the price
+   that existed immediately BEFORE the change. No baseline / pubSRP-pubDP /
+   publish-time detection. Auto-expires after the configured window; the current
+   price stays unchanged after expiry.
+     previousSRP, priceChangeSRP ('up'|'down'), srpChangeDate ('YYYY-MM-DD')
+     previousDP,  priceChangeDP  ('up'|'down'), dpChangeDate  ('YYYY-MM-DD') */
 function pcIndicatorDays(){ try{ var d=window.PRICE_SETTINGS&&Number(window.PRICE_SETTINGS.indicatorDays); return (d&&d>0)?d:30; }catch(e){ return 30; } }
-function pcWithinWindow(entry){
-  if(!entry||!entry.effectiveDate) return false;
-  var eff=new Date(String(entry.effectiveDate)+'T00:00:00'); if(isNaN(eff.getTime())) return false;
-  var end=new Date(eff.getTime()); end.setDate(end.getDate()+pcIndicatorDays());
-  return new Date() <= end;              // shows from effective date through +N days (future-dated shows early)
+function pcWithinDays(dateStr){
+  if(!dateStr) return false;
+  var d=new Date(String(dateStr)+'T00:00:00'); if(isNaN(d.getTime())) return false;
+  var end=new Date(d.getTime()); end.setDate(end.getDate()+pcIndicatorDays());
+  return new Date() <= end;
 }
-function pcRecentEntry(p,type){          // type: 'SRP' | 'DP' | undefined(any). Latest in-window entry.
-  if(!p||!p.priceHistory||!p.priceHistory.length) return null;
-  var best=null;
-  for(var i=0;i<p.priceHistory.length;i++){ var e=p.priceHistory[i];
-    if(type&&e.type!==type) continue;
-    if(!pcWithinWindow(e)) continue;
-    if(!best||new Date(e.dateChanged)>new Date(best.dateChanged)) best=e;
+function pcToday(){ var x=new Date(); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
+/* Returns {type,prev,new,dir,date} for an in-window change on SRP or DP, else null. */
+function pcRecentEntry(p,type){
+  if(!p) return null;
+  function pick(t){
+    if(t==='SRP'){ if(p.priceChangeSRP&&p.previousSRP!=null&&pcWithinDays(p.srpChangeDate)) return {type:'SRP',prev:p.previousSRP,'new':p.srp,dir:p.priceChangeSRP,date:p.srpChangeDate}; }
+    else if(t==='DP'){ if(p.priceChangeDP&&p.previousDP!=null&&pcWithinDays(p.dpChangeDate)) return {type:'DP',prev:p.previousDP,'new':p.dp,dir:p.priceChangeDP,date:p.dpChangeDate}; }
+    return null;
   }
-  return best;
+  if(type) return pick(type);
+  return pick('SRP')||pick('DP');
 }
-function pcHasRecent(p,dir){             // dir: 'up' | 'down' | undefined(any)
-  if(!p||!p.priceHistory) return false;
-  for(var i=0;i<p.priceHistory.length;i++){ var e=p.priceHistory[i];
-    if(!pcWithinWindow(e)) continue;
-    if(!dir||e.dir===dir) return true;
-  }
-  return false;
+function pcHasRecent(p,dir){
+  var a=pcRecentEntry(p,'SRP'), b=pcRecentEntry(p,'DP');
+  function ok(e){ return !!(e && (!dir||e.dir===dir)); }
+  return ok(a)||ok(b);
 }
-/* Render a badge for a price cell. type='SRP'|'DP'. full=true → old→new + delta. */
+/* Render a badge. type='SRP'|'DP'. full=true -> prev->new + label; compact -> arrow+label. */
 function pcBadge(p,type,full){
   var e=pcRecentEntry(p,type); if(!e) return '';
-  var up=e.dir==='up', cls=up?'pc-up':'pc-down', arrow=up?'↑':'↓';
-  var pct=Math.abs(Number(e.pct)||0).toFixed(2);
+  var up=e.dir==='up', cls=up?'pc-up':'pc-down', arrow=up?'↑':'↓', label=up?'Price Increase':'Price Decrease';
   if(full){
-    return '<div class="pc-ind '+cls+'"><span class="pc-old">'+fmt(e.prev)+'</span> <span class="pc-arrow">→</span> '+fmt(e.new)+' <span class="pc-delta">'+arrow+' '+pct+'%</span></div>';
+    return '<div class="pc-ind '+cls+'"><span class="pc-old">'+fmt(e.prev)+'</span> <span class="pc-arrow">→</span> '+fmt(e['new'])+' <span class="pc-delta">'+arrow+' '+label+'</span></div>';
   }
-  return '<span class="pc-ind '+cls+'">'+arrow+' '+pct+'%</span>';
+  return '<span class="pc-ind '+cls+'">'+arrow+' '+(up?'Increase':'Decrease')+'</span>';
+}
+/* Stamp change metadata when SRP/DP actually change, comparing NEW values (already
+   on p) vs supplied OLD values. Only sets fields for changed prices; leaves an
+   unchanged field's existing metadata intact. effDate = change date. Returns true
+   if anything changed. Used by manual edit + bulk apply. */
+function pcStamp(p, oldSRP, oldDP, effDate){
+  var d=effDate||pcToday();
+  function num(v){ if(v===''||v===null||v===undefined) return null; var n=Number(v); return isNaN(n)?null:n; }
+  var changed=false;
+  var os=num(oldSRP), ns=num(p.srp);
+  if(os!==null && ns!==null && ns!==os){ p.previousSRP=os; p.priceChangeSRP=(ns>os?'up':'down'); p.srpChangeDate=d; changed=true; }
+  var od=num(oldDP), nd=num(p.dp);
+  if(od!==null && nd!==null && nd!==od){ p.previousDP=od; p.priceChangeDP=(nd>od?'up':'down'); p.dpChangeDate=d; changed=true; }
+  return changed;
 }

@@ -660,6 +660,9 @@ function saveSku() {
   // Leave it off entirely when editing a base product that never had an isNew flag,
   // so isNewSku() continues to fall back to its date-based logic.
   if (isNewFlag !== undefined) p.isNew = isNewFlag;
+  // Price-change indicator: stamp metadata when an EXISTING SKU's SRP/DP actually change
+  // (compared against the price that existed immediately before this edit). New SKUs never stamp.
+  if (editingCode && prevProduct && typeof pcStamp === 'function') pcStamp(p, prevProduct.srp, prevProduct.dp, (typeof pcToday==='function'?pcToday():''));
   var custom = loadNewSkus();
   var idx = custom.findIndex(function(x){return String(x.item_code)===String(ic);});
   // v1.1.17: MERGE instead of replace — preserves any fields on the existing record
@@ -2652,10 +2655,11 @@ window._PRICE_EFFECTIVE_DATE = window._PRICE_EFFECTIVE_DATE || (function(){var d
 
 function _pcAllRows(){
   var rows=[];
-  for(var i=0;i<ALL_PRODUCTS.length;i++){ var p=ALL_PRODUCTS[i]; if(!p||!p.priceHistory)continue;
-    for(var j=0;j<p.priceHistory.length;j++){ var e=p.priceHistory[j];
-      rows.push({ item_code:p.item_code, product_name:p.product_name, type:e.type, prev:e.prev, "new":e["new"], diff:e.diff, pct:e.pct, dir:e.dir, effectiveDate:e.effectiveDate, dateChanged:e.dateChanged, user:e.user });
-    }
+  function mk(p,type,prev,nw,dir,date){ var pr=Number(prev),nv=Number(nw); var diff=Math.round((nv-pr)*100)/100; var pct=(pr>0?Math.round(((nv-pr)/pr)*10000)/100:0);
+    return { item_code:p.item_code, product_name:p.product_name, type:type, prev:pr, "new":nv, diff:diff, pct:pct, dir:dir, effectiveDate:date, dateChanged:date, user:"Admin" }; }
+  for(var i=0;i<ALL_PRODUCTS.length;i++){ var p=ALL_PRODUCTS[i]; if(!p)continue;
+    if(p.priceChangeSRP&&p.previousSRP!=null) rows.push(mk(p,'SRP',p.previousSRP,p.srp,p.priceChangeSRP,p.srpChangeDate));
+    if(p.priceChangeDP&&p.previousDP!=null) rows.push(mk(p,'DP',p.previousDP,p.dp,p.priceChangeDP,p.dpChangeDate));
   }
   rows.sort(function(a,b){ return new Date(b.dateChanged)-new Date(a.dateChanged); });
   return rows;
@@ -2683,6 +2687,7 @@ function renderPriceChangesTab(){
   var days=(typeof pcIndicatorDays==='function')?pcIndicatorDays():30;
   var eff=window._PRICE_EFFECTIVE_DATE;
   el.innerHTML =
+    _bpuPanelHtml()+
     '<div class="adm-panel">'+
       '<div class="adm-panel-head"><div class="adm-panel-title">Price Changes</div><div class="adm-panel-sub">Automatic SRP / DP change tracking · permanent history per SKU</div></div>'+
       '<div class="pc-settings">'+
@@ -2736,3 +2741,186 @@ document.addEventListener('DOMContentLoaded', function(){
       .catch(function(){});
   }catch(e){}
 });
+
+/* ── Bulk Price Update (added 2026-09-18) ─────────────────────────────────
+   Upload PRICE UPDATE.xlsx → preview → apply to DRAFT only. Apply writes the new
+   srp/dp/dp_volume AND stamps the price-change indicator metadata (pcStamp) by
+   comparing the new price against the price that existed immediately before Apply
+   — exactly like a manual edit. No baseline / pubSRP-pubDP / publish-time
+   detection. Upload + Preview mutate nothing; Publish just publishes normally. */
+var _bpuPreview=null, _bpuFileName='';
+function _bpuNormSku(v){ if(v===null||v===undefined)return ''; if(typeof v==='number')return Number.isInteger(v)?String(v):String(v); return String(v).trim(); }
+function _bpuNum(v){ if(v===null||v===undefined||(typeof v==='string'&&v.trim()===''))return null; var n=Number(String(v).replace(/[,₱\s]/g,'')); return isNaN(n)?'BAD':n; }
+function bpuBrowse(){ var i=document.getElementById('bpu-input'); if(i)i.click(); }
+function bpuHandleFile(input){
+  if(!input.files||!input.files[0])return;
+  if(typeof ExcelJS==='undefined'){ showToast('Excel library loading — please wait, then retry.'); return; }
+  var file=input.files[0]; _bpuFileName=file.name; input.value='';
+  showLoading('Reading price update file…');
+  var r=new FileReader();
+  r.onerror=function(){ hideLoading(); showToast('Failed to read file.'); };
+  r.onload=function(e){ _bpuProcess(e.target.result); };
+  r.readAsArrayBuffer(file);
+}
+function _bpuMkRow(x,matched,status,note,extra){
+  extra=extra||{};
+  return { sku:x.sku, model:(matched&&matched.model)||x.model||'', name:(matched&&matched.product_name)||'',
+    curSrp:extra.cur?extra.cur.srp:null, newSrp:x.srp, cs:extra.cs||null,
+    curDp:extra.cur?extra.cur.dp:null,  newDp:x.dp,  cd:extra.cd||null,
+    curDpv:extra.cur?extra.cur.dpv:null,newDpv:x.dpv,cv:extra.cv||null,
+    status:status, note:note||'' };
+}
+async function _bpuProcess(buffer){
+  try{
+    var wb=new ExcelJS.Workbook(); await wb.xlsx.load(buffer);
+    var ws=wb.worksheets[0];
+    if(!ws||ws.rowCount<2){ hideLoading(); showToast('No data rows in the first worksheet.'); return; }
+    var aliases={ sku:['sku','itemcode','code','item','itemno'], srp:['srp','retail','retailprice'], dp:['dp','dealerprice','dealer'], dpv:['volumeprice','dpvol','dpvolume','volume','bulkprice'], model:['modelno','model','modelnumber'], matno:['materialnumber','material','matno'] };
+    var lk={}; Object.keys(aliases).forEach(function(f){aliases[f].forEach(function(a){lk[a]=f;});});
+    var cm={};
+    ws.getRow(1).eachCell(function(cell,cn){ var n=String(cell.value||'').toLowerCase().replace(/[\s_\-\.\/\\]+/g,''); var f=lk[n]; if(f&&cm[f]===undefined)cm[f]=cn; });
+    if(cm.sku===undefined)cm.sku=2; if(cm.srp===undefined)cm.srp=4; if(cm.dp===undefined)cm.dp=5; if(cm.dpv===undefined)cm.dpv=6; if(cm.model===undefined)cm.model=1;
+    var pidx={}; for(var i=0;i<ALL_PRODUCTS.length;i++){ var c=_bpuNormSku(ALL_PRODUCTS[i].item_code).toLowerCase(); if(c)pidx[c]=ALL_PRODUCTS[i]; }
+    var raw=[];
+    ws.eachRow(function(row,rn){ if(rn===1)return;
+      var sku=_bpuNormSku(row.getCell(cm.sku).value);
+      var srp=_bpuNum(row.getCell(cm.srp).value), dp=_bpuNum(row.getCell(cm.dp).value), dpv=_bpuNum(row.getCell(cm.dpv).value);
+      var model=String(row.getCell(cm.model).value||'').trim();
+      if(sku===''&&srp===null&&dp===null&&dpv===null)return;   // fully-empty row
+      raw.push({sku:sku,srp:srp,dp:dp,dpv:dpv,model:model});
+    });
+    // within-file duplicate/conflict detection
+    var byS={}; raw.forEach(function(x){ if(x.sku==='')return; var k=x.sku.toLowerCase(); (byS[k]=byS[k]||[]).push(x); });
+    var conflictSet={}, dupSet={};
+    Object.keys(byS).forEach(function(k){ var a=byS[k]; if(a.length>1){ var same=a.every(function(z){return z.srp===a[0].srp&&z.dp===a[0].dp&&z.dpv===a[0].dpv;}); if(same)dupSet[k]=1; else conflictSet[k]=1; } });
+    function cmp(nv,cv){ if(nv===null)return null; if(cv===null||cv==='BAD')return{dir:'set'}; if(nv>cv)return{dir:'up'}; if(nv<cv)return{dir:'down'}; return{dir:'none'}; }
+    var rows=[], seen={};
+    var sum={total:0,matched:0,changed:0,inc:0,dec:0,nochange:0,unmatched:0,invalid:0,conflict:0,dupfile:0};
+    raw.forEach(function(x){
+      sum.total++; var skl=x.sku.toLowerCase();
+      if(x.sku===''){ sum.invalid++; rows.push(_bpuMkRow(x,null,'invalid','Blank SKU')); return; }
+      if(x.srp==='BAD'||x.dp==='BAD'||x.dpv==='BAD'){ sum.invalid++; rows.push(_bpuMkRow(x,null,'invalid','Non-numeric price')); return; }
+      if(conflictSet[skl]){ sum.conflict++; rows.push(_bpuMkRow(x,null,'conflict','Duplicate SKU with different prices — blocked')); return; }
+      if(dupSet[skl]){ if(seen[skl]){ sum.dupfile++; rows.push(_bpuMkRow(x,null,'duplicate','Duplicate row (identical prices)')); return; } }
+      seen[skl]=1;
+      var matched=pidx[skl]||null;
+      if(!matched){ sum.unmatched++; rows.push(_bpuMkRow(x,null,'unmatched','SKU not found in pricelist')); return; }
+      sum.matched++;
+      var cur={srp:_bpuNum(matched.srp),dp:_bpuNum(matched.dp),dpv:_bpuNum(matched.dp_volume)};
+      var cs=cmp(x.srp,cur.srp), cd=cmp(x.dp,cur.dp), cv=cmp(x.dpv,cur.dpv);
+      var chg=false,up=false,down=false;
+      [cs,cd,cv].forEach(function(c){ if(!c)return; if(c.dir==='up'){chg=true;up=true;} else if(c.dir==='down'){chg=true;down=true;} else if(c.dir==='set'){chg=true;} });
+      if(chg){ sum.changed++; if(up)sum.inc++; if(down)sum.dec++; rows.push(_bpuMkRow(x,matched,'change','',{cur:cur,cs:cs,cd:cd,cv:cv})); }
+      else { sum.nochange++; rows.push(_bpuMkRow(x,matched,'nochange','',{cur:cur,cs:cs,cd:cd,cv:cv})); }
+    });
+    _bpuPreview={rows:rows,sum:sum};
+    hideLoading();
+    renderPriceChangesTab();
+    var pv=document.getElementById('bpu-preview'); if(pv&&pv.scrollIntoView)pv.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){ hideLoading(); showToast('Bulk update read error: '+(e.message||e)); try{console.error('[bpu]',e);}catch(_){} }
+}
+function bpuCancel(){ _bpuPreview=null; renderPriceChangesTab(); showToast('Bulk price update cancelled — no changes made.'); }
+function bpuApply(){
+  if(!_bpuPreview){ showToast('Nothing to apply.'); return; }
+  requireAdmin(function(){
+    var effEl=document.getElementById('bpu-eff'); if(effEl&&effEl.value)window._PRICE_EFFECTIVE_DATE=effEl.value;
+    var custom=loadNewSkus(); var applied=0;
+    _bpuPreview.rows.forEach(function(r){
+      if(r.status!=='change')return;                                  // only real changes
+      var gi=ALL_PRODUCTS.findIndex(function(p){return _bpuNormSku(p.item_code).toLowerCase()===r.sku.toLowerCase();});
+      if(gi<0)return; var p=ALL_PRODUCTS[gi];
+      var _oldSrp=p.srp, _oldDp=p.dp;
+      if(r.newSrp!==null && r.cs && r.cs.dir!=='none') p.srp=r.newSrp;      // only changed price fields
+      if(r.newDp!==null  && r.cd && r.cd.dir!=='none') p.dp=r.newDp;
+      if(r.newDpv!==null && r.cv && r.cv.dir!=='none') p.dp_volume=r.newDpv;
+      if(typeof pcStamp==='function') pcStamp(p, _oldSrp, _oldDp, (window._PRICE_EFFECTIVE_DATE||''));  // stamp increase/decrease vs pre-apply price
+      var ci=custom.findIndex(function(x){return _bpuNormSku(x.item_code).toLowerCase()===r.sku.toLowerCase();});
+      if(ci>=0) Object.assign(custom[ci], p);   // full merge carries the stamped metadata
+      else custom.push(Object.assign({},p));
+      applied++;
+    });
+    saveNewSkus(custom);
+    if(typeof updateAll==='function')updateAll();
+    if(typeof autoSave==='function')autoSave(); if(typeof markUnsaved==='function')markUnsaved();
+    if(typeof logActivity==='function')logActivity('bulk-price','('+applied+')','Bulk price update: '+applied+' SKU(s)');
+    _bpuLogBatch(applied);
+    _bpuPreview=null; renderPriceChangesTab();
+    showToast('Price update applied to draft ('+applied+' SKU'+(applied===1?'':'s')+'). Review changes and Publish when ready.');
+  });
+}
+function _bpuLogBatch(changed){
+  try{
+    var key='ugreen_bpu_batches'; var arr=JSON.parse(localStorage.getItem(key)||'[]');
+    var s=_bpuPreview?_bpuPreview.sum:{total:0,matched:0,unmatched:0};
+    arr.unshift({ file:_bpuFileName, uploadDate:new Date().toISOString(), effectiveDate:(window._PRICE_EFFECTIVE_DATE||''), total:s.total, matched:s.matched, changed:changed, unmatched:s.unmatched, admin:'Admin' });
+    localStorage.setItem(key, JSON.stringify(arr.slice(0,20)));
+  }catch(e){}
+}
+function _bpuLastBatch(){ try{ return (JSON.parse(localStorage.getItem('ugreen_bpu_batches')||'[]')||[])[0]||null; }catch(e){ return null; } }
+function bpuDownloadUnmatched(){
+  if(!_bpuPreview)return;
+  var rws=_bpuPreview.rows.filter(function(r){return r.status==='unmatched';});
+  if(!rws.length){ showToast('No unmatched SKUs.'); return; }
+  function q(v){v=(v===null||v===undefined)?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+  var head=['SKU','Model No.','New SRP','New DP','New Volume'];
+  var csv=[head.join(',')].concat(rws.map(function(r){return [r.sku,r.model,r.newSrp,r.newDp,r.newDpv].map(q).join(',');})).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='UGREEN-Bulk-Price-Unmatched.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},600);
+}
+function _bpuDeltaCell(cur,nw,c){
+  if(nw===null||!c)return '<span class="pc-arrow">—</span>';
+  if(c.dir==='none')return '<span class="pc-arrow">—</span>';
+  if(c.dir==='set')return '<span class="pc-up">new</span>';
+  var up=c.dir==='up', diff=nw-(cur||0), pct=(cur&&cur>0)?Math.abs(Math.round((diff/cur)*10000)/100):0;
+  return '<span class="'+(up?'pc-up':'pc-down')+'">'+(up?'↑':'↓')+' '+fmt(Math.abs(diff))+' ('+pct.toFixed(2)+'%)</span>';
+}
+function _bpuCard(label,val,cls){ return '<div class="bpu-card '+(cls||'')+'"><div class="bpu-card-v">'+val+'</div><div class="bpu-card-l">'+label+'</div></div>'; }
+function _bpuStatusBadge(s){
+  var m={change:['Matched','pc-up'],nochange:['No change','pc-muted'],unmatched:['Unmatched','pc-down'],invalid:['Invalid','pc-down'],conflict:['Conflict','pc-down'],duplicate:['Duplicate','pc-muted']};
+  var v=m[s]||[s,'pc-muted']; return '<span class="bpu-badge '+v[1]+'">'+v[0]+'</span>';
+}
+function _bpuPanelHtml(){
+  var last=_bpuLastBatch();
+  var lastHtml = last ? ('<div class="bpu-lastbatch">Last batch: '+escAttr(last.file||'file')+' · '+_pcFmtDate(last.uploadDate)+' · '+last.changed+' changed / '+last.matched+' matched / '+last.total+' rows'+(last.effectiveDate?(' · eff '+escAttr(last.effectiveDate)):'')+'</div>') : '';
+  var head='<div class="adm-panel" id="bpu-panel">'+
+    '<div class="adm-panel-head"><div class="adm-panel-title">Bulk Price Update</div><div class="adm-panel-sub">Upload PRICE UPDATE.xlsx (Model, SKU, Material No., SRP, Dealer, Volume) → preview → apply to draft → Publish. Matches by SKU; never creates or deletes SKUs.</div></div>'+
+    '<input type="file" id="bpu-input" accept=".xlsx,.xls" style="display:none" onchange="bpuHandleFile(this)">'+
+    '<div class="pc-toolbar"><button class="adm-btn-cta" onclick="bpuBrowse()">Upload price file (.xlsx)</button>'+
+    (_bpuPreview?'<button class="btn-ghost" onclick="bpuCancel()" style="border:1px solid var(--border);border-radius:8px;padding:.4rem .8rem">Clear preview</button>':'')+'</div>'+
+    lastHtml;
+  if(!_bpuPreview) return head+'</div>';
+  var s=_bpuPreview.sum;
+  var cards='<div class="bpu-cards">'+
+    _bpuCard('Total rows',s.total)+_bpuCard('Matched',s.matched)+_bpuCard('With changes',s.changed)+
+    _bpuCard('↑ Increases',s.inc,'bpu-inc')+_bpuCard('↓ Decreases',s.dec,'bpu-dec')+_bpuCard('No change',s.nochange)+
+    _bpuCard('Unmatched',s.unmatched,(s.unmatched?'bpu-warn':''))+_bpuCard('Invalid / conflict',(s.invalid+s.conflict+s.dupfile),((s.invalid+s.conflict+s.dupfile)?'bpu-warn':''))+
+    '</div>';
+  var eff=window._PRICE_EFFECTIVE_DATE;
+  var controls='<div class="pc-settings" id="bpu-preview">'+
+    '<label class="pc-set-fld">Price effective date <input type="date" id="bpu-eff" value="'+escAttr(eff)+'"></label>'+
+    '<button class="adm-btn-cta" onclick="bpuApply()">Apply Price Update to draft</button>'+
+    '<button class="btn-ghost" onclick="bpuCancel()" style="border:1px solid var(--border);border-radius:8px;padding:.5rem .85rem">Cancel</button>'+
+    (s.unmatched?'<button class="btn-ghost" onclick="bpuDownloadUnmatched()" style="border:1px solid var(--border);border-radius:8px;padding:.5rem .85rem">Download unmatched ('+s.unmatched+')</button>':'')+
+    '</div>'+
+    '<div class="bpu-note">Apply updates the DRAFT only (no publish). Price history is recorded by the existing Publish flow, comparing against the last published price.</div>';
+  var CAP=400; var show=_bpuPreview.rows.slice(0,CAP);
+  var body=show.map(function(r){
+    return '<tr class="bpu-row-'+r.status+'">'+
+      '<td class="adm-sku-code">'+escAttr(r.sku)+'</td>'+
+      '<td>'+escAttr(r.model)+'</td>'+
+      '<td><div class="adm-sku-pname">'+escAttr(r.name||'—')+'</div>'+(r.note?'<div class="adm-sku-pmeta">'+escAttr(r.note)+'</div>':'')+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r.curSrp)+'</td><td class="adm-sku-thr">'+fmt(r.newSrp)+'</td><td>'+_bpuDeltaCell(r.curSrp,r.newSrp,r.cs)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r.curDp)+'</td><td class="adm-sku-thr">'+fmt(r.newDp)+'</td><td>'+_bpuDeltaCell(r.curDp,r.newDp,r.cd)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r.curDpv)+'</td><td class="adm-sku-thr">'+fmt(r.newDpv)+'</td><td>'+_bpuDeltaCell(r.curDpv,r.newDpv,r.cv)+'</td>'+
+      '<td>'+_bpuStatusBadge(r.status)+'</td>'+
+    '</tr>';
+  }).join('');
+  var more=_bpuPreview.rows.length>CAP?'<tr><td colspan="13" class="adm-sku-more">Showing first '+CAP+' of '+_bpuPreview.rows.length+' rows (all rows are applied).</td></tr>':'';
+  var table='<div class="adm-sku-tablewrap"><table class="adm-sku-table adm-sku-table-pro"><thead><tr>'+
+    '<th>SKU</th><th>Model</th><th>Product</th>'+
+    '<th class="adm-sku-thr">Cur SRP</th><th class="adm-sku-thr">New SRP</th><th>SRP Δ</th>'+
+    '<th class="adm-sku-thr">Cur DP</th><th class="adm-sku-thr">New DP</th><th>DP Δ</th>'+
+    '<th class="adm-sku-thr">Cur Vol</th><th class="adm-sku-thr">New Vol</th><th>Vol Δ</th>'+
+    '<th>Status</th></tr></thead><tbody>'+body+more+'</tbody></table></div>';
+  return head+cards+controls+table+'</div>';
+}

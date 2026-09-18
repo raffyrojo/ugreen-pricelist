@@ -1577,10 +1577,11 @@ function captureSkuCard(itemCode, btn){ if(btn){btn.disabled=true;btn.innerHTML=
    Excel/PDF exports are unaffected. */
 function _pcReportRows(){
   var rows=[];
-  for(var i=0;i<ALL_PRODUCTS.length;i++){ var p=ALL_PRODUCTS[i]; if(!p||!p.priceHistory)continue;
-    for(var j=0;j<p.priceHistory.length;j++){ var e=p.priceHistory[j];
-      rows.push([ p.item_code||'', p.product_name||'', e.type, e.prev, e["new"], e.diff, (Number(e.pct)||0), e.effectiveDate||'', e.dateChanged||'' ]);
-    }
+  function push(p,type,prev,nw,date){ var pr=Number(prev),nv=Number(nw); var diff=Math.round((nv-pr)*100)/100; var pct=(pr>0?Math.round(((nv-pr)/pr)*10000)/100:0);
+    rows.push([ p.item_code||'', p.product_name||'', type, pr, nv, diff, pct, date||'', date||'' ]); }
+  for(var i=0;i<ALL_PRODUCTS.length;i++){ var p=ALL_PRODUCTS[i]; if(!p)continue;
+    if(p.priceChangeSRP&&p.previousSRP!=null) push(p,'SRP',p.previousSRP,p.srp,p.srpChangeDate);
+    if(p.priceChangeDP&&p.previousDP!=null) push(p,'DP',p.previousDP,p.dp,p.dpChangeDate);
   }
   rows.sort(function(a,b){ return new Date(b[8])-new Date(a[8]); });
   return rows;
