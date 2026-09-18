@@ -1917,3 +1917,22 @@ body.so-lock{ overflow:hidden; }
 .adm-mode-switch{margin-top:1.6rem;padding-top:1.35rem;border-top:1px solid var(--border)}
 .adm-mode-arrow{display:none}
 
+
+/* ── Price Change indicators + admin tab (added 2026-09-18) ──────────────── */
+.pc-ind{display:inline-block;font-size:.62rem;font-weight:700;line-height:1.1;white-space:nowrap}
+td.td-price .pc-ind,.grid-price .pc-ind{display:block;margin-top:2px}
+.pc-up{color:#b91c1c}
+.pc-down{color:#007934}
+.pc-old{color:var(--text-dim);text-decoration:line-through;font-weight:500}
+.pc-arrow{color:var(--text-dim)}
+.pc-delta{font-weight:700}
+.modal-price .pc-ind{margin-top:4px;font-size:.66rem}
+.pc-filter-select{font-family:'Metropolis',sans-serif;font-size:.72rem;border:1px solid var(--border);border-radius:8px;padding:.32rem .5rem;background:var(--surface);color:var(--text);cursor:pointer}
+.pc-settings{display:flex;flex-wrap:wrap;align-items:end;gap:1rem;margin:.4rem 0 1rem}
+.pc-set-fld{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text-muted)}
+.pc-set-fld input{border:1px solid var(--border);border-radius:8px;padding:.4rem .5rem;font-family:inherit;font-size:.8rem;background:var(--surface);color:var(--text)}
+.pc-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.75rem}
+.pc-filterbar{display:flex;gap:.35rem;flex-wrap:wrap}
+.pc-filterbar button{font-family:'Metropolis',sans-serif;font-size:.74rem;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);border-radius:20px;padding:.35rem .8rem;cursor:pointer;transition:all .15s ease}
+.pc-filterbar button:hover{border-color:#007934;color:#007934}
+.pc-filterbar button.active{background:#007934;border-color:#007934;color:#fff}
