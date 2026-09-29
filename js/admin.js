@@ -663,6 +663,9 @@ function saveSku() {
   // Price-change indicator: stamp metadata when an EXISTING SKU's SRP/DP actually change
   // (compared against the price that existed immediately before this edit). New SKUs never stamp.
   if (editingCode && prevProduct && typeof pcStamp === 'function') pcStamp(p, prevProduct.srp, prevProduct.dp, (typeof pcToday==='function'?pcToday():''));
+  // Also log the change to the permanent per-SKU price history (carries prior
+  // history + any pending schedule from the existing record onto the merged obj).
+  if (editingCode && prevProduct) pcLogManualEdit(p, prevProduct, (typeof pcToday==='function'?pcToday():''));
   var custom = loadNewSkus();
   var idx = custom.findIndex(function(x){return String(x.item_code)===String(ic);});
   // v1.1.17: MERGE instead of replace — preserves any fields on the existing record
@@ -2653,6 +2656,59 @@ var _pcFilterType='all';   // all | up | down | SRP | DP
 var _pcSearchQ='';
 window._PRICE_EFFECTIVE_DATE = window._PRICE_EFFECTIVE_DATE || (function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
 
+var _pcView='active';   // active | scheduled | history
+/* Log a manual single-SKU edit to the permanent price history. Operates on the
+   fresh form object `p`, reading prior state from `prevProduct` (still holds the
+   pre-edit metadata + history, since pcStamp mutated `p`, not prevProduct). */
+function pcLogManualEdit(p, prevProduct, effDate){
+  if(!p||!prevProduct||typeof pcSeedEventFromMeta!=='function')return;
+  function n(v){ if(v===''||v===null||v===undefined)return null; var x=Number(v); return isNaN(x)?null:x; }
+  var os=n(prevProduct.srp), ns=n(p.srp), od=n(prevProduct.dp), nd=n(p.dp), ov=n(prevProduct.dp_volume), nv=n(p.dp_volume);
+  var hist=(prevProduct.priceHistory&&prevProduct.priceHistory.length)?prevProduct.priceHistory.slice():[];
+  if(prevProduct.priceSchedule&&prevProduct.priceSchedule.length) p.priceSchedule=prevProduct.priceSchedule.slice();
+  var moved=(os!==ns)||(od!==nd)||(ov!==nv);
+  if(moved){
+    if(!hist.length){ var seed=pcSeedEventFromMeta(prevProduct); if(seed) hist.push(seed); }
+    hist.push({ effectiveDate:effDate||pcToday(), createdDate:(typeof pcToday==='function'?pcToday():effDate),
+      oldSrp:os, newSrp:ns, oldDp:od, newDp:nd, oldVol:ov, newVol:nv, source:'edit' });
+  }
+  if(hist.length) p.priceHistory=hist;
+}
+/* Persist a mutated product into the draft (ugreen_new_skus) so schedule/history
+   edits survive refresh and get published. */
+function _pcPersistDraft(p){
+  try{
+    var custom=loadNewSkus();
+    var ci=custom.findIndex(function(x){return _bpuNormSku(x.item_code).toLowerCase()===_bpuNormSku(p.item_code).toLowerCase();});
+    if(ci>=0) Object.assign(custom[ci], p); else custom.push(Object.assign({},p));
+    saveNewSkus(custom);
+  }catch(e){}
+}
+/* Cancel a pending scheduled change (before it activates). */
+function pcCancelScheduled(code, schedId){
+  requireAdmin(function(){
+    var gi=ALL_PRODUCTS.findIndex(function(p){return _bpuNormSku(p.item_code).toLowerCase()===_bpuNormSku(code).toLowerCase();});
+    if(gi<0)return; var p=ALL_PRODUCTS[gi];
+    if(!p.priceSchedule||!p.priceSchedule.length)return;
+    p.priceSchedule=p.priceSchedule.filter(function(e){return e.id!==schedId;});
+    _pcPersistDraft(p);
+    if(typeof updateAll==='function')updateAll(); if(typeof markUnsaved==='function')markUnsaved();
+    renderPriceChangesTab(); showToast('Scheduled change cancelled. Publish to persist.');
+  });
+}
+/* Reschedule a pending change to a new effective date. */
+function pcRescheduleDate(code, schedId, newDate){
+  if(!newDate)return;
+  var gi=ALL_PRODUCTS.findIndex(function(p){return _bpuNormSku(p.item_code).toLowerCase()===_bpuNormSku(code).toLowerCase();});
+  if(gi<0)return; var p=ALL_PRODUCTS[gi];
+  if(!p.priceSchedule)return;
+  for(var i=0;i<p.priceSchedule.length;i++){ if(p.priceSchedule[i].id===schedId){ p.priceSchedule[i].effectiveDate=newDate; } }
+  _pcPersistDraft(p);
+  if(typeof markUnsaved==='function')markUnsaved();
+  showToast('Effective date updated to '+newDate+'. Publish to persist.');
+}
+function pcSetView(v){ _pcView=v; renderPriceChangesTab(); }
+
 function _pcAllRows(){
   var rows=[];
   function mk(p,type,prev,nw,dir,date){ var pr=Number(prev),nv=Number(nw); var diff=Math.round((nv-pr)*100)/100; var pct=(pr>0?Math.round(((nv-pr)/pr)*10000)/100:0);
@@ -2677,8 +2733,8 @@ function _pcFilteredRows(){
 }
 function _pcFmtDate(iso){ if(!iso)return '—'; var d=new Date(iso); if(isNaN(d.getTime()))return String(iso); return d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
 function _pcFmtEff(sx){ if(!sx)return '—'; var d=new Date(String(sx)+'T00:00:00'); if(isNaN(d.getTime()))return String(sx); return d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
-function pcFilter(t){ _pcFilterType=t; renderPriceChangesTable(); var wrap=document.getElementById('pc-filterbar'); if(wrap){var bs=wrap.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.toggle('active',bs[i].getAttribute('data-f')===t);} }
-function pcSearchInput(v){ _pcSearchQ=v||''; renderPriceChangesTable(); }
+function pcFilter(t){ _pcFilterType=t; if(_pcView==='history'){ renderPriceChangesTab(); return; } renderPriceChangesTable(); var wrap=document.getElementById('pc-filterbar'); if(wrap){var bs=wrap.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.toggle('active',bs[i].getAttribute('data-f')===t);} }
+function pcSearchInput(v){ _pcSearchQ=v||''; if(_pcView==='history'){ var el=document.querySelector('#tab-pricechanges .adm-sku-tablewrap'); if(el){ /* re-render just the history table region */ } renderPriceChangesTab(); var s=document.getElementById('pc-search'); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } return; } renderPriceChangesTable(); }
 function pcSetDays(v){ var n=parseInt(v,10); if(!n||n<1)n=30; if(!window.PRICE_SETTINGS)window.PRICE_SETTINGS={}; window.PRICE_SETTINGS.indicatorDays=n; if(typeof markUnsaved==='function')markUnsaved(); showToast('Indicator window set to '+n+' day(s) — publish to apply.'); }
 function pcSetEffective(v){ if(v)window._PRICE_EFFECTIVE_DATE=v; }
 
@@ -2686,31 +2742,106 @@ function renderPriceChangesTab(){
   var el=document.getElementById('tab-pricechanges'); if(!el)return;
   var days=(typeof pcIndicatorDays==='function')?pcIndicatorDays():30;
   var eff=window._PRICE_EFFECTIVE_DATE;
+  var v=_pcView;
+  var toggle='<div class="pc-viewtabs">'+
+    '<button class="'+(v==='active'?'active':'')+'" onclick="pcSetView(\x27active\x27)">Active changes</button>'+
+    '<button class="'+(v==='scheduled'?'active':'')+'" onclick="pcSetView(\x27scheduled\x27)">Scheduled</button>'+
+    '<button class="'+(v==='history'?'active':'')+'" onclick="pcSetView(\x27history\x27)">History</button>'+
+  '</div>';
+  var sub;
+  if(v==='scheduled') sub=_pcScheduledHtml();
+  else if(v==='history') sub=_pcHistoryHtml();
+  else sub=
+    '<div class="pc-toolbar">'+
+      '<div class="pc-filterbar" id="pc-filterbar">'+
+        '<button data-f="all" class="active" onclick="pcFilter(\x27all\x27)">All</button>'+
+        '<button data-f="up" onclick="pcFilter(\x27up\x27)">↑ Increase</button>'+
+        '<button data-f="down" onclick="pcFilter(\x27down\x27)">↓ Decrease</button>'+
+        '<button data-f="SRP" onclick="pcFilter(\x27SRP\x27)">SRP</button>'+
+        '<button data-f="DP" onclick="pcFilter(\x27DP\x27)">DP</button>'+
+      '</div>'+
+      '<input type="text" class="adm-input" id="pc-search" placeholder="Search SKU or product name…" oninput="pcSearchInput(this.value)">'+
+    '</div>'+
+    '<div class="adm-sku-tablewrap"><table class="adm-sku-table adm-sku-table-pro"><thead><tr>'+
+      '<th>SKU</th><th>Product</th><th>Type</th><th class="adm-sku-thr">Previous</th><th class="adm-sku-thr">New</th><th class="adm-sku-thr">Diff</th><th class="adm-sku-thr">% Change</th><th>Direction</th><th>Effective</th><th>Changed</th>'+
+    '</tr></thead><tbody id="pc-tbody"></tbody></table></div>';
   el.innerHTML =
     _bpuPanelHtml()+
     '<div class="adm-panel">'+
-      '<div class="adm-panel-head"><div class="adm-panel-title">Price Changes</div><div class="adm-panel-sub">Automatic SRP / DP change tracking · permanent history per SKU</div></div>'+
+      '<div class="adm-panel-head"><div class="adm-panel-title">Price Changes</div><div class="adm-panel-sub">SRP / DP change tracking · scheduled changes · permanent history per SKU</div></div>'+
       '<div class="pc-settings">'+
         '<label class="pc-set-fld">Show indicator for <input type="number" min="1" id="pc-days" value="'+days+'" onchange="pcSetDays(this.value)"> days</label>'+
         '<label class="pc-set-fld">Effective date (next publish) <input type="date" id="pc-eff" value="'+escAttr(eff)+'" onchange="pcSetEffective(this.value)"></label>'+
         '<button class="adm-btn-cta" onclick="exportPriceChangeReport()">Export Price Change Report</button>'+
       '</div>'+
-      '<div class="pc-toolbar">'+
-        '<div class="pc-filterbar" id="pc-filterbar">'+
-          '<button data-f="all" class="active" onclick="pcFilter(\x27all\x27)">All</button>'+
-          '<button data-f="up" onclick="pcFilter(\x27up\x27)">↑ Increase</button>'+
-          '<button data-f="down" onclick="pcFilter(\x27down\x27)">↓ Decrease</button>'+
-          '<button data-f="SRP" onclick="pcFilter(\x27SRP\x27)">SRP</button>'+
-          '<button data-f="DP" onclick="pcFilter(\x27DP\x27)">DP</button>'+
-        '</div>'+
-        '<input type="text" class="adm-input" id="pc-search" placeholder="Search SKU or product name…" oninput="pcSearchInput(this.value)">'+
-      '</div>'+
-      '<div class="adm-sku-tablewrap"><table class="adm-sku-table adm-sku-table-pro"><thead><tr>'+
-        '<th>SKU</th><th>Product</th><th>Type</th><th class="adm-sku-thr">Previous</th><th class="adm-sku-thr">New</th><th class="adm-sku-thr">Diff</th><th class="adm-sku-thr">% Change</th><th>Direction</th><th>Effective</th><th>Changed</th>'+
-      '</tr></thead><tbody id="pc-tbody"></tbody></table></div>'+
+      toggle+sub+
     '</div>';
-  _pcFilterType='all'; _pcSearchQ='';
-  renderPriceChangesTable();
+  if(v==='active'){ _pcFilterType='all'; _pcSearchQ=''; renderPriceChangesTable(); }
+}
+/* Scheduled sub-view: future changes queued but not yet active. */
+function _pcScheduledHtml(){
+  var data=(typeof pcAllChangeRows==='function')?pcAllChangeRows(ALL_PRODUCTS):{scheduled:[]};
+  var rows=(data.scheduled||[]).slice().sort(function(a,b){return String(a.effectiveDate)<String(b.effectiveDate)?-1:1;});
+  var head='<div class="bpu-note">Scheduled changes are queued and do NOT affect the live pricelist, exports, or indicators until their effective date arrives (auto-activated on load). To change the amounts, cancel and re-upload.</div>'+
+    '<div class="adm-sku-tablewrap"><table class="adm-sku-table adm-sku-table-pro"><thead><tr>'+
+    '<th>SKU</th><th>Product</th><th>Type</th><th class="adm-sku-thr">Current</th><th class="adm-sku-thr">Scheduled</th><th>Effective date</th><th>Created</th><th></th>'+
+    '</tr></thead><tbody>';
+  if(!rows.length) return head+'<tr><td colspan="8" class="adm-sku-more">No scheduled price changes.</td></tr></tbody></table></div>';
+  var body=rows.map(function(r){
+    return '<tr>'+
+      '<td class="adm-sku-code">'+escAttr(String(r.code||''))+'</td>'+
+      '<td><div class="adm-sku-pname">'+escAttr(r.name||'')+'</div></td>'+
+      '<td>'+escAttr(r.type)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r.oldPrice)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r.newPrice)+'</td>'+
+      '<td><input type="date" class="pc-sched-date" value="'+escAttr(r.effectiveDate)+'" onchange="pcRescheduleDate(\''+escAttr(String(r.code))+'\',\''+escAttr(r.scheduleId)+'\',this.value)"></td>'+
+      '<td>'+_pcFmtEff(r.createdDate)+'</td>'+
+      '<td><button class="btn-ghost pc-cancel-btn" onclick="pcCancelScheduled(\''+escAttr(String(r.code))+'\',\''+escAttr(r.scheduleId)+'\')">Cancel</button></td>'+
+    '</tr>';
+  }).join('');
+  return head+body+'</tbody></table></div>';
+}
+/* History sub-view: every activated change (Active + Superseded), searchable/filterable. */
+function _pcHistoryHtml(){
+  var data=(typeof pcAllChangeRows==='function')?pcAllChangeRows(ALL_PRODUCTS):{history:[]};
+  var q=(_pcSearchQ||'').trim().toLowerCase(), ft=_pcFilterType;
+  var rows=(data.history||[]).filter(function(r){
+    if(ft==='up'&&!(r.newPrice>r.oldPrice))return false;
+    if(ft==='down'&&!(r.newPrice<r.oldPrice))return false;
+    if(ft==='SRP'&&r.type!=='SRP')return false;
+    if(ft==='DP'&&r.type!=='DP')return false;
+    if(q){var h=((r.code||'')+' '+(r.name||'')).toLowerCase(); if(h.indexOf(q)<0)return false;}
+    return true;
+  }).sort(function(a,b){return String(b.effectiveDate)<String(a.effectiveDate)?-1:(String(b.effectiveDate)>String(a.effectiveDate)?1:0);});
+  var toolbar='<div class="pc-toolbar">'+
+    '<div class="pc-filterbar" id="pc-filterbar">'+
+      '<button data-f="all" class="'+(ft==='all'?'active':'')+'" onclick="pcFilter(\x27all\x27)">All</button>'+
+      '<button data-f="up" class="'+(ft==='up'?'active':'')+'" onclick="pcFilter(\x27up\x27)">↑ Increase</button>'+
+      '<button data-f="down" class="'+(ft==='down'?'active':'')+'" onclick="pcFilter(\x27down\x27)">↓ Decrease</button>'+
+      '<button data-f="SRP" class="'+(ft==='SRP'?'active':'')+'" onclick="pcFilter(\x27SRP\x27)">SRP</button>'+
+      '<button data-f="DP" class="'+(ft==='DP'?'active':'')+'" onclick="pcFilter(\x27DP\x27)">DP</button>'+
+    '</div>'+
+    '<input type="text" class="adm-input" id="pc-search" value="'+escAttr(_pcSearchQ||'')+'" placeholder="Search SKU or product name…" oninput="pcSearchInput(this.value)">'+
+  '</div>';
+  var head='<div class="adm-sku-tablewrap"><table class="adm-sku-table adm-sku-table-pro"><thead><tr>'+
+    '<th>SKU</th><th>Product</th><th>Type</th><th class="adm-sku-thr">Previous</th><th class="adm-sku-thr">New</th><th>Effective</th><th>Created</th><th>Status</th>'+
+    '</tr></thead><tbody>';
+  if(!rows.length) return toolbar+head+'<tr><td colspan="8" class="adm-sku-more">No price history'+((q||ft!=='all')?' matches your filters':' yet')+'.</td></tr></tbody></table></div>';
+  var body=rows.map(function(r){
+    var up=r.newPrice>r.oldPrice, dcls=up?'pc-up':'pc-down';
+    var sc=r.status==='Active'?'pc-stat-active':(r.status==='Superseded'?'pc-stat-super':'pc-stat-sched');
+    return '<tr>'+
+      '<td class="adm-sku-code">'+escAttr(String(r.code||''))+'</td>'+
+      '<td><div class="adm-sku-pname">'+escAttr(r.name||'')+'</div></td>'+
+      '<td>'+escAttr(r.type)+'</td>'+
+      '<td class="adm-sku-thr">'+fmt(r.oldPrice)+'</td>'+
+      '<td class="adm-sku-thr '+dcls+'">'+fmt(r.newPrice)+'</td>'+
+      '<td>'+_pcFmtEff(r.effectiveDate)+'</td>'+
+      '<td>'+_pcFmtEff(r.createdDate)+'</td>'+
+      '<td><span class="pc-stat '+sc+'">'+escAttr(r.status)+'</span></td>'+
+    '</tr>';
+  }).join('');
+  return toolbar+head+body+'</tbody></table></div>';
 }
 function renderPriceChangesTable(){
   var tb=document.getElementById('pc-tbody'); if(!tb)return;
@@ -2824,28 +2955,40 @@ function bpuApply(){
   if(!_bpuPreview){ showToast('Nothing to apply.'); return; }
   requireAdmin(function(){
     var effEl=document.getElementById('bpu-eff'); if(effEl&&effEl.value)window._PRICE_EFFECTIVE_DATE=effEl.value;
+    var effDate=(window._PRICE_EFFECTIVE_DATE||'').trim();
+    var today=(typeof pcToday==='function')?pcToday():'';
+    // Blank or on/before today = apply immediately. A future date = SCHEDULE it
+    // (live price unchanged until that date; auto-activates on load).
+    var scheduled = !!(effDate && today && String(effDate) > String(today));
     var custom=loadNewSkus(); var applied=0;
     _bpuPreview.rows.forEach(function(r){
       if(r.status!=='change')return;                                  // only real changes
       var gi=ALL_PRODUCTS.findIndex(function(p){return _bpuNormSku(p.item_code).toLowerCase()===r.sku.toLowerCase();});
       if(gi<0)return; var p=ALL_PRODUCTS[gi];
-      var _oldSrp=p.srp, _oldDp=p.dp;
-      if(r.newSrp!==null && r.cs && r.cs.dir!=='none') p.srp=r.newSrp;      // only changed price fields
-      if(r.newDp!==null  && r.cd && r.cd.dir!=='none') p.dp=r.newDp;
-      if(r.newDpv!==null && r.cv && r.cv.dir!=='none') p.dp_volume=r.newDpv;
-      if(typeof pcStamp==='function') pcStamp(p, _oldSrp, _oldDp, (window._PRICE_EFFECTIVE_DATE||''));  // stamp increase/decrease vs pre-apply price
+      var nSrp=(r.newSrp!==null && r.cs && r.cs.dir!=='none') ? r.newSrp : null;   // only changed price fields
+      var nDp =(r.newDp !==null && r.cd && r.cd.dir!=='none') ? r.newDp  : null;
+      var nVol=(r.newDpv!==null && r.cv && r.cv.dir!=='none') ? r.newDpv : null;
+      if(scheduled){
+        if(typeof pcScheduleAdd==='function') pcScheduleAdd(p, nSrp, nDp, nVol, effDate, today);  // queue; do NOT touch live price
+      } else if(typeof pcApplyChange==='function'){
+        pcApplyChange(p, nSrp, nDp, nVol, (effDate||today), today, 'bulk');   // set price + stamp badge + log history
+      } else {
+        // legacy fallback
+        var _os=p.srp,_od=p.dp; if(nSrp!==null)p.srp=nSrp; if(nDp!==null)p.dp=nDp; if(nVol!==null)p.dp_volume=nVol; if(typeof pcStamp==='function')pcStamp(p,_os,_od,(effDate||today));
+      }
       var ci=custom.findIndex(function(x){return _bpuNormSku(x.item_code).toLowerCase()===r.sku.toLowerCase();});
-      if(ci>=0) Object.assign(custom[ci], p);   // full merge carries the stamped metadata
+      if(ci>=0) Object.assign(custom[ci], p);   // full merge carries schedule/history/metadata
       else custom.push(Object.assign({},p));
       applied++;
     });
     saveNewSkus(custom);
     if(typeof updateAll==='function')updateAll();
     if(typeof autoSave==='function')autoSave(); if(typeof markUnsaved==='function')markUnsaved();
-    if(typeof logActivity==='function')logActivity('bulk-price','('+applied+')','Bulk price update: '+applied+' SKU(s)');
+    if(typeof logActivity==='function')logActivity('bulk-price','('+applied+')','Bulk price '+(scheduled?'schedule':'update')+': '+applied+' SKU(s)'+(scheduled?(' eff '+effDate):''));
     _bpuLogBatch(applied);
-    _bpuPreview=null; renderPriceChangesTab();
-    showToast('Price update applied to draft ('+applied+' SKU'+(applied===1?'':'s')+'). Review changes and Publish when ready.');
+    _bpuPreview=null; _pcView=scheduled?'scheduled':'active'; renderPriceChangesTab();
+    if(scheduled) showToast('Scheduled '+applied+' SKU'+(applied===1?'':'s')+' for '+effDate+'. Live prices unchanged until then. Publish to save the schedule.');
+    else showToast('Price update applied to draft ('+applied+' SKU'+(applied===1?'':'s')+'). Review changes and Publish when ready.');
   });
 }
 function _bpuLogBatch(changed){
@@ -2902,7 +3045,7 @@ function _bpuPanelHtml(){
     '<button class="btn-ghost" onclick="bpuCancel()" style="border:1px solid var(--border);border-radius:8px;padding:.5rem .85rem">Cancel</button>'+
     (s.unmatched?'<button class="btn-ghost" onclick="bpuDownloadUnmatched()" style="border:1px solid var(--border);border-radius:8px;padding:.5rem .85rem">Download unmatched ('+s.unmatched+')</button>':'')+
     '</div>'+
-    '<div class="bpu-note">Apply updates the DRAFT only (no publish). Price history is recorded by the existing Publish flow, comparing against the last published price.</div>';
+    '<div class="bpu-note">Effective date blank or today = apply now. A <strong>future date</strong> queues the changes as <strong>Scheduled</strong> — the live pricelist, exports and indicators keep the current prices until that date, then auto-activate. Either way this updates the DRAFT only; Publish to save. Every activation is logged to the permanent per-SKU History.</div>';
   var CAP=400; var show=_bpuPreview.rows.slice(0,CAP);
   var body=show.map(function(r){
     return '<tr class="bpu-row-'+r.status+'">'+

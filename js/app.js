@@ -5,6 +5,10 @@ function _bust(url){ return url + (url.indexOf('?')<0?'?':'&') + 'v=' + Date.now
 
 function _applyData(products, categories, settings){
   ALL_PRODUCTS = products || [];
+  /* Activate any scheduled price change whose effective date has arrived. Runs
+     for BOTH public and admin so the live price / exports always reflect the
+     currently-active price. Idempotent per load; publish persists activations. */
+  try{ if(typeof pcResolveSchedule==='function') pcResolveSchedule(ALL_PRODUCTS); }catch(e){ console.warn('pcResolveSchedule',e); }
   CATEGORIES   = categories;
   SETTINGS     = settings;
   if(SETTINGS&&SETTINGS.app&&SETTINGS.app.title)document.title=SETTINGS.app.title;
@@ -121,6 +125,9 @@ document.addEventListener('DOMContentLoaded', function(){
     /* Re-apply unpublished admin work saved locally (adds / edits / removals /
        uploaded images) so a refresh never hides or discards it. */
     try { if (typeof applyPendingOverlay === 'function') applyPendingOverlay(); } catch(e){}
+    /* Resolve again after the draft overlay so schedules queued locally (not yet
+       published) also auto-activate once their effective date arrives. Idempotent. */
+    try { if (typeof pcResolveSchedule === 'function') pcResolveSchedule(ALL_PRODUCTS); } catch(e){}
     sortProducts(ALL_PRODUCTS);
     wireTable();
     rebuildSidebar();
