@@ -133,3 +133,125 @@ function pcStamp(p, oldSRP, oldDP, effDate){
   if(od!==null && nd!==null && nd!==od){ p.previousDP=od; p.priceChangeDP=(nd>od?'up':'down'); p.dpChangeDate=d; changed=true; }
   return changed;
 }
+
+/* == Effective-date scheduling + Price History (2026-09-29) =================
+   Two OPTIONAL, backward-compatible per-SKU arrays. The badge system above is
+   UNTOUCHED -- these add a forward-dated schedule and an append-only log.
+     priceSchedule[]  future changes (effectiveDate > today). Do NOT affect the
+                      live price / exports / public view until they come due.
+     priceHistory[]   append-only log of ACTIVATED changes (past + current),
+                      each event = {effectiveDate,createdDate,oldSrp,newSrp,
+                      oldDp,newDp,oldVol,newVol,source}.
+   History for display derives from priceHistory[]; when that log is still empty
+   the current indicator metadata (previousSRP/DP) is reconstructed as a seed row
+   so already-stamped SKUs show up immediately. The seed migrates into
+   priceHistory[] the first time a new change is applied -- never lost, never
+   duplicated. Live price / exports always read p.srp/p.dp/p.dp_volume, which
+   pcResolveSchedule keeps equal to the currently-active price. */
+function _pcNum(v){ if(v===''||v===null||v===undefined) return null; var n=Number(v); return isNaN(n)?null:n; }
+function _pcId(){ return 'pcs_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+/* One history event reconstructed from the live indicator metadata, or null. */
+function pcSeedEventFromMeta(p){
+  if(!p) return null;
+  var hasS=(p.priceChangeSRP&&p.previousSRP!=null), hasD=(p.priceChangeDP&&p.previousDP!=null);
+  if(!hasS&&!hasD) return null;
+  return { effectiveDate:(p.srpChangeDate||p.dpChangeDate||null),
+    createdDate:(p.srpChangeDate||p.dpChangeDate||null),
+    oldSrp:hasS?_pcNum(p.previousSRP):null, newSrp:hasS?_pcNum(p.srp):null,
+    oldDp:hasD?_pcNum(p.previousDP):null,  newDp:hasD?_pcNum(p.dp):null,
+    oldVol:null, newVol:null, source:'seed', seeded:true };
+}
+/* Apply an immediate price change end-to-end: capture prior state, set the new
+   prices (null/'' leaves a field unchanged), stamp the badge indicator, and log
+   the event to priceHistory[]. Returns true if any price moved. */
+function pcApplyChange(p, newSrp, newDp, newVol, effDate, createdDate, source){
+  if(!p) return false;
+  var d=effDate||pcToday(), cd=createdDate||pcToday();
+  var oldSrp=p.srp, oldDp=p.dp, oldVol=p.dp_volume;
+  var priorSeed=(!(p.priceHistory&&p.priceHistory.length))?pcSeedEventFromMeta(p):null;
+  var ns=_pcNum(newSrp), nd=_pcNum(newDp), nv=_pcNum(newVol);
+  if(ns!==null) p.srp=ns;
+  if(nd!==null) p.dp=nd;
+  if(nv!==null) p.dp_volume=nv;
+  pcStamp(p, oldSrp, oldDp, d);
+  var os=_pcNum(oldSrp), os2=_pcNum(p.srp), od=_pcNum(oldDp), od2=_pcNum(p.dp), ov=_pcNum(oldVol), ov2=_pcNum(p.dp_volume);
+  if(os===os2 && od===od2 && ov===ov2) return false;
+  p.priceHistory = p.priceHistory || [];
+  if(priorSeed && !p.priceHistory.length) p.priceHistory.push(priorSeed);
+  p.priceHistory.push({ effectiveDate:d, createdDate:cd, oldSrp:os, newSrp:os2, oldDp:od, newDp:od2, oldVol:ov, newVol:ov2, source:source||'edit' });
+  return true;
+}
+/* Queue a FUTURE change (does not touch the live price). effDate required. */
+function pcScheduleAdd(p, newSrp, newDp, newVol, effDate, createdDate){
+  if(!p||!effDate) return null;
+  p.priceSchedule = p.priceSchedule || [];
+  var e={ id:_pcId(), effectiveDate:effDate, createdDate:createdDate||pcToday(),
+    srp:_pcNum(newSrp), dp:_pcNum(newDp), dp_volume:_pcNum(newVol),
+    prevSRP:_pcNum(p.srp), prevDP:_pcNum(p.dp), prevVol:_pcNum(p.dp_volume) };
+  p.priceSchedule.push(e); return e;
+}
+/* At load: activate any scheduled change whose effectiveDate has arrived
+   (<= today), ascending, then drop it from priceSchedule. Idempotent per load
+   (re-runs from the same file with the same result until republished). Returns
+   the number of activated changes. */
+function pcResolveSchedule(products){
+  if(!products||!products.length) return 0;
+  var today=pcToday(), activated=0;
+  for(var i=0;i<products.length;i++){
+    var p=products[i];
+    if(!p||!p.priceSchedule||!p.priceSchedule.length) continue;
+    var due=[], future=[];
+    for(var j=0;j<p.priceSchedule.length;j++){
+      var e=p.priceSchedule[j];
+      if(e && e.effectiveDate && String(e.effectiveDate)<=today) due.push(e); else future.push(e);
+    }
+    if(!due.length) continue;
+    due.sort(function(a,b){ return String(a.effectiveDate)<String(b.effectiveDate)?-1:1; });
+    for(var k=0;k<due.length;k++){
+      var d=due[k];
+      if(pcApplyChange(p, d.srp, d.dp, d.dp_volume, d.effectiveDate, d.createdDate, 'scheduled')) activated++;
+    }
+    p.priceSchedule = future;
+  }
+  return activated;
+}
+/* Unified rows for the admin Price Changes tab. Returns {active,scheduled,
+   history}; each row = {code,model,name,type:'SRP'|'DP',oldPrice,newPrice,
+   effectiveDate,createdDate,status,scheduleId?}. Latest activated event per
+   SKU+field is 'Active', older ones 'Superseded'; future entries 'Scheduled'. */
+function pcAllChangeRows(products){
+  products = products || (typeof ALL_PRODUCTS!=='undefined'?ALL_PRODUCTS:[]);
+  var active=[], scheduled=[], history=[];
+  function rowsFromEvent(p, ev){
+    var out=[];
+    if(ev.oldSrp!=null && ev.newSrp!=null && ev.oldSrp!==ev.newSrp)
+      out.push({code:p.item_code,model:p.model||'',name:p.product_name||'',type:'SRP',oldPrice:ev.oldSrp,newPrice:ev.newSrp,effectiveDate:ev.effectiveDate||'',createdDate:ev.createdDate||''});
+    if(ev.oldDp!=null && ev.newDp!=null && ev.oldDp!==ev.newDp)
+      out.push({code:p.item_code,model:p.model||'',name:p.product_name||'',type:'DP',oldPrice:ev.oldDp,newPrice:ev.newDp,effectiveDate:ev.effectiveDate||'',createdDate:ev.createdDate||''});
+    return out;
+  }
+  for(var i=0;i<products.length;i++){
+    var p=products[i]; if(!p) continue;
+    var evs=(p.priceHistory&&p.priceHistory.length)?p.priceHistory.slice():[];
+    if(!evs.length){ var seed=pcSeedEventFromMeta(p); if(seed) evs.push(seed); }
+    evs.sort(function(a,b){ return String(a.effectiveDate)<String(b.effectiveDate)?-1:(String(a.effectiveDate)>String(b.effectiveDate)?1:0); });
+    var latestByType={}, allRows=[];
+    for(var j=0;j<evs.length;j++){
+      var rws=rowsFromEvent(p,evs[j]);
+      for(var r=0;r<rws.length;r++){ allRows.push(rws[r]); latestByType[rws[r].type]=rws[r]; }
+    }
+    for(var a=0;a<allRows.length;a++){
+      allRows[a].status=(allRows[a]===latestByType[allRows[a].type])?'Active':'Superseded';
+      history.push(allRows[a]);
+      if(allRows[a].status==='Active') active.push(allRows[a]);
+    }
+    if(p.priceSchedule&&p.priceSchedule.length){
+      for(var s=0;s<p.priceSchedule.length;s++){
+        var se=p.priceSchedule[s];
+        var srows=rowsFromEvent(p,{oldSrp:se.prevSRP,newSrp:se.srp,oldDp:se.prevDP,newDp:se.dp,effectiveDate:se.effectiveDate,createdDate:se.createdDate});
+        for(var sr=0;sr<srows.length;sr++){ srows[sr].status='Scheduled'; srows[sr].scheduleId=se.id; scheduled.push(srows[sr]); }
+      }
+    }
+  }
+  return {active:active, scheduled:scheduled, history:history};
+}
