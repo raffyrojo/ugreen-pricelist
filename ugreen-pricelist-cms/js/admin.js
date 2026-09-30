@@ -3022,6 +3022,45 @@ function _bpuStatusBadge(s){
   var m={change:['Matched','pc-up'],nochange:['No change','pc-muted'],unmatched:['Unmatched','pc-down'],invalid:['Invalid','pc-down'],conflict:['Conflict','pc-down'],duplicate:['Duplicate','pc-muted']};
   var v=m[s]||[s,'pc-muted']; return '<span class="bpu-badge '+v[1]+'">'+v[0]+'</span>';
 }
+/* Generate the Bulk Price Update template from CURRENT live data, in the exact
+   format the importer expects (Model No. | SKU | Material Number | SRP | Dealer
+   Price | Volume Price). Always up to date — no hosted file to maintain. */
+async function bpuDownloadTemplate(){
+  if(typeof ExcelJS==='undefined'){ showToast('Excel library loading — please wait, then retry.'); return; }
+  try{
+    showLoading('Building price update template…');
+    var wb=new ExcelJS.Workbook();
+    var ws=wb.addWorksheet('Price Update');
+    ws.columns=[
+      {header:'Model No.',key:'model',width:18},
+      {header:'SKU',key:'sku',width:14},
+      {header:'Material Number',key:'matno',width:18},
+      {header:'SRP',key:'srp',width:12},
+      {header:'Dealer Price',key:'dp',width:14},
+      {header:'Volume Price',key:'dpv',width:14}
+    ];
+    var hr=ws.getRow(1);
+    hr.font={bold:true,color:{argb:'FFFFFFFF'}};
+    hr.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF007934'}};
+    hr.alignment={vertical:'middle'};
+    ws.views=[{state:'frozen',ySplit:1}];
+    var items=ALL_PRODUCTS.filter(function(p){return p&&p.item_code;}).slice();
+    items.sort(function(a,b){ var am=String(a.material_number||''),bm=String(b.material_number||''); if(am&&bm&&am!==bm)return am<bm?-1:1; return cmpCode(a.item_code,b.item_code); });
+    items.forEach(function(p){
+      ws.addRow({ model:p.model||'', sku:String(p.item_code||''), matno:p.material_number||'',
+        srp:(p.srp==null||p.srp===''?'':Number(p.srp)),
+        dp:(p.dp==null||p.dp===''?'':Number(p.dp)),
+        dpv:(p.dp_volume==null||p.dp_volume===''?'':Number(p.dp_volume)) });
+    });
+    for(var c=4;c<=6;c++){ ws.getColumn(c).numFmt='#,##0.00'; ws.getColumn(c).alignment={horizontal:'right'}; }
+    ws.autoFilter='A1:F1';
+    var buf=await wb.xlsx.writeBuffer();
+    var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='UGREEN-Bulk-Price-Update-Template.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(a.href);},800);
+    hideLoading(); showToast('Template downloaded ('+items.length+' SKUs, current prices). Edit prices and re-upload.');
+  }catch(e){ hideLoading(); showToast('Template build error: '+(e.message||e)); try{console.error('[bpuTemplate]',e);}catch(_){} }
+}
 function _bpuPanelHtml(){
   var last=_bpuLastBatch();
   var lastHtml = last ? ('<div class="bpu-lastbatch">Last batch: '+escAttr(last.file||'file')+' · '+_pcFmtDate(last.uploadDate)+' · '+last.changed+' changed / '+last.matched+' matched / '+last.total+' rows'+(last.effectiveDate?(' · eff '+escAttr(last.effectiveDate)):'')+'</div>') : '';
@@ -3029,7 +3068,9 @@ function _bpuPanelHtml(){
     '<div class="adm-panel-head"><div class="adm-panel-title">Bulk Price Update</div><div class="adm-panel-sub">Upload PRICE UPDATE.xlsx (Model, SKU, Material No., SRP, Dealer, Volume) → preview → apply to draft → Publish. Matches by SKU; never creates or deletes SKUs.</div></div>'+
     '<input type="file" id="bpu-input" accept=".xlsx,.xls" style="display:none" onchange="bpuHandleFile(this)">'+
     '<div class="pc-toolbar"><button class="adm-btn-cta" onclick="bpuBrowse()">Upload price file (.xlsx)</button>'+
+    '<button class="btn-ghost" onclick="bpuDownloadTemplate()" style="border:1px solid var(--border);border-radius:8px;padding:.4rem .8rem">⬇ Download template</button>'+
     (_bpuPreview?'<button class="btn-ghost" onclick="bpuCancel()" style="border:1px solid var(--border);border-radius:8px;padding:.4rem .8rem">Clear preview</button>':'')+'</div>'+
+    '<div class="bpu-note">Download the template to get every SKU with its current prices in the exact upload format — edit the SRP / Dealer / Volume columns and upload it back. Do not rename or reorder the columns.</div>'+
     lastHtml;
   if(!_bpuPreview) return head+'</div>';
   var s=_bpuPreview.sum;
