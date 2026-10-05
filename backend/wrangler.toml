@@ -8,7 +8,7 @@ GH_OWNER  = "raffyrojo"
 GH_REPO   = "ugreen-pricelist"
 GH_BRANCH = "main"
 # Optional: lock CORS to your live site instead of "*"
-# ALLOW_ORIGIN = "https://raffyrojo.github.io"
+ALLOW_ORIGIN = "https://raffyrojo.github.io"
 
 # SECRETS — do NOT put these here. Set them once with wrangler:
 #   wrangler secret put GITHUB_TOKEN        (fine-grained PAT, Contents: Read+Write)
