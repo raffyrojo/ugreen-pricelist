@@ -12,6 +12,12 @@ window.CONFIG = {
     // Cloudflare Worker endpoint (deployed 2026-07-04).
     workerEndpoint: "https://ugreen-pricelist-cms.raffyortega-rojo.workers.dev"
   },
+  vero: {
+    // VERO assistant. enabled=false hides it completely (kill switch).
+    // aiEnabled must stay false in Phase 1 — no AI/API calls exist in this build.
+    enabled: true,
+    aiEnabled: false
+  },
   data: {
     products: "data/products.json",
     categories: "data/categories.json",
