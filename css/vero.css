@@ -1,0 +1,176 @@
+/* VERO — AI Product & Sales Assistant (Phase 1). Isolated stylesheet.
+   Layering vs existing app: back-to-top 80 · VERO button 85 · sidebar backdrop 89 · header 100
+   · VERO drawer 450 · product modal 500 · admin 700 · toast 1000 · search overlay 2000. */
+:root{ --vero-g:var(--accent,#007934); --vero-top:56px; --vero-w:400px; --vero-fab:56px; --vero-gap:20px; --vero-inset:18px; }
+
+/* ---------- floating button ---------- */
+.vero-fab{
+  position:fixed; right:var(--vero-gap); bottom:calc(var(--vero-gap) + env(safe-area-inset-bottom,0px));
+  width:var(--vero-fab); height:var(--vero-fab); border-radius:50%; padding:0; border:0; cursor:pointer;
+  background:radial-gradient(circle at 30% 25%,#22c55e 0%,var(--vero-g) 70%); color:#fff;
+  box-shadow:0 8px 22px rgba(0,121,52,.35),0 2px 6px rgba(0,0,0,.12);
+  z-index:85; display:flex; align-items:center; justify-content:center; overflow:visible;
+  transition:transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+.vero-fab img{ width:100%; height:100%; object-fit:contain; object-position:center; transform:translateY(4%); display:block; pointer-events:none; }
+.vero-fab .vero-fb{ display:none; width:46%; height:46%; color:#fff; }
+.vero-fab.vero-fab-fb .vero-fb{ display:block; }
+.vero-fab:hover{ transform:translateY(-2px); box-shadow:0 12px 26px rgba(0,121,52,.42),0 3px 8px rgba(0,0,0,.14); }
+.vero-fab:focus-visible{ outline:3px solid rgba(0,121,52,.45); outline-offset:3px; }
+.vero-fab-tip{
+  position:absolute; right:calc(100% + 10px); top:50%; transform:translateY(-50%);
+  background:#0f172a; color:#fff; font:600 .72rem/1 'Metropolis',sans-serif; padding:.45rem .6rem; border-radius:6px;
+  white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s;
+}
+@media (hover:hover){ .vero-fab:hover .vero-fab-tip{ opacity:1; } }
+body.vero-open .vero-fab{ opacity:0; pointer-events:none; transform:scale(.85); }
+
+/* Back-to-top stacks above VERO (centered on VERO's vertical axis). */
+body.vero-on #back-to-top{
+  right:calc(var(--vero-gap) + (var(--vero-fab) - 44px)/2);
+  bottom:calc(var(--vero-gap) + var(--vero-fab) + 14px + env(safe-area-inset-bottom,0px));
+}
+@media (pointer:coarse){ body.vero-on #back-to-top{ right:calc(var(--vero-gap) + (var(--vero-fab) - 48px)/2); } }
+body.vero-open #back-to-top{ opacity:0 !important; pointer-events:none !important; }
+/* Room under the last table row / grid card so the button never hides it. */
+body.vero-on main{ padding-bottom:calc(var(--vero-fab) + var(--vero-gap) + 24px); }
+
+/* ---------- panel: floating card on desktop/tablet (overlay, no backdrop, never resizes the page) ---------- */
+.vero-drawer{
+  position:fixed; top:calc(var(--vero-top) + 16px); right:var(--vero-inset); bottom:var(--vero-inset);
+  width:min(var(--vero-w),calc(100vw - 2 * var(--vero-inset)));
+  background:var(--surface,#fff); border:1px solid var(--border,#e0e7f0); border-radius:16px; overflow:hidden;
+  box-shadow:0 24px 60px rgba(15,23,42,.18),0 6px 18px rgba(15,23,42,.10),0 0 0 1px rgba(0,121,52,.04); z-index:450;
+  display:flex; flex-direction:column; transform:translateX(calc(100% + var(--vero-inset) + 24px)); transition:transform .2s ease;
+  font-family:'Metropolis',sans-serif; color:var(--text,#0f172a);
+}
+.vero-drawer.open{ transform:translateX(0); }
+.vero-drawer[hidden]{ display:none; }
+
+.vero-head{ display:flex; align-items:center; gap:.65rem; padding:.8rem .9rem; border-bottom:1px solid var(--border,#e0e7f0);
+  background:linear-gradient(180deg,#f0faf3 0%,var(--surface,#fff) 100%); }
+.vero-head-t{ flex:1; min-width:0; }
+.vero-title{ font-weight:900; font-size:1.02rem; letter-spacing:-.01em; color:#0b3d1f; }
+.vero-spark{ color:var(--vero-g); font-size:.8rem; vertical-align:2px; }
+.vero-sub{ font-size:.7rem; color:var(--text-muted,#475569); margin-top:1px; }
+.vero-x{ width:34px; height:34px; border-radius:8px; border:1px solid var(--border,#e0e7f0); background:var(--surface,#fff);
+  color:var(--text-muted,#475569); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.vero-x:hover{ color:var(--text,#0f172a); border-color:#cbd5e1; }
+.vero-x:focus-visible,.vero-send:focus-visible,.vero-q:focus-visible,.vero-chip:focus-visible{ outline:2px solid var(--vero-g); outline-offset:2px; }
+
+/* mascot avatars: transparent art, no crop, no added background; fixed boxes (no layout shift) */
+.vero-av{ position:relative; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; }
+.vero-av img{ width:100%; height:100%; object-fit:contain; object-position:center bottom; display:block; }
+.vero-av .vero-fb{ display:none; }
+.vero-av.vero-av-fb{ border-radius:50%; background:#eaf6ee; box-shadow:inset 0 0 0 1px #cfe9d8; }
+.vero-av.vero-av-fb .vero-fb{ display:block; width:50%; height:50%; color:var(--vero-g); }
+.vero-av-sm{ width:34px; height:34px; }
+.vero-av-md{ width:40px; height:40px; }
+.vero-av-md img{ object-position:center; }
+.vero-av-lg{ width:58px; height:58px; }
+
+/* conversation */
+.vero-log{ flex:1; overflow-y:auto; padding:.9rem .85rem 1rem; display:flex; flex-direction:column; gap:.8rem;
+  background:var(--bg,#f5f7fa); overscroll-behavior:contain; }
+.vero-greet{ display:flex; gap:.7rem; align-items:flex-start; background:var(--surface,#fff); border:1px solid var(--border,#e0e7f0);
+  border-radius:12px; padding:.8rem; }
+.vero-greet-t{ font-size:.82rem; line-height:1.45; margin:0 0 .6rem; }
+.vero-quick{ display:grid; grid-template-columns:1fr 1fr; gap:.4rem; }
+.vero-q{ display:flex; align-items:center; gap:.35rem; padding:.5rem .55rem; border:1px solid var(--border,#e0e7f0); border-radius:8px;
+  background:var(--surface,#fff); color:var(--text,#0f172a); font:600 .72rem/1.2 'Metropolis',sans-serif; cursor:pointer; text-align:left; }
+.vero-q svg{ color:var(--vero-g); flex:0 0 auto; }
+.vero-q:hover{ border-color:var(--vero-g); background:#f3fbf5; }
+
+.vero-msg{ display:flex; gap:.5rem; align-items:flex-start; }
+.vero-me{ justify-content:flex-end; }
+.vero-bub{ max-width:100%; min-width:0; font-size:.8rem; line-height:1.45; }
+.vero-me .vero-bub{ background:var(--vero-g); color:#fff; padding:.5rem .75rem; border-radius:12px 12px 4px 12px; max-width:85%; word-wrap:break-word; }
+.vero-bot .vero-bub{ flex:1; }
+.vero-note{ margin:.1rem 0 .45rem; color:var(--text,#0f172a); }
+.vero-ans{ margin:.1rem 0 .5rem; padding:.5rem .65rem; background:#ecfdf3; border:1px solid #bbe6c9; border-radius:8px; color:#0b3d1f; }
+.vero-ans b{ color:var(--vero-g); }
+.vero-fine{ margin:.4rem 0 0; font-size:.68rem; color:var(--text-muted,#475569); }
+.vero-soon{ font-style:italic; }
+
+/* product cards */
+.vero-list{ display:flex; flex-direction:column; gap:.5rem; }
+.vero-card{ background:var(--surface,#fff); border:1px solid var(--border,#e0e7f0); border-radius:10px; padding:.6rem; }
+.vero-card-top{ display:flex; gap:.6rem; }
+.vero-thumb{ width:52px; height:52px; flex:0 0 auto; border:1px solid var(--border,#e0e7f0); border-radius:8px; background:#fff;
+  display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.vero-thumb img{ max-width:100%; max-height:100%; object-fit:contain; }
+.vero-card-meta{ min-width:0; flex:1; }
+.vero-card-name{ font-weight:700; font-size:.78rem; line-height:1.3; }
+.vero-card-code{ font-size:.68rem; color:var(--text-muted,#475569); margin-top:2px; }
+.vero-pills{ display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.3rem; }
+.vero-pill{ font-size:.62rem; padding:1px 6px; border-radius:4px; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; }
+.vero-prices{ display:grid; grid-template-columns:repeat(4,1fr); gap:.3rem; margin-top:.55rem; padding-top:.5rem; border-top:1px dashed var(--border,#e0e7f0); }
+.vero-pr{ display:flex; flex-direction:column; gap:1px; padding:.25rem .3rem; border-radius:6px; min-width:0; }
+.vero-pr span{ font-size:.58rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted,#475569); }
+.vero-pr b{ font-size:.74rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vero-pr-dp b{ color:var(--dp,#009632); }
+.vero-pr-ask{ background:#ecfdf3; box-shadow:inset 0 0 0 1px #bbe6c9; }
+.vero-card-act{ display:flex; justify-content:space-between; align-items:center; margin-top:.45rem; }
+.vero-link{ border:0; background:none; padding:.2rem 0; color:var(--vero-g); font:700 .72rem 'Metropolis',sans-serif; cursor:pointer; }
+.vero-link:hover{ text-decoration:underline; }
+.vero-cmp-tg{ display:inline-flex; align-items:center; gap:.3rem; border:1px solid var(--border,#e0e7f0); background:#fff; color:var(--text-muted,#475569);
+  border-radius:6px; padding:.25rem .5rem; font:600 .68rem 'Metropolis',sans-serif; cursor:pointer; }
+.vero-cmp-tg.on{ border-color:var(--vero-g); color:var(--vero-g); background:#f3fbf5; }
+.vero-more{ margin-top:.5rem; width:100%; padding:.45rem; border:1px dashed #bbe6c9; border-radius:8px; background:#f7fdf9;
+  color:var(--vero-g); font:700 .72rem 'Metropolis',sans-serif; cursor:pointer; }
+
+/* clarify chips */
+.vero-chips{ display:flex; flex-wrap:wrap; gap:.35rem; }
+.vero-chip{ border:1px solid #bbe6c9; background:#fff; color:#0b3d1f; border-radius:999px; padding:.35rem .65rem;
+  font:600 .7rem 'Metropolis',sans-serif; cursor:pointer; }
+.vero-chip span{ color:var(--text-muted,#475569); font-weight:500; margin-left:2px; }
+.vero-chip:hover{ background:#f3fbf5; border-color:var(--vero-g); }
+
+/* compare table */
+.vero-cmp-wrap{ overflow-x:auto; border:1px solid var(--border,#e0e7f0); border-radius:10px; background:#fff; }
+.vero-cmp{ border-collapse:collapse; font-size:.7rem; min-width:100%; }
+.vero-cmp th,.vero-cmp td{ padding:.35rem .4rem; border-bottom:1px solid #eef2f7; text-align:left; vertical-align:top; min-width:112px; max-width:140px; }
+/* reset the app's global th/td/table rules inside VERO */
+.vero-cmp th,.vero-cmp td{ white-space:normal; text-transform:none; letter-spacing:0; cursor:default; font-weight:inherit; color:inherit; background:#fff; font-size:.7rem; }
+.vero-cmp{ min-width:0; }
+.vero-cmp td:first-child,.vero-cmp th:first-child{ min-width:62px; width:62px; z-index:1; color:var(--text-muted,#475569); font-weight:600; position:sticky; left:0; background:#fff; }
+.vero-cmp-img{ width:44px; height:44px; display:flex; align-items:center; justify-content:center; margin-bottom:.25rem; }
+.vero-cmp-img img{ max-width:100%; max-height:100%; object-fit:contain; }
+.vero-cmp-name{ font-weight:700; font-size:.7rem; line-height:1.25; color:var(--text,#0f172a); text-transform:none; letter-spacing:0; }
+.vero-cmp-price td{ font-weight:700; white-space:nowrap; }
+.vero-cmp td.vero-low{ color:var(--vero-g); background:#ecfdf3; }
+.vero-cmp-hint{ font-size:.66rem; color:var(--text-muted,#475569); margin:0 0 .3rem; }
+.vero-cmp ul{ margin:0; padding-left:1rem; } .vero-cmp li{ margin:0 0 .15rem; font-weight:400; }
+
+/* compare selection bar */
+.vero-cmpbar{ display:flex; align-items:center; gap:.5rem; padding:.5rem .85rem; border-top:1px solid var(--border,#e0e7f0);
+  background:#f7fdf9; font-size:.72rem; }
+.vero-cmpbar span{ flex:1; color:var(--text-muted,#475569); }
+.vero-cmpbar[hidden]{ display:none; }
+.vero-btn{ border:0; background:var(--vero-g); color:#fff; border-radius:7px; padding:.4rem .7rem; font:700 .72rem 'Metropolis',sans-serif; cursor:pointer; }
+.vero-btn[disabled]{ opacity:.45; cursor:not-allowed; }
+
+/* input */
+.vero-foot{ padding:.65rem .8rem calc(.6rem + env(safe-area-inset-bottom,0px)); border-top:1px solid var(--border,#e0e7f0); background:var(--surface,#fff); }
+.vero-inrow{ display:flex; gap:.45rem; }
+#vero-input{ flex:1; min-width:0; border:1px solid var(--border,#e0e7f0); border-radius:10px; padding:.6rem .75rem; background:var(--bg,#f5f7fa);
+  font:500 .8rem 'Metropolis',sans-serif; color:var(--text,#0f172a); outline:none; }
+#vero-input:focus{ border-color:var(--vero-g); background:#fff; box-shadow:0 0 0 3px rgba(0,121,52,.12); }
+.vero-send{ width:40px; flex:0 0 40px; border:0; border-radius:10px; background:var(--vero-g); color:#fff; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; }
+.vero-send:hover{ filter:brightness(1.08); }
+.vero-disc{ margin-top:.4rem; font-size:.62rem; color:var(--text-dim,#94a3b8); text-align:center; }
+
+/* ---------- tablet / mobile ---------- */
+@media (max-width:640px){
+  :root{ --vero-fab:52px; --vero-gap:16px; }
+  .vero-drawer{ top:0; right:0; width:100vw; border:0; border-radius:0; box-shadow:none; height:100%; height:100dvh; bottom:auto; transform:translateX(100%); }
+  .vero-head{ padding:calc(.7rem + env(safe-area-inset-top,0px)) .8rem .7rem; }
+  .vero-x{ width:40px; height:40px; }
+  #vero-input{ font-size:16px; }               /* prevents iOS zoom on focus */
+  .vero-q{ padding:.6rem .55rem; }
+  .vero-pr b{ font-size:.7rem; }
+}
+@media (max-width:360px){ .vero-prices{ grid-template-columns:repeat(2,1fr); } }
+@media (prefers-reduced-motion:reduce){ .vero-drawer,.vero-fab{ transition:none; } }
+@media print{ .vero-fab,.vero-drawer{ display:none !important; } }
