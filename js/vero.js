@@ -310,6 +310,7 @@
     } else if(r.type==='text'){
       out='<p class="vero-note">'+e(r.note)+'</p>';
     }
+    if(r.stockNote){ out+='<p class="vero-fine">'+e(r.stockNote)+'</p>'; }   /* p2r1: no inventory data -> never imply stock */
     if(m.offer){ out+='<button type="button" class="vero-chip vero-askai" data-act="askai" data-idx="'+m.idx+'">\u2726 Ask VERO AI</button>'; }
     if(r.needsAI && !aiForUser() && r.type!=='compare'){
       out+='<p class="vero-fine vero-soon">Personalised recommendations and compatibility checks are coming soon. For now I\u2019m showing matching products from the pricelist.</p>';
@@ -352,7 +353,7 @@
     var k=modeKey();
     if(S.modeKey!==k){ S.modeKey=k; S.msgs=[]; S.cmp=[]; }
   }
-  function pushBot(res){ var m={role:'bot',res:res,idx:S.msgs.length,shown:PAGE}; S.msgs.push(m); return m; }
+  function pushBot(res){ var m={role:'bot',res:res,idx:S.msgs.length,shown:(res&&res.rank)?Math.min(Math.max(PAGE,(res.codes||[]).length),12):PAGE}; S.msgs.push(m); return m; }
   function ask(text,ctx,label){
     syncMode();
     text=String(text||'').trim(); if(!text) return;
@@ -361,7 +362,7 @@
     var all=pool();
     if(!all.length) res={type:'text',note:'The pricelist is still loading \u2014 try again in a moment.',codes:[],chips:[]};
     else{
-      try{ res=window.VeroEngine.answer(all,text,ctx||{}); }
+      try{ res=window.VeroEngine.answer(all,text,Object.assign({},ctx||{},{dealer:!!dealer()})); }   /* dealer flag: price labels only (Special DP); data stays local */
       catch(err){ try{ console.warn('[VERO]',err); }catch(_){}; res={type:'text',note:'Sorry \u2014 I couldn\u2019t process that. Try an item code, model, or product type.',codes:[],chips:[]}; }
     }
     res.query=text; res.ctx=ctx||{};

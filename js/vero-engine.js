@@ -1,4 +1,4 @@
-/* VERO — local lookup engine (Phase 1).
+/* VERO — local lookup engine (Phase 1; Phase 2 revision p2r1 adds local ranking / superlatives).
    Pure logic: no DOM, no network, no AI. Works in the browser (window.VeroEngine)
    and in Node (module.exports) for tests.
    Every answer returns item_codes only; the UI reads prices from the live
@@ -68,9 +68,63 @@
   function productMah(p){
     var m=String(p.product_name||'').match(/(\d{4,5})\s?mAh/i); return m?parseInt(m[1],10):null;
   }
+  /* p2r1: output-port count for ranking filters. Only for wall/car chargers, only from explicit
+     naming ("4-Port", "single-port", "2C2A", "4C+1A", "1*USB-A+4*USB-C", "USB-A+USB-C", "1C").
+     Anything else (wireless pads, chargers with cables/built-ins, power banks, hubs) -> null = unknown. */
+  /* p2r1: structured product type first (section / category), name as fallback.
+     Chargers = the "Mobile: Charger" section (wall/desk, wireless, travel adapter) + category "Car Charger".
+     Power banks = category "Power Bank". Car items = the car section or "car" in the name. */
+  function isCharger(p){ return p.sheet_display==='Mobile: Charger' || p.category==='Car Charger'; }
+  function isCarItem(p){ return /\bcar\b/i.test(String(p.sheet_display||'')) || /\bcar\b/i.test(String(p.product_name||'')); }
+  var TYPE_CLASS={ charger:isCharger, powerbank:function(p){ return p.category==='Power Bank' || p.sheet_display==='Mobile: Power Bank'; } };
+  function productPorts(p){
+    var name=String(p.product_name||'');
+    if(!isCharger(p)) return null;
+    if(p.category==='Wireless Charger' || /wireless|cable|built[\s-]?in/i.test(name)) return null;
+    var m;
+    if(/single[\s-]?port/i.test(name)) return 1;
+    if((m=name.match(/\b(\d)[\s-]?ports?\b/i))) return parseInt(m[1],10);
+    if(/\b(?:dual|triple|quad|set)\b/i.test(name)) return null;      /* "Dual USB-A", "Charger Set" (bundled cable): not countable reliably */
+    if((m=name.match(/\b(\d)\s*C\s*\+?\s*(\d)\s*A\b/i))) return parseInt(m[1],10)+parseInt(m[2],10);
+    if((m=name.match(/\b(\d)\s*A\s*\+?\s*(\d)\s*C\b/i))) return parseInt(m[1],10)+parseInt(m[2],10);
+    var n=0, hit=false;
+    name.replace(/(?:\b(\d)\s*[*x×]\s*)?USB[\s-]?(?:A|C)\b(?:\s*[*x×]\s*(\d))?/gi,function(mm,k1,k2){ hit=true; n+=k1?parseInt(k1,10):(k2?parseInt(k2,10):1); return mm; });
+    if(hit) return n;
+    if((m=name.match(/\b(\d)C\b/))) return parseInt(m[1],10);
+    return null;
+  }
 
   var MAXW = /(?:under|below|less than|lower than|max(?:imum)?|up to|hanggang|wala pang|<=?|not more than)\s*$/;
   var MINW = /(?:above|over|more than|higher than|at least|min(?:imum)?|>=?|starting|from)\s*$/;
+
+  /* ---------- p2r1: ranking / superlative intent (local only) ---------- */
+  /* stock = clear inventory intent only. Bare "available" (= in the pricelist) is NOT stock. */
+  var STOCK_SRC='\\b(?:in[\\s-]?stocks?|on[\\s-]?hand|available\\s+(?:stocks?|inventory|units?|qty|quantity)|stocks?\\s+(?:available|left|on\\s?hand)|meron\\s+pang?\\s+stocks?|may\\s+stocks?|meron\\s+pa|inventory|stocks?)\\b';
+  var STOCK_RE=new RegExp(STOCK_SRC), STOCK_RE_G=new RegExp(STOCK_SRC,'g');
+  var STOCK_NOTE='I can only see the current pricelist, not live inventory, so I can’t confirm stock. Please check availability before quoting.';
+  /* current-pricelist filler; runs AFTER the stock check, so "available stock" is still caught as stock */
+  var FILLER_RE=/\b(?:right\s+now|do\s+we\s+have|do\s+you\s+have|we\s+have|we\s+got|currently|current|now|available)\b/g;
+  var PRICE_FIELD_AHEAD='(?=\\s+(?:srp|dp|dpv|special\\s?dp|dealer\\s?price|retail\\s?price)\\b)';
+  var RANK_RULES=[
+    { dim:'price', dir:'max', word:'Most expensive', re:new RegExp('\\b(?:most\\s+expensive|priciest|pinakamahal\\w*|highest[\\s-]+price[ds]?|highest'+PRICE_FIELD_AHEAD+')') },
+    { dim:'price', dir:'min', word:'Cheapest', re:new RegExp('\\b(?:cheapest|least\\s+expensive|pinakamura\\w*|lowest[\\s-]+(?:price[ds]?|cost)|lowest'+PRICE_FIELD_AHEAD+')') },
+    { dim:'length', dir:'max', word:'Longest', re:/\b(?:longest|pinakamahaba\w*)\b/ },
+    { dim:'length', dir:'min', word:'Shortest', re:/\b(?:shortest|pinakamaikli\w*)\b/ },
+    { dim:'watts', dir:'max', word:'Highest-wattage', re:/\b(?:(?:highest|biggest|largest|most)\s+(?:wattage|watts?|power\s+output)|most\s+powerful|strongest)\b/ },
+    { dim:'watts', dir:'min', word:'Lowest-wattage', re:/\b(?:(?:lowest|smallest|least)\s+(?:wattage|watts?|power\s+output)|least\s+powerful)\b/ },
+    { dim:'mah', dir:'max', word:'Biggest-capacity', re:/\b(?:(?:biggest|highest|largest|most)\s+(?:capacity|mah))\b/ },
+    { dim:'mah', dir:'min', word:'Smallest-capacity', re:/\b(?:(?:smallest|lowest|least)\s+(?:capacity|mah))\b/ }
+  ];
+  var NUMW={ two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 };
+  /* "with 3 ports" = exactly 3; "3+ / at least 3 / 3 or more ports" = 3 or more */
+  var PORT_RULES=[
+    { op:'min', re:/\b(?:at\s+least|minimum(?:\s+of)?|min\.?)\s*(\d{1,2})\s*-?\s*ports?\b/ },
+    { op:'min', re:/\b(\d{1,2})\s*(?:\+|or\s+more|or\s+above|and\s+(?:up|above))\s*-?\s*ports?\b/ },
+    { op:'min', re:/\b(\d{1,2})\s*-?\s*ports?\s*(?:or\s+more|or\s+above|and\s+(?:up|above)|\+)/ },
+    { op:'eq', v:1, re:/\b(?:with\s+)?(?:a\s+)?single[\s-]?port\b/ },
+    { op:'eq', re:/\b(?:with\s+)?(?:exactly\s+|only\s+)?(\d{1,2})\s*-?\s*ports?\b/ }
+  ];
+  var RANK_CAP=10, RANK_NEXT=2;
 
   /* ---------- query parsing ---------- */
   function parse(q){
@@ -89,6 +143,27 @@
       if(P.codes.indexOf(t)<0) P.codes.push(t);
     });
     P.codes.forEach(function(t){ s=s.replace(new RegExp('\\b'+t+'\\b','g'),' '); });
+
+    /* p2r1: stock words (VERO has no inventory data -> flag, never imply availability),
+       current-pricelist filler, and ranking / superlative intent. */
+    if(STOCK_RE.test(s)){ P.stock=true; s=s.replace(STOCK_RE_G,' '); }
+    s=s.replace(FILLER_RE,' ');
+    for(var ri=0; ri<RANK_RULES.length && !P.rank; ri++){
+      var rr=RANK_RULES[ri], mm=rr.re.exec(s);
+      if(!mm) continue;
+      P.rank={ dim:rr.dim, dir:rr.dir, n:null, word:rr.word };
+      var before=s.slice(0,mm.index), after=s.slice(mm.index+mm[0].length);
+      var tn=before.match(/(?:\btop\s*)?\b(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s*$/);
+      if(tn){ P.rank.n=Math.max(1,Math.min(10, NUMW[tn[1]]||parseInt(tn[1],10))); before=before.slice(0,tn.index); }
+      before=before.replace(/\btop\s*$/,' ');
+      s=before+' '+after;
+    }
+    if(P.rank){
+      for(var pi=0; pi<PORT_RULES.length && !P.ports; pi++){
+        var pr=PORT_RULES[pi], pm=pr.re.exec(s);
+        if(pm){ P.ports={ v:pr.v!=null?pr.v:parseInt(pm[1],10), op:pr.op }; s=s.replace(pr.re,' '); }
+      }
+    }
 
     /* field asks (vol before dp: "dp vol" must not read as plain DP) */
     if(/\b(dp\s?vol(ume)?|dpv|vol(ume)?\s?(dp|price)|volume)\b/.test(s)) P.asks.dpv=true;
@@ -123,6 +198,8 @@
     if(P.priceMin!=null||P.priceMax!=null){
       P.priceField=P.asks.dpv?'dp_volume':(P.asks.dp?'dp':'srp');
     }
+    /* price ranking: SRP by default; DP / DP Vol only when asked (dealer mode: dp is Special DP) */
+    if(P.rank && P.rank.dim==='price'){ P.rank.field=P.asks.dpv?'dp_volume':(P.asks.dp?'dp':'srp'); P.priceField=P.rank.field; }
 
 
     /* content words for text ranking */
@@ -141,6 +218,18 @@
       P.device=dm[0].trim(); P.recommend=true;
       var drop={}; words(P.device).forEach(function(w){ drop[stem(w)]=1; drop[w]=1; });
       P.content=P.content.filter(function(w){ return !drop[w]; });
+    }
+    if(P.rank){
+      var dmm=P.device?raw.match(new RegExp(DEVICE_RE.source,'i')):(raw.match(RE_DEVICE_MODEL)||raw.match(RE_DEVICE));
+      if(!P.device){
+        var cls=null; String(P.norm).split(/[^a-z0-9]+/).some(function(w){ if(DEV_CLASS[w]){ cls=w; return true; } return false; });
+        if(dmm) P.device=lc(dmm[0]).trim(); else if(cls) P.device=cls;
+      }
+      if(P.device){
+        P.deviceLabel=dmm?dmm[0].replace(/\s+/g,' ').trim():P.device;
+        var drop2={}; words(P.device).forEach(function(w){ drop2[stem(w)]=1; drop2[w]=1; });
+        P.content=P.content.filter(function(w){ return !drop2[w]; });
+      }
     }
     return P;
   }
@@ -261,6 +350,142 @@
     return f;
   }
 
+  /* ---------- p2r1: ranking (local only; never routed to AI) ---------- */
+  var DIM_NOUN={ price:'price', length:'length', watts:'wattage', mah:'capacity' };
+  var THING_LABEL={ powerbank:'power bank', usbc:'USB-C', usba:'USB-A', hdmi:'HDMI', lan:'LAN', displayport:'DisplayPort', ssd:'SSD', nas:'NAS', otg:'OTG', vga:'VGA', gan:'GaN', pd:'PD' };
+  var LEN_TYPE_RE=/\b(extenders?|extensions?|adapters?|converters?|splitters?|switch(?:er)?s?|hubs?|docks?)\b/;
+  function fmtPeso(n){ var s=Number(n).toFixed(2).split('.'); return '₱'+s[0].replace(/\B(?=(\d{3})+(?!\d))/g,',')+'.'+s[1]; }
+  function rankValue(p,R){
+    if(R.dim==='price'){ var v=Number(p[R.field]); return v>0?v:null; }
+    var x=ix(p);
+    if(R.dim==='length') return x.len>0?x.len:null;
+    if(R.dim==='watts') return x.watts>0?x.watts:null;
+    if(R.dim==='mah') return x.mah>0?x.mah:null;
+    return null;
+  }
+  function fmtRank(p,v,R,labels){
+    if(R.dim==='price') return fmtPeso(v);
+    if(R.dim==='length') return String(p.length||'').trim()||(v+'M');
+    if(R.dim==='watts') return v+'W';
+    return String(v).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'mAh';
+  }
+  function thingLabel(P,R,plural){
+    var w=P.content.map(function(x){ return THING_LABEL[x]||x; });
+    if(R.dim==='length' && !LEN_TYPE_RE.test(P.norm) && P.content.indexOf('cable')<0) w.push('cable');
+    var t=w.join(' ')||'item';
+    return plural?(/s$/.test(t)?t:t+'s'):t;
+  }
+  function rankAnswer(products,P,ctx,res,rows){
+    var R=P.rank, labels=ctx.dealer?{srp:'SRP',dp:'Special DP',dp_volume:'DP Vol'}:{srp:'SRP',dp:'DP',dp_volume:'DP Vol'};
+    res.rank=R; res.needsAI=false; res.aiReason='';
+    if(R.dim==='price') res.fields=[R.field];
+    /* no product type, spec or section: ask which type instead of ranking the whole catalog */
+    if(!rows && !P.content.length && !ctx.sheet && !P.watts && !P.mah && !P.lengthM){
+      res.type='clarify';
+      res.note=R.word+' what? Tell me a product type — e.g. “'+R.word.toLowerCase().replace('-',' ')+' '+({price:'power bank',length:'HDMI cable',watts:'charger',mah:'power bank'})[R.dim]+'”.';
+      return res;
+    }
+    var pool=rows||search(products,P,{sheet:ctx.sheet}).map(function(r){ return r.p; });
+    pool=pool.filter(function(p){ return p && !p.disabled; });
+    /* product-type nouns: structured section/category first (charger, power bank), product name as fallback */
+    var nouns=P.content.filter(function(w){ return CAT_HINTS[w] && w!=='car'; });
+    if(nouns.length && !rows){
+      var typed=pool.filter(function(p){ var x=ix(p); return nouns.some(function(w){ return TYPE_CLASS[w]?TYPE_CLASS[w](p):hitIn(x.name,w); }); });
+      if(typed.length) pool=typed;
+    }
+    /* car chargers / mounts only when "car" is asked */
+    if(!rows){
+      if(P.content.indexOf('car')<0){ var noCar=pool.filter(function(p){ return !isCarItem(p); }); if(noCar.length) pool=noCar; }
+      else{ var onlyCar=pool.filter(isCarItem); if(onlyCar.length) pool=onlyCar; }
+    }
+    var extra=[];
+    /* length guard: generic length rankings compare cables only (no wireless range values) */
+    if(R.dim==='length' && !rows){
+      var lt=P.norm.match(LEN_TYPE_RE);
+      if(lt){ var stemT=lt[1].replace(/(e?s)$/,'').slice(0,6); pool=pool.filter(function(p){ return lc(p.product_name).indexOf(stemT)>=0; }); }
+      else{
+        var hadPool=pool.length;
+        pool=pool.filter(function(p){ var n=String(p.product_name||''); return /\bcables?\b/i.test(n) && !/extender|wireless/i.test(n); });
+        if(hadPool && !pool.length){
+          res.type='text';
+          res.note='Length ranking compares cables only, and none of those products is a cable. Name the type to rank it by its listed length — e.g. “longest HDMI extender”.';
+          return res;
+        }
+      }
+    }
+    if(!pool.length){
+      res.type='none'; res.note='No products match that in this pricelist.'; return res;
+    }
+    if(P.ports){
+      var known=pool.filter(function(p){ return productPorts(p)!=null; });
+      if(!known.length){
+        res.type='text';
+        res.note='I can’t rank by port count for these products yet — the pricelist doesn’t state their port count clearly.';
+        return res;
+      }
+      var unknownPorts=pool.length-known.length;
+      pool=known.filter(function(p){ return cmpOp(productPorts(p),P.ports,0); });
+      if(unknownPorts) extra.push(unknownPorts+' without a clearly listed port count excluded');
+      if(!pool.length){
+        res.type='none';
+        res.note='No '+thingLabel(P,R,true)+' with '+(P.ports.op==='min'?P.ports.v+' or more ports':'exactly '+P.ports.v+(P.ports.v===1?' port':' ports'))+' in this pricelist'+(unknownPorts?' ('+unknownPorts+' without a clearly listed port count excluded)':'')+'.';
+        return res;
+      }
+    }
+    var ranked=[], noVal=0;
+    pool.forEach(function(p){ var v=rankValue(p,R); if(v==null) noVal++; else ranked.push({p:p,v:v}); });
+    if(!ranked.length){
+      res.type='text';
+      res.note=(R.dim==='price' && R.field==='dp_volume' && ctx.dealer)
+        ?'DP Volume is not part of your pricelist. Try SRP or Special DP instead.'
+        :'I can’t rank these by '+(R.dim==='price'?labels[R.field]:DIM_NOUN[R.dim])+' yet — the pricelist doesn’t list a comparable '+(R.dim==='price'?labels[R.field]:DIM_NOUN[R.dim])+' for them.';
+      return res;
+    }
+    if(noVal) extra.push(noVal+' without a listed '+(R.dim==='price'?labels[R.field]:DIM_NOUN[R.dim])+' not ranked');
+    var sg=R.dir==='max'?-1:1;
+    ranked.sort(function(a,b){
+      return (sg*(a.v-b.v)) || ((Number(a.p.srp)||0)-(Number(b.p.srp)||0)) || (String(a.p.item_code)<String(b.p.item_code)?-1:1);
+    });
+    function same(a,b){ return Math.abs(a-b)<1e-9; }
+    var by=R.dim==='price'?' by '+labels[R.field]:'';
+    var ports=P.ports?(' with '+(P.ports.op==='min'?P.ports.v+'+ ports':'exactly '+P.ports.v+(P.ports.v===1?' port':' ports'))):'';
+    var take, head;
+    if(R.n){
+      var n=Math.min(R.n,RANK_CAP);
+      take=ranked.slice(0,n);
+      head='Top '+take.length+' '+R.word.toLowerCase()+' '+thingLabel(P,R,true)+ports+by;
+      if(ranked.length>n && same(ranked[n].v,ranked[n-1].v)){
+        var more=0; for(var k=n;k<ranked.length && same(ranked[k].v,ranked[n-1].v);k++) more++;
+        extra.unshift(more+' more tie at '+fmtRank(ranked[n-1].p,ranked[n-1].v,R,labels));
+      }
+      res.rank.tie=false;
+    } else {
+      var w=1; while(w<ranked.length && same(ranked[w].v,ranked[0].v)) w++;
+      take=ranked.slice(0,w+RANK_NEXT);
+      res.rank.winners=w; res.rank.tie=w>1;
+      var val=fmtRank(ranked[0].p,ranked[0].v,R,labels);
+      head=(w>1?(w+' '+thingLabel(P,R,true)+ports+' tie for '+R.word.toLowerCase().replace('-',' ')+by+' at '+val)
+                :(R.word+' '+thingLabel(P,R,false)+ports+by+': '+val));
+      if(take.length>w) head+=' — next '+(take.length-w)+' shown after';
+    }
+    if(P.device){
+      /* locally confirmed: the ranking. NOT confirmed: suitability for the named device (never implied). */
+      var dv=P.deviceLabel||P.device, inPl=' in the current pricelist', t1=thingLabel(P,R,false), tN=thingLabel(P,R,true);
+      var caveat=' I can’t confirm from the local pricelist alone whether '+(R.n||res.rank.tie?'they are':'it is')+' suitable for your '+dv+'.';
+      var fv=function(r){ return fmtRank(r.p,r.v,R,labels)+(R.dim==='price'?' ('+labels[R.field]+')':''); };
+      if(R.n) head='Top '+take.length+' '+R.word.toLowerCase()+' '+tN+ports+inPl+by+'.'+caveat;
+      else if(res.rank.tie) head=res.rank.winners+' '+tN+ports+' tie for '+R.word.toLowerCase().replace('-',' ')+inPl+' at '+fv(take[0])+'.'+caveat;
+      else head='The '+R.word.toLowerCase()+' '+t1+ports+inPl+' is '+take[0].p.product_name.replace(/\s+/g,' ').trim()+' at '+fv(take[0])+'.'+caveat;
+      if(!R.n && take.length>res.rank.winners) head+=' Next '+(take.length-res.rank.winners)+' shown after';
+    }
+    res.type='list';
+    res.codes=take.map(function(r){ return String(r.p.item_code); });
+    res.rank.values=take.map(function(r){ return r.v; });
+    res.note=head+(extra.length?' ('+extra.join('; ')+')':'')+':';
+    res.note=res.note.replace(/\.:$/,':');
+    return res;
+  }
+
   /* ---------- main entry ---------- */
   /* products: the list the user is allowed to see (caller passes ALL_PRODUCTS minus disabled;
      in dealer mode that list is already the dealer's own SKUs).
@@ -270,6 +495,7 @@
     var P=parse(query);
     var res={ query:String(query||''), parsed:P, type:'none', codes:[], fields:fieldList(P), chips:[], note:'', needsAI:false, aiReason:'' };
     if(P.recommend){ res.needsAI=true; res.aiReason='recommendation/compatibility'; }
+    if(P.stock) res.stockNote=STOCK_NOTE;
 
     if(ctx.compareCodes && ctx.compareCodes.length){
       res.type='compare'; res.codes=ctx.compareCodes.slice(0,4); return res;
@@ -298,6 +524,11 @@
       res.note=cc.length===1?'I found one of those. Give me at least one more item code or model to compare it with — or tap Compare on any results.'
                             :'Tell me the item codes or models you want to compare (2 to 4), or tap Compare on any results.';
       return res;
+    }
+
+    /* p2r1: ranking / superlative -> always answered locally */
+    if(P.rank && (ex.length || !P.codes.length)){
+      return rankAnswer(products,P,ctx,res,ex.length?ex.map(function(o){ return o.p; }):null);
     }
 
     if(ex.length){
@@ -402,6 +633,7 @@
   function canEscalate(res){
     if(!res||!res.parsed) return false;
     var P=res.parsed;
+    if(P.rank) return false;                                           // p2r1: ranking is always local
     if(P.codes.length) return false;                                   // SKU / model / UPC lookups
     if(res.fields && res.fields.length) return false;                  // SRP / DP / DP Vol / MOQ
     if(res.type==='compare') return false;                             // simple compare-by-code
@@ -497,6 +729,7 @@
     var out={ route:'local', candidates:[], canEscalate:false, web:null };
     if(!res||!res.parsed) return out;
     var P=res.parsed;
+    if(P.rank) return out;                                             // p2r1: ranking/superlative -> LOCAL only, never the Worker (even manual)
     var exact = P.codes.length && (res.type==='lookup'||res.type==='list'||res.type==='none') && !P.recommend;
     if(!opts.manual){
       if(exact || (res.fields && res.fields.length) || (res.type==='compare' && !P.recommend)){ return out; }
@@ -512,8 +745,8 @@
   }
 
   var API={ parse:parse, answer:answer, search:search, exactMatches:exactMatches,
-            productWatts:productWatts, productMah:productMah, lenMeters:lenMeters,
-            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, version:'p2' };
+            productWatts:productWatts, productMah:productMah, productPorts:productPorts, lenMeters:lenMeters,
+            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, version:'p2r1' };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroEngine=API;
 })(typeof window!=='undefined'?window:globalThis);
