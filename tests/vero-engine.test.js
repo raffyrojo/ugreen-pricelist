@@ -108,8 +108,52 @@ r=A('dp under 100000 '+multiModel,null,DL); chk('18 dealer DP budget reads Speci
 // misc safety
 chk('disabled SKUs never searchable', ALL.filter(p=>p.disabled).every(p=>!A(String(p.item_code)).codes.includes(String(p.item_code))));
 chk('engine has no network code', !/fetch\(|XMLHttpRequest|sendBeacon|WebSocket/.test(fs.readFileSync(path.join(ROOT,'js','vero-engine.js'),'utf8')));
-chk('UI has no network code', !/fetch\(|XMLHttpRequest|sendBeacon|WebSocket|import\(/.test(fs.readFileSync(path.join(ROOT,'js','vero.js'),'utf8')));
+{ const ui=fs.readFileSync(path.join(ROOT,'js','vero.js'),'utf8');
+  const fetches=ui.match(/fetch\(/g)||[];
+  chk('UI network code limited to the 2 gated VERO AI calls (/ask, /session) on config aiEndpoint', fetches.length===2 && /fetch\(a\.url\+'\/ask'/.test(ui) && /fetch\(a\.url\+'\/session'/.test(ui) && !/XMLHttpRequest|sendBeacon|WebSocket|import\(/.test(ui) && /CFG\.aiEnabled===true && !!CFG\.aiEndpoint/.test(ui)); }
 chk('schedules resolved (current prices, not stale JSON)', ALL.every(p=>!(p.priceSchedule||[]).some(s=>s.effectiveDate<=pcToday())));
+
+/* ---------- Phase 2: AI shortlist for multi-device / use-case questions (live 2026-10-06 regression) ---------- */
+{
+  const shortlist=q=>{ const res=A(q); let d=E.aiRoute(PUB,q,res,{}); if(d.route==='local') d=E.aiRoute(PUB,q,res,{manual:true}); return d.candidates.map(by); };
+  const W=p=>E.productWatts(p)||0;
+  const ports=p=>{ let n=0; String(p.product_name).replace(/(?:(\d)\s*\*\s*)?USB[\s-]?(?:A|C)\b/gi,(m,k)=>{ n+=k?+k:1; return m; }); const pm=String(p.product_name).match(/(\d)[\s-]?ports?\b/i); return Math.max(n,pm?+pm[1]:0); };
+  const power=p=>p.sheet_display==='Mobile: Charger'||p.sheet_display==='Mobile: Power Bank';
+  const invariants=(l,carOk)=>l.length>=2&&l.length<=8&&l.every(Boolean)&&l.every(p=>!p.disabled)
+    &&Object.values(l.reduce((m,p)=>{ m[p.model]=(m[p.model]||0)+1; return m; },{})).every(n=>n<=2)
+    &&(carOk||l.every(p=>!/\bcar\b/i.test(p.product_name)));
+  const names=l=>l.map(p=>p.model.trim()+' '+W(p)+'W/'+ports(p)+'p').join(', ');
+
+  let l=shortlist('Alin mas okay for travel kung laptop at phone ang gagamitin ko?');
+  chk('P2-1 Taglish "travel, laptop at phone": no stands/holders, only chargers/power banks', l.length && l.every(power) && !l.some(p=>p.sheet_display==='Mobile: Holder'), names(l));
+  chk('P2-1b ... top 3 are laptop-capable (>=45W) multi-port', l.slice(0,3).every(p=>W(p)>=45&&ports(p)>=2), names(l));
+  chk('P2-1c ... invariants (<=8, <=2 per model, no disabled, no car)', invariants(l,false), names(l));
+
+  l=shortlist('Which UGREEN charger is better for a laptop and phone?');
+  chk('P2-2 "charger ... laptop and phone": chargers only, top 3 >=45W with 2+ ports', l.every(p=>/charger/i.test(p.product_name)) && l.slice(0,3).every(p=>W(p)>=45&&ports(p)>=2) && invariants(l,false), names(l));
+  chk('P2-2b ... single-port / phone-only chargers (<45W) not ahead of laptop-capable ones', l.findIndex(p=>W(p)<45) < 0 || l.findIndex(p=>W(p)<45) >= l.filter(p=>W(p)>=45&&ports(p)>=2).length, names(l));
+
+  l=shortlist('travel charger for laptop and phone');
+  chk('P2-3 "travel charger for laptop and phone": chargers first, laptop-capable top 3', l.every(p=>/charger/i.test(p.product_name)) && l.slice(0,3).every(p=>W(p)>=45) && invariants(l,false), names(l));
+
+  l=shortlist('charger for tablet and phone');
+  chk('P2-4 "charger for tablet and phone": chargers, top 3 multi-port', l.every(p=>/charger/i.test(p.product_name)) && l.slice(0,3).every(p=>ports(p)>=2) && invariants(l,false), names(l));
+
+  l=shortlist('best for laptop and ipad');
+  chk('P2-5 "best for laptop and ipad" (no type named): power products, laptop-capable first', l.every(power) && l.slice(0,3).every(p=>W(p)>=45) && invariants(l,false), names(l));
+
+  l=shortlist('power bank for phone and laptop');
+  chk('P2-6 "power bank for phone and laptop": power banks, top 3 >=45W', l.every(p=>p.sheet_display==='Mobile: Power Bank') && l.slice(0,3).every(p=>W(p)>=45) && invariants(l,false), names(l));
+
+  l=shortlist('laptop stand for laptop and tablet');
+  chk('P2-7 named non-power type ("stand") is never replaced by chargers', l.length && l.every(p=>!power(p)) && invariants(l,false), names(l));
+
+  l=shortlist('car charger for phone and tablet');
+  chk('P2-8 car items only when "car" is asked', l.length && l.every(p=>/\bcar\b/i.test(p.product_name)) && invariants(l,true), names(l));
+
+  const before=JSON.stringify(A('Alin mas okay for travel kung laptop at phone ang gagamitin ko?').codes);
+  chk('P2-9 Phase 1 local answer for the same question is unchanged by the AI shortlist', before===JSON.stringify(A('Alin mas okay for travel kung laptop at phone ang gagamitin ko?').codes) && typeof E.aiCandidates==='function');
+}
 
 console.log('\n'+pass+' passed, '+fail+' failed');
 process.exit(fail?1:0);
