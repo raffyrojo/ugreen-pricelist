@@ -16,7 +16,9 @@ window.CONFIG = {
     // VERO assistant. enabled=false hides it completely (kill switch).
     // aiEnabled must stay false in Phase 1 — no AI/API calls exist in this build.
     enabled: true,
-    aiEnabled: false
+    aiEnabled: false,      // Phase 2 AI (catalog). Stays false until the pilot is approved.
+    webEnabled: false,     // Phase 2 web-verified answers. Stays false until the pilot is approved.
+    aiEndpoint: ''         // https://ugreen-vero.<subdomain>.workers.dev — set when the Worker exists
   },
   data: {
     products: "data/products.json",
