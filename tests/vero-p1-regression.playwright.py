@@ -1,5 +1,6 @@
 """VERO browser regression: same local (non-ranking) VERO questions on the LOCAL build vs the LIVE production site.
-Baseline (updated for p2r2): Phase 2 + p2r1 are live with frontend AI enabled; the local build loads the Phase 2 local-engine revision ?v=p2r2.
+Baseline (updated for p2r2.1): Phase 2 + p2r2 are live with frontend AI enabled; the local build loads vero-engine.js + vero-nlu.js ?v=p2r2.1 (P0 fixes + parser/evidence
+refinements) and vero.js ?v=p2r2 (unchanged).
 Every answer must be identical, EXCEPT the questions in P2R2_CHANGED: p2r2 intentionally answers those differently
 (local attribute / price-history layer). Each of those must instead match its expected p2r2 answer pattern.
 Usage: python3 -I p1_regression.py <repo_root>"""
@@ -59,7 +60,7 @@ for i, (q, ok) in enumerate(zip(Q, same)):
     print(('PASS' if ok else 'FAIL') + f' - R{i+1:02d} {q[:60]!r}{tag}' + ('' if ok else f'\n   local: {lo[i][:200]}\n   live : {ro[i][:200]}'))
 checks = [('C1 all answers non-empty', all(lo) and all(ro)),
           ('C2 no page errors (local + live)', not le and not re_), ('C3 no AI/Worker/OpenAI requests (local + live)', not ln and not rn),
-          ('C4 local loads vero-nlu.js/vero-engine.js/vero.js ?v=p2r2; live loads Phase 2 assets (?v=p2r1 or ?v=p2r2); no p1/p3 tags anywhere', 'vero-nlu.js?v=p2r2' in lv and 'vero-engine.js?v=p2r2' in lv and 'vero.js?v=p2r2' in lv and re.search(r'vero-engine\.js\?v=p2r[12]\b', rv) is not None and not re.search(r'\?v=p[13]\b', lv + ' ' + rv)),
+          ('C4 local loads vero-nlu.js + vero-engine.js ?v=p2r2.1, vero.js ?v=p2r2; live loads Phase 2 assets (?v=p2r1/p2r2/p2r2.1); no p1/p3 tags anywhere', 'vero-nlu.js?v=p2r2.1' in lv and 'vero-engine.js?v=p2r2.1' in lv and 'vero.js?v=p2r2' in lv and re.search(r'vero-engine\.js\?v=p2r[12]', rv) is not None and not re.search(r'\?v=p[13]\b', lv + ' ' + rv)),
           ('C5 config = live Phase 2 baseline: enabled, aiEnabled=true, webEnabled=true, live endpoint (local and live identical)', '"enabled":true' in lc and '"aiEnabled":true' in lc and '"webEnabled":true' in lc and '"aiEndpoint":"https://ugreen-vero.raffyortega-rojo.workers.dev"' in lc and lc == rc)]
 for n, ok in checks: print(('PASS' if ok else 'FAIL') + ' - ' + n + ('' if ok else f'  -> {lv} | {rv} | {lc} | {le[:2]} {re_[:2]} {ln[:2]} {rn[:2]}'))
 p = sum(same) + sum(ok for _, ok in checks); n = len(same) + len(checks)

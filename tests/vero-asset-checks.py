@@ -1,6 +1,7 @@
 """Static asset / integrity checks for VERO frontend changes, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the live production commit (default 5a0ce73: Phase 2 + p2r1 live, AI + web ON).
+  baseline_ref = the live production commit (default 0f4b3eb: Phase 2 + p2r2 live, AI + web ON).
+  p2r2.1 (P0 correctness revision) changes ONLY js/vero-engine.js + js/vero-nlu.js (+ their ?v tags in index.html) and tests.
 
 DEPLOY GATE = the "G" checks. All must pass before a frontend deploy.
 INFO checks are reported separately and never counted in the gate (known, non-live items).
@@ -10,15 +11,15 @@ History (p2r1/p2r2, Phase 2 local-engine revisions — not Phase 3): the Phase 2
 (ea6f94a). They are replaced here by checks against the authoritative production baseline."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '5a0ce73'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '0f4b3eb'
 
 # Production baselines (VERO-Phase2 handoff 2026-10-06 + project status doc)
 VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
 PUBLISH_WORKER_SHA = 'f3d7159f5bf7152e798b98afbd02af1e28da5255f6bf06a194d679a3ce2510e8'  # Worker ugreen-pricelist-cms
 AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this frontend change is allowed to touch (everything else must be byte-identical to the baseline)
-ALLOWED = {'index.html', 'js/vero-nlu.js', 'js/vero-engine.js', 'js/vero.js', 'tests/vero-nlu.test.js', 'tests/vero-engine.test.js', 'tests/vero-asset-checks.py', 'tests/vero-p1-regression.playwright.py'}
-VER = {'css/vero.css': 'p2', 'js/vero-nlu.js': 'p2r2', 'js/vero-engine.js': 'p2r2', 'js/vero.js': 'p2r2'}
+ALLOWED = {'index.html', 'js/vero-engine.js', 'js/vero-nlu.js', 'tests/vero-p2r21.test.js', 'tests/vero-asset-checks.py', 'tests/vero-p1-regression.playwright.py'}
+VER = {'css/vero.css': 'p2', 'js/vero-nlu.js': 'p2r2.1', 'js/vero-engine.js': 'p2r2.1', 'js/vero.js': 'p2r2'}
 
 sha = lambda b: hashlib.sha256(b).hexdigest()
 rd = lambda f: open(os.path.join(R, f), 'rb').read()
@@ -32,17 +33,16 @@ def inf(n, ok, x=''): ok = bool(ok); info.append(ok); print(('INFO ok ' if ok el
 root = rd('index.html').decode('utf-8')
 print(f'Baseline: {BASE}\n--- deploy gate ---')
 # Asset references / versions
-for a, v in VER.items(): chk(f'G01 {a} referenced with exactly ?v={v}', re.search(re.escape(a) + r'\?v=' + v + r'"', root) is not None)
-chk('G02 no stale/Phase-3 tags on the VERO scripts (?v=p1 / p2 / p2r1 / p3)', not re.search(r'vero[\w.-]*\?v=p1', root) and not re.search(r'vero(-engine|-nlu)?\.js\?v=p(2|2r1|3)"', root) and not re.search(r'vero[\w.-]*\?v=p3', root))
+for a, v in VER.items(): chk(f'G01 {a} referenced with exactly ?v={v}', re.search(re.escape(a) + r'\?v=' + re.escape(v) + r'"', root) is not None)
+chk('G02 no stale/Phase-3 tags on the VERO scripts (?v=p1 / p2 / p2r1 / p3; engine + nlu not left at p2r2)', not re.search(r'vero[\w.-]*\?v=p1', root) and not re.search(r'vero(-engine|-nlu)?\.js\?v=p(2|2r1|3)"', root) and not re.search(r'vero-(engine|nlu)\.js\?v=p2r2"', root) and not re.search(r'vero[\w.-]*\?v=p3', root))
 refs = sorted(set(re.findall(r'(?:src|href)="((?:js|css)/[^"?]+)', root)))
 missing = [x for x in refs if not os.path.isfile(os.path.join(R, x))]
 chk(f'G03 all {len(refs)} local js/css references exist', not missing, missing)
 b_idx = (base('index.html') or b'').decode('utf-8')
-norm = lambda h: re.sub(r'(js/vero-engine|js/vero)\.js\?v=[\w]+', r'\1.js?v=X', h)
-NLU_TAG = '<script src="js/vero-nlu.js?v=p2r2"></script>\n'
-root_wo_nlu = root.replace(NLU_TAG, '', 1)
-chk('G04 index.html differs from baseline ONLY in the VERO script versions + the one added vero-nlu.js line (before vero-engine.js)',
-    norm(root_wo_nlu) == norm(b_idx) and root != b_idx and root.count('js/vero-nlu.js') == 1 and root.find('js/vero-nlu.js') < root.find('js/vero-engine.js') < root.find('js/vero.js?'))
+norm = lambda h: re.sub(r'js/vero-(engine|nlu)\.js\?v=[\w.]+', r'js/vero-\1.js?v=X', h)
+chk('G04 index.html differs from baseline ONLY in the vero-engine.js / vero-nlu.js version tags (script order unchanged)',
+    norm(root) == norm(b_idx) and root != b_idx and root.count('js/vero-nlu.js') == 1 and root.find('js/vero-nlu.js') < root.find('js/vero-engine.js') < root.find('js/vero.js?'))
+chk('G04b js/vero.js byte-identical to baseline (p2r2.1 touches only the engine + NLU, not the UI)', base('js/vero.js') == rd('js/vero.js'))
 # Syntax / file hygiene
 for f in ['js/vero-nlu.js', 'js/vero-engine.js', 'js/vero.js', 'config.js']:
     r = subprocess.run(['node', '--check', os.path.join(R, f)], capture_output=True, text=True); chk(f'G05 node --check {f}', r.returncode == 0, r.stderr[:200])
