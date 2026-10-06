@@ -243,7 +243,7 @@
         '<div class="vero-thumb">'+(src?'<img loading="lazy" src="'+e(src)+'" alt="">':'')+'</div>'+
         '<div class="vero-card-meta"><div class="vero-card-name">'+e(p.product_name)+'</div>'+
         '<div class="vero-card-code">Item '+e(p.item_code)+(p.model?' \u00B7 '+e(String(p.model).trim()):'')+'</div>'+
-        (specs?'<div class="vero-pills">'+specs+'</div>':'')+'</div>'+
+        (specs?'<div class="vero-pills">'+specs+'</div>':'')+(opts.detail?'<div class="vero-fine">'+e(opts.detail)+'</div>':'')+'</div>'+
       '</div>'+
       '<div class="vero-prices'+(dealer()?' vero-prices-d':'')+'">'+prices+'</div>'+
       '<div class="vero-card-act">'+
@@ -298,7 +298,7 @@
       var ps=r.codes.map(byCode).filter(Boolean), shown=Math.min(ps.length,m.shown||PAGE);
       var pf=r.parsed&&r.parsed.priceField;
       var head=r.note?e(r.note):(ps.length+' products found'+(pf?' \u00B7 lowest '+(pf==='srp'?'SRP':(pf==='dp'?(dealer()?'Special DP':'DP'):'DP Vol'))+' first among best matches':'')+':');
-      out='<p class="vero-note">'+head+'</p><div class="vero-list">'+ps.slice(0,shown).map(function(p){ return card(p,{compact:true,fields:r.fields}); }).join('')+'</div>';
+      out='<p class="vero-note">'+head+'</p><div class="vero-list">'+ps.slice(0,shown).map(function(p){ return card(p,{compact:true,fields:r.fields,detail:(r.detail&&r.detail[String(p.item_code)])||''}); }).join('')+'</div>';
       if(shown<ps.length) out+='<button type="button" class="vero-more" data-act="more" data-idx="'+m.idx+'">Show more ('+(ps.length-shown)+' left)</button>';
     } else if(r.type==='compare'){
       out=(r.note?'<p class="vero-note">'+e(r.note)+'</p>':'')+compareTable(r.codes);
@@ -310,7 +310,7 @@
     } else if(r.type==='text'){
       out='<p class="vero-note">'+e(r.note)+'</p>';
     }
-    if(r.stockNote){ out+='<p class="vero-fine">'+e(r.stockNote)+'</p>'; }   /* p2r1: no inventory data -> never imply stock */
+    if(r.stockNote){ out+='<p class="vero-fine">'+e(r.stockNote)+'</p>'; }   /* p2r1/p2r2: no inventory data -> never imply stock */
     if(m.offer){ out+='<button type="button" class="vero-chip vero-askai" data-act="askai" data-idx="'+m.idx+'">\u2726 Ask VERO AI</button>'; }
     if(r.needsAI && !aiForUser() && r.type!=='compare'){
       out+='<p class="vero-fine vero-soon">Personalised recommendations and compatibility checks are coming soon. For now I\u2019m showing matching products from the pricelist.</p>';
@@ -353,7 +353,7 @@
     var k=modeKey();
     if(S.modeKey!==k){ S.modeKey=k; S.msgs=[]; S.cmp=[]; }
   }
-  function pushBot(res){ var m={role:'bot',res:res,idx:S.msgs.length,shown:(res&&res.rank)?Math.min(Math.max(PAGE,(res.codes||[]).length),12):PAGE}; S.msgs.push(m); return m; }
+  function pushBot(res){ var m={role:'bot',res:res,idx:S.msgs.length,shown:(res&&(res.rank||res.local))?Math.min(Math.max(PAGE,(res.codes||[]).length),12):PAGE}; S.msgs.push(m); return m; }
   function ask(text,ctx,label){
     syncMode();
     text=String(text||'').trim(); if(!text) return;

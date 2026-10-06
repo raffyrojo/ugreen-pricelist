@@ -1,10 +1,14 @@
-/* VERO — local lookup engine (Phase 1; Phase 2 revision p2r1 adds local ranking / superlatives).
+/* VERO — local lookup engine (Phase 1; p2r1 adds local ranking / superlatives; p2r2 adds the local intent + attribute layer via js/vero-nlu.js).
    Pure logic: no DOM, no network, no AI. Works in the browser (window.VeroEngine)
    and in Node (module.exports) for tests.
    Every answer returns item_codes only; the UI reads prices from the live
    product objects at render time, so prices always come from the pricelist. */
 (function(root){
   'use strict';
+  /* p2r2: local intent + attribute layer (js/vero-nlu.js). Optional — the engine works without it. */
+  var NLU_MOD=null;
+  if(!root.VeroNLU && typeof require==='function'){ try{ NLU_MOD=require('./vero-nlu.js'); }catch(e){ NLU_MOD=null; } }
+  function nlu(){ return root.VeroNLU || NLU_MOD; }
 
   /* ---------- text helpers ---------- */
   function lc(s){ return String(s==null?'':s).toLowerCase(); }
@@ -157,6 +161,9 @@
       if(tn){ P.rank.n=Math.max(1,Math.min(10, NUMW[tn[1]]||parseInt(tn[1],10))); before=before.slice(0,tn.index); }
       before=before.replace(/\btop\s*$/,' ');
       s=before+' '+after;
+    }
+    if(!P.rank && /\b(biggest|largest|pinakamalaki\w*)\b/.test(s) && /\bpower\s?bank|\bpowerbank/.test(s)){
+      P.rank={ dim:'mah', dir:'max', n:null, word:'Biggest-capacity' }; s=s.replace(/\b(biggest|largest|pinakamalaki\w*)\b/,' ');
     }
     if(P.rank){
       for(var pi=0; pi<PORT_RULES.length && !P.ports; pi++){
@@ -313,12 +320,12 @@
       if(opt.sheet && p.sheet_display!==opt.sheet) return false;
       if(!priceOk(p,P)) return false;
       var x=ix(p);
-      if(P.watts && !cmpOp(x.watts,P.watts,0.01)) return false;
+      if(P.watts){ var wv=x.watts; if(wv==null && P.nlu && nlu()) wv=nlu().wattsFromFeatures(p); if(!cmpOp(wv,P.watts,0.01)) return false; }
       if(P.mah && !cmpOp(x.mah,P.mah,0)) return false;
       if(P.lengthM && !cmpOp(x.len,P.lengthM,0.001)) return false;
       return true;
     });
-    if(!opt.sheet){
+    if(!opt.sheet && !P.nlu){
       var hints=[]; P.content.forEach(function(w){ (CAT_HINTS[w]||[]).forEach(function(h){ if(hints.indexOf(h)<0) hints.push(h); }); });
       if(hints.length){
         var inHint=list.filter(function(p){ return hints.indexOf(p.sheet_display)>=0; });
@@ -370,6 +377,7 @@
     return String(v).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'mAh';
   }
   function thingLabel(P,R,plural){
+    if(P.nlu){ var sl=specLabel(P,P.nlu,plural,true); if(R.dim==='length' && !LEN_TYPE_RE.test(P.norm) && !/cable/.test(sl)) sl+=(plural?' cables':' cable'); return sl||'item'; }
     var w=P.content.map(function(x){ return THING_LABEL[x]||x; });
     if(R.dim==='length' && !LEN_TYPE_RE.test(P.norm) && P.content.indexOf('cable')<0) w.push('cable');
     var t=w.join(' ')||'item';
@@ -385,11 +393,11 @@
       res.note=R.word+' what? Tell me a product type — e.g. “'+R.word.toLowerCase().replace('-',' ')+' '+({price:'power bank',length:'HDMI cable',watts:'charger',mah:'power bank'})[R.dim]+'”.';
       return res;
     }
-    var pool=rows||search(products,P,{sheet:ctx.sheet}).map(function(r){ return r.p; });
+    var pool=rows||((P.nlu&&nlu())?nluPool(products,P,{sheet:ctx.sheet}):search(products,P,{sheet:ctx.sheet}).map(function(r){ return r.p; }));
     pool=pool.filter(function(p){ return p && !p.disabled; });
     /* product-type nouns: structured section/category first (charger, power bank), product name as fallback */
     var nouns=P.content.filter(function(w){ return CAT_HINTS[w] && w!=='car'; });
-    if(nouns.length && !rows){
+    if(nouns.length && !rows && !(P.nlu && nlu())){
       var typed=pool.filter(function(p){ var x=ix(p); return nouns.some(function(w){ return TYPE_CLASS[w]?TYPE_CLASS[w](p):hitIn(x.name,w); }); });
       if(typed.length) pool=typed;
     }
@@ -399,6 +407,14 @@
       else{ var onlyCar=pool.filter(isCarItem); if(onlyCar.length) pool=onlyCar; }
     }
     var extra=[];
+    if(P.nlu && nlu() && !rows){                      /* p2r2: data-driven product types + spec constraints */
+      pool=nlu().typeFilter(pool,P.content);
+      if(P.nlu.attrs.length){
+        var confR=[], weakR=0;
+        pool.forEach(function(p){ var m=nlu().matchAll(p,P.nlu.attrs); if(m && m.t!=='weak') confR.push(p); else if(m) weakR++; });
+        pool=confR; if(weakR) extra.push(weakR+' only mentioned in product descriptions (not confirmed) excluded');
+      }
+    }
     /* length guard: generic length rankings compare cables only (no wireless range values) */
     if(R.dim==='length' && !rows){
       var lt=P.norm.match(LEN_TYPE_RE);
@@ -486,13 +502,219 @@
     return res;
   }
 
+  /* ---------- p2r2: spec / existence / count / SKU / list (local only) ---------- */
+  var QUAL_ADJ={hdmi:'HDMI',usbc:'USB-C',usba:'USB-A',lightning:'Lightning',displayport:'DisplayPort',vga:'VGA',dvi:'DVI',gan:'GaN',pd:'PD',magnetic:'magnetic',wireless:'wireless',car:'car',desktop:'desktop'};
+  var NOUN_W={cable:'cable',adapter:'adapter',converter:'adapter',hub:'hub',dock:'dock',charger:'charger',powerbank:'power bank',lan:'LAN adapter',nas:'NAS',switcher:'switcher',splitter:'splitter',extender:'extender',earbud:'earbuds',mouse:'mouse',keyboard:'keyboard',holder:'holder',stand:'stand',enclosure:'enclosure',reader:'card reader',speaker:'speaker',ssd:'SSD'};
+  function specLabel(P,N,plural,noProducts){
+    var pre=[], post=[], adj=[], nouns=[], feats=[];
+    N.attrs.forEach(function(a){
+      if(a.k==='lenRange') post.push(a.label+' long');
+      else if(a.k==='flag' && (a.v==='builtin'||a.v==='retractable')) post.push(a.label);
+      else pre.push(a.label);
+    });
+    if(P.watts) pre.push((P.watts.op==='min'?'≥':P.watts.op==='max'?'≤':'')+P.watts.v+'W');
+    if(P.mah) pre.push((P.mah.op==='min'?'≥':P.mah.op==='max'?'≤':'')+String(P.mah.v).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'mAh');
+    if(P.lengthM) post.push((P.lengthM.op==='min'?'at least ':P.lengthM.op==='max'?'up to ':'')+P.lengthM.v+'m long');
+    P.content.forEach(function(w){
+      if(/^(an?|the|with|and|that|for|na|is|it|to)$/.test(w)) return;
+      if(NOUN_W[w]){ if(nouns.indexOf(NOUN_W[w])<0) nouns.push(NOUN_W[w]); return; }
+      var lab=QUAL_ADJ[w]||(THING_LABEL[w]||w);
+      if(pre.some(function(x){ return x.toLowerCase().indexOf(lab.toLowerCase())===0; })) return;   /* "HDMI 2.1" already says HDMI */
+      if(QUAL_ADJ[w]||/^(white|black|gray|grey|blue|silver|green|red|pink|purple|yellow|beige)$/.test(w)) adj.push(lab); else feats.push(lab);
+    });
+    if(nouns.indexOf('LAN adapter')>=0) nouns=nouns.filter(function(n){ return n!=='adapter'; });
+    var noun=nouns.join(' ');
+    if(noun && plural && !/s$/.test(noun)) noun+=(/(ch|sh|x)$/.test(noun)?'es':'s');
+    if(!noun) noun=noProducts?'':(plural?'products':'product');
+    var head=pre.concat(adj).concat(noun?[noun]:[]).join(' ');
+    var tail=[]; if(feats.length) tail.push('with '+feats.join(' and ')); post.forEach(function(x){ tail.push(x); });
+    return (head+(tail.length?' '+tail.join(', '):'')).replace(/\s+/g,' ').trim()||(noProducts?'':'products');
+  }
+  /* p2r2: candidate pool. When every product word is a known data-driven type (HDMI, cable, hub...),
+     the type registry selects candidates (handles names like "1xHDMI"); otherwise text coverage as before. */
+  function nluPool(products,P,opt){
+    var NL=nlu(), ws=P.content||[];
+    var allTypes=ws.length && ws.every(function(w){ return NL.types[w] || /^(an?|the|with|and|that|for|na|is|it|to)$/.test(w); });
+    var rows=allTypes ? search(products,Object.assign({},P,{content:[]}),opt||{}) : search(products,P,opt||{});
+    /* named connectors (USB-C, Lightning, DisplayPort, VGA, DVI) must all appear in the product name */
+    var CONN={usbc:/\busb-c\b/,lightning:/\blightning\b/,displayport:/\b(displayport|dp)\b/,vga:/\bvga\b/,dvi:/\bdvi\b/};
+    var need=ws.filter(function(w){ return CONN[w]; });
+    var list=rows.map(function(r){ return r.p; }).filter(function(p){ return p && !p.disabled; });
+    if(need.length) list=list.filter(function(p){ var n=NL.normText(p.product_name||''); return need.every(function(w){ return CONN[w].test(n); }); });
+    return NL.typeFilter(list,ws);
+  }
+  function attrAnswer(products,P,ctx,res){
+    var NL=nlu(), N=P.nlu, A=N.attrs;
+    P.local=true; res.local=true; res.needsAI=false; res.aiReason='';
+    if(!P.content.length && !A.length && !P.watts && !P.mah && !P.lengthM && P.priceMin==null && P.priceMax==null){
+      res.type='clarify'; res.note='Tell me the product type or spec — e.g. “do we have an 8K HDMI cable?”'; return res;
+    }
+    var pool=nluPool(products,P,{sheet:ctx.sheet});
+    var conf=[], weak=[], medium=0;
+    pool.forEach(function(p){
+      if(!A.length){ conf.push({p:p,t:'strong',ev:[]}); return; }
+      var m=NL.matchAll(p,A); if(!m) return;
+      if(m.t==='weak') weak.push(p); else { conf.push({p:p,t:m.t,ev:m.ev}); if(m.t==='medium') medium++; }
+    });
+    /* car items only when "car" is asked — unless they are the only matches */
+    var carNote='';
+    if(P.content.indexOf('car')<0){
+      var nonCar=conf.filter(function(c){ return !isCarItem(c.p); });
+      if(nonCar.length) conf=nonCar; else if(conf.length) carNote=' (all are car chargers/accessories)';
+    }
+    conf.sort(function(a,b){ return (a.t===b.t)?0:(a.t==='strong'?-1:1); });
+    medium=conf.filter(function(c){ return c.t==='medium'; }).length;
+    var label=specLabel(P,N,true), one=specLabel(P,N,false);
+    var bud=(P.priceMin!=null&&P.priceMax!=null)?(' '+fmtPeso(P.priceMin)+'–'+fmtPeso(P.priceMax)):(P.priceMax!=null?' under '+fmtPeso(P.priceMax):(P.priceMin!=null?' '+fmtPeso(P.priceMin)+' and up':''));
+    if(bud){ label+=bud; one+=bud; }
+    res.detail={};
+    conf.forEach(function(c){ if(c.t==='medium' && c.ev && c.ev[0]) res.detail[String(c.p.item_code)]='Per product features: “'+c.ev[0].trim().slice(0,110)+'”'; });
+    var extras=[];
+    if(medium && conf.length) extras.push(medium+' confirmed per product features');
+    if(weak.length) extras.push('mentioned only in product descriptions, not confirmed: '+weak.slice(0,5).map(function(p){ return p.item_code; }).join(', ')+(weak.length>5?' …':''));
+    if(P.device){ var dmm=String(N.raw||'').match(new RegExp(DEVICE_RE.source,'i')); extras.push('I can’t confirm compatibility with your '+(dmm?dmm[0].replace(/\s+/g,' ').trim():P.device)+' from the pricelist'); }
+    var tail=(extras.length?' ('+extras.join('; ')+')':'');
+    var codes=conf.map(function(c){ return String(c.p.item_code); });
+    var act=N.action||'list';
+    if(!conf.length){
+      res.type='text';
+      res.note=(act==='count'?'0 — ':'No — ')+'I can’t find '+(act==='count'?'any ':'a ')+one+' in the current pricelist'+tail+'.';
+      return res;
+    }
+    res.codes=codes; res.type='list';
+    if(act==='exist'){
+      var secs=sheetsOf(conf.map(function(c){ return {p:c.p}; }));
+      if(!A.length && !P.watts && !P.mah && !P.lengthM && conf.length>12 && secs.length>=3 && !ctx.sheet){
+        res.type='clarify'; res.note='Yes — '+conf.length+' '+label+' in the current pricelist, across '+secs.length+' sections. Which one?';
+        res.chips=secs.slice(0,6).map(function(x){ return {label:x.sheet, sheet:x.sheet, count:x.count}; }); return res;
+      }
+      res.note='Yes — '+conf.length+' '+(conf.length===1?one:label)+' in the current pricelist'+carNote+tail+':';
+    } else if(act==='count'){
+      res.note=conf.length+' '+(conf.length===1?one:label)+' in the current pricelist'+carNote+tail+':';
+    } else if(act==='sku'){
+      res.note=conf.length===1 ? ('SKU '+codes[0]+' — '+String(conf[0].p.product_name).replace(/\s+/g,' ').trim()+tail+':')
+                               : (conf.length+' '+label+' match — item codes on each card'+carNote+tail+':');
+    } else {
+      res.note=conf.length+' '+(conf.length===1?one:label)+carNote+tail+':';
+    }
+    return res;
+  }
+
+  /* ---------- p2r2: price history (effective/past events only; never priceSchedule) ---------- */
+  function signPeso(v){ return (v>0?'+':v<0?'−':'')+fmtPeso(Math.abs(v)); }
+  function signPct(v){ return v==null?'':((v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(1)+'%'); }
+  function historyAnswer(products,P,ctx,res,ex){
+    var NL=nlu(), H=P.nlu.hist, today=ctx.today||NL.todayStr();
+    P.local=true; res.local=true; res.needsAI=false; res.aiReason=''; res.fields=[];
+    var lead='';
+    if(ctx.dealer && H.field!=='srp'){ lead='Only SRP history is available in your pricelist view. '; }
+    var field=ctx.dealer?'srp':H.field;                         /* dealers: SRP only — never standard DP / DP Vol */
+    var FL={srp:'SRP',dp:'DP',vol:'DP Vol'}[field];
+    var all=products.filter(function(p){ return p && !p.disabled; });
+    if(P.codes.length && !ex.length){ res.type='text'; res.note='No product with item code or model “'+P.codes.join(', ')+'” in this pricelist.'; return res; }
+    var pool;
+    if(ex.length) pool=ex.map(function(o){ return o.p; }).filter(function(p){ return !p.disabled; });
+    else if(P.content.length || P.watts || P.mah || P.lengthM) pool=nluPool(all,P,{});
+    else pool=all;
+    var allRows=NL.historyRows(all,{today:today,fields:[field]});
+    var earliest=allRows.reduce(function(m,r){ return (!m||r.date<m)?r.date:m; },null);
+    var rows=NL.historyRows(pool,{today:today,fields:[field]});
+    var rng=NL.periodRange(H.period,today);
+    if(rng) rows=rows.filter(function(r){ return r.date>=rng.from && r.date<=rng.to; });
+    var dirRows=rows;
+    if(H.dir==='up') rows=rows.filter(function(r){ return r.delta>0; });
+    if(H.dir==='down') rows=rows.filter(function(r){ return r.delta<0; });
+    if(H.threshold) rows=rows.filter(function(r){ return H.threshold.pct ? (r.pct!=null && Math.abs(r.pct)>H.threshold.v) : Math.abs(r.delta)>H.threshold.v; });
+    var when=rng?(H.period.k==='since'?' '+rng.label:' effective in '+rng.label):'';
+    var cov=(earliest && (!rng || rng.from<earliest))?' Recorded price history starts '+earliest+'.':'';
+    function rowText(r){ return FL+' '+fmtPeso(r.old)+' → '+fmtPeso(r['new'])+' ('+signPeso(r.delta)+', '+signPct(r.pct)+') · effective '+r.date; }
+    function bySku(rs){ var m={}, order=[]; rs.forEach(function(r){ if(!m[r.code]){ m[r.code]=[]; order.push(r.code); } m[r.code].push(r); }); return {m:m,order:order}; }
+    res.detail={};
+    var dirWord=H.dir==='up'?'increase':H.dir==='down'?'decrease':'change';
+
+    /* single SKU: previous price / how much did it change */
+    if(ex.length){
+      var p0=pool[0]; if(!p0){ res.type='text'; res.note='That product is not in this pricelist.'; return res; }
+      var mine=rows.filter(function(r){ return r.code===String(p0.item_code); }).sort(function(a,b){ return a.date<b.date?-1:1; });
+      res.codes=[String(p0.item_code)]; res.type='list';
+      if(!mine.length){ res.note=lead+'No recorded '+FL+' '+dirWord+' for SKU '+p0.item_code+when+' — current '+FL+' is '+fmtPeso(field==='srp'?p0.srp:field==='dp'?p0.dp:p0.dp_volume)+'.'+cov; return res; }
+      var last=mine[mine.length-1];
+      if(H.kind==='previous' && !/how much/.test(P.nlu.raw.toLowerCase())){
+        res.note=lead+'Previous '+FL+' of SKU '+p0.item_code+': '+fmtPeso(last.old)+' (changed to '+fmtPeso(last['new'])+', effective '+last.date+')'+
+          (mine.length>1?'. Earlier: '+mine.slice(0,-1).reverse().map(function(r){ return fmtPeso(r.old)+' → '+fmtPeso(r['new'])+' on '+r.date; }).join('; '):'')+'.';
+      } else {
+        res.note=lead+'SKU '+p0.item_code+' '+mine.map(rowText).join('; ')+'.';
+      }
+      res.detail[res.codes[0]]=mine.map(rowText).join(' | ');
+      return res;
+    }
+    if(!rows.length){
+      res.type='text';
+      var lastOut=null;
+      if(H.dir){ var outside=NL.historyRows(pool,{today:today,fields:[field]}).filter(function(r){ return H.dir==='up'?r.delta>0:r.delta<0; }).sort(function(a,b){ return a.date<b.date?1:-1; }); lastOut=outside[0]; }
+      res.note=lead+'No — no '+FL+' '+dirWord+'s'+when+(H.threshold?' above '+(H.threshold.pct?H.threshold.v+'%':fmtPeso(H.threshold.v)):'')+' in the current pricelist.'+
+        (lastOut?' Most recent recorded '+dirWord+': SKU '+lastOut.code+' '+fmtPeso(lastOut.old)+' → '+fmtPeso(lastOut['new'])+' (effective '+lastOut.date+').':'')+cov;
+      if(lastOut){ res.type='list'; res.codes=[lastOut.code]; res.detail[lastOut.code]=rowText(lastOut); }
+      return res;
+    }
+    var g=bySku(rows);
+    g.order.forEach(function(c){ res.detail[c]=g.m[c].map(rowText).join(' | '); });
+    var ups=g.order.filter(function(c){ return g.m[c].some(function(r){ return r.delta>0; }); }).length;
+    var downs=g.order.filter(function(c){ return g.m[c].some(function(r){ return r.delta<0; }); }).length;
+    var thing=P.content.length?(' '+P.content.map(function(w){ return THING_LABEL[w]||w; }).join(' ')):'';
+    if(H.kind==='rank'){
+      var pct=H.metric==='pct';
+      var key=function(r){ var v=pct?(r.pct==null?0:r.pct):r.delta; return H.dir==='down'?-v:(H.dir==='up'?v:Math.abs(v)); };
+      var best={}; rows.forEach(function(r){ if(!best[r.code] || key(r)>key(best[r.code])) best[r.code]=r; });
+      var list=Object.keys(best).map(function(c){ return best[c]; }).sort(function(a,b){ return (key(b)-key(a)) || (a.code<b.code?-1:1); });
+      var take;
+      if(H.n){ take=list.slice(0,H.n); res.note=lead+'Top '+take.length+thing+' '+FL+' '+dirWord+'s'+when+' by '+(pct?'percentage':'peso amount')+(cov?' ('+cov.trim().replace(/\.$/,'')+')':'')+':'; }
+      else {
+        var w=1; while(w<list.length && Math.abs(key(list[w])-key(list[0]))<1e-9) w++;
+        take=list.slice(0,w+2);
+        var top=list[0];
+        res.note=lead+(w>1?(w+' SKUs tie for the biggest'+thing+' '+FL+' '+dirWord+when+' by '+(pct?'percentage':'peso amount')+': '+rowText(top).replace(FL+' ','')):
+          ('Biggest'+thing+' '+FL+' '+dirWord+when+' by '+(pct?'percentage':'peso amount')+': SKU '+top.code+' — '+rowText(top)))+
+          (take.length>w?' — next '+(take.length-w)+' shown after':'')+'.'+cov;
+        res.rankHist={winners:w};
+      }
+      res.codes=take.map(function(r){ return r.code; }); res.type='list';
+      take.forEach(function(r){ res.detail[r.code]=rowText(r); });
+      return res;
+    }
+    if(H.kind==='aggregate'){
+      var cats={}, secOf={};
+      g.order.forEach(function(c){ var p=g.m[c][0].p, k=String(p.category||'Other'); (cats[k]=cats[k]||[]).push(c); secOf[k]=secOf[k]||{}; secOf[k][p.sheet_display]=(secOf[k][p.sheet_display]||0)+1; });
+      var ranked=Object.keys(cats).sort(function(a,b){ return (cats[b].length-cats[a].length)||(a<b?-1:1); });
+      function sec(k){ return Object.keys(secOf[k]).sort(function(a,b){ return secOf[k][b]-secOf[k][a]; })[0]; }
+      var tops=ranked.filter(function(k){ return cats[k].length===cats[ranked[0]].length; });
+      res.note=lead+(tops.length>1?tops.length+' categories tie for the most '+FL+' '+dirWord+'s'+when+': ':'Category with the most '+FL+' '+dirWord+'s'+when+': ')+
+        tops.map(function(k){ return k+' — '+cats[k].length+' SKUs (section: '+sec(k)+')'; }).join('; ')+
+        '. Next: '+ranked.slice(tops.length,tops.length+2).map(function(k){ return k+' ('+cats[k].length+')'; }).join(', ')+'.'+cov;
+      res.codes=cats[tops[0]].slice(); res.type='list'; return res;
+    }
+    res.codes=g.order.slice().sort(function(a,b){ var ra=g.m[a][g.m[a].length-1], rb=g.m[b][g.m[b].length-1]; return (ra.date<rb.date?1:ra.date>rb.date?-1:0) || (Math.abs(rb.delta)-Math.abs(ra.delta)); });
+    res.type='list';
+    var summary=g.order.length+thing+' SKU'+(g.order.length===1?'':'s')+' with an '+FL+' '+dirWord+when+(H.threshold?' above '+(H.threshold.pct?H.threshold.v+'%':fmtPeso(H.threshold.v)):'')+
+      (H.dir?'':' ('+ups+' increase'+(ups===1?'':'s')+', '+downs+' decrease'+(downs===1?'':'s')+')');
+    var covP=cov?' ('+cov.trim().replace(/\.$/,'')+')':'';
+    if(H.kind==='exist') res.note=lead+'Yes — '+summary+covP+':';
+    else if(H.kind==='count') res.note=lead+summary+covP+':';
+    else res.note=lead+summary+covP+':';
+    return res;
+  }
+
   /* ---------- main entry ---------- */
   /* products: the list the user is allowed to see (caller passes ALL_PRODUCTS minus disabled;
      in dealer mode that list is already the dealer's own SKUs).
      ctx: { sheet: restrict to a section (from a clarify chip), compareCodes: [...] } */
   function answer(products,query,ctx){
     ctx=ctx||{};
-    var P=parse(query);
+    var NL=nlu(), N=null;
+    if(NL && !(ctx.compareCodes && ctx.compareCodes.length)){ try{ N=NL.analyze(query); }catch(e){ N=null; } }
+    var useN=!!(N && !N.compat && (N.hist || N.attrs.length || N.action || N.rewritten));
+    var P=parse(useN ? N.text : query);
+    if(useN) P.nlu=N;
     var res={ query:String(query||''), parsed:P, type:'none', codes:[], fields:fieldList(P), chips:[], note:'', needsAI:false, aiReason:'' };
     if(P.recommend){ res.needsAI=true; res.aiReason='recommendation/compatibility'; }
     if(P.stock) res.stockNote=STOCK_NOTE;
@@ -503,6 +725,9 @@
 
     var ex=exactMatches(products,P);
     var exCodes=ex.map(function(o){ return String(o.p.item_code); });
+
+    /* p2r2: price-history questions (effective/past events only) -> always local */
+    if(useN && N.hist) return historyAnswer(products,P,ctx,res,ex);
 
     /* compare: 2-4 directly identified SKUs (each token must resolve to exactly one SKU) */
     if(P.compare){
@@ -530,6 +755,9 @@
     if(P.rank && (ex.length || !P.codes.length)){
       return rankAnswer(products,P,ctx,res,ex.length?ex.map(function(o){ return o.p; }):null);
     }
+
+    /* p2r2: existence / count / SKU / list / spec questions -> always local */
+    if(useN && !ex.length && !P.codes.length) return attrAnswer(products,P,ctx,res);
 
     if(ex.length){
       var rows=ex.map(function(o){ return o.p; });
@@ -633,7 +861,7 @@
   function canEscalate(res){
     if(!res||!res.parsed) return false;
     var P=res.parsed;
-    if(P.rank) return false;                                           // p2r1: ranking is always local
+    if(P.rank || P.local) return false;                                // p2r1/p2r2: ranking + resolved local intents are always local
     if(P.codes.length) return false;                                   // SKU / model / UPC lookups
     if(res.fields && res.fields.length) return false;                  // SRP / DP / DP Vol / MOQ
     if(res.type==='compare') return false;                             // simple compare-by-code
@@ -729,7 +957,7 @@
     var out={ route:'local', candidates:[], canEscalate:false, web:null };
     if(!res||!res.parsed) return out;
     var P=res.parsed;
-    if(P.rank) return out;                                             // p2r1: ranking/superlative -> LOCAL only, never the Worker (even manual)
+    if(P.rank || P.local) return out;                                  // p2r1/p2r2: ranking, spec and price-history intents -> LOCAL only, never the Worker (even manual)
     var exact = P.codes.length && (res.type==='lookup'||res.type==='list'||res.type==='none') && !P.recommend;
     if(!opts.manual){
       if(exact || (res.fields && res.fields.length) || (res.type==='compare' && !P.recommend)){ return out; }
@@ -746,7 +974,7 @@
 
   var API={ parse:parse, answer:answer, search:search, exactMatches:exactMatches,
             productWatts:productWatts, productMah:productMah, productPorts:productPorts, lenMeters:lenMeters,
-            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, version:'p2r1' };
+            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, version:'p2r2' };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroEngine=API;
 })(typeof window!=='undefined'?window:globalThis);
