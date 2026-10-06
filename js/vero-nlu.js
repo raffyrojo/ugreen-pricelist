@@ -72,7 +72,10 @@
     var own=normText(txt(p,'item_code'));
     /* a feature line that names a DIFFERENT item code describes that other SKU (shared copy) — never evidence for this one */
     var foreign=function(s){ var m,re=/\b(\d{5}[a-z]?)\b(?!\s?(?:mah|w|mm|m|hz|mbps|gbps|p|k)\b)/g; while((m=re.exec(s))) if(m[1]!==own) return true; return false; };
-    var x={ name:normText(txt(p,'product_name')), segs:segments(txt(p,'features')+'\n'+txt(p,'short_desc')).filter(function(s){ return !foreign(s); }), desc:normText(txt(p,'description')) };
+    /* p2r2.1 evidence hierarchy: STRONG = structured fields / product name; MEDIUM (confirmed) = authoritative feature
+       lines only; WEAK (mentioned, not confirmed) = short_desc + full description. short_desc can be AI-written in the
+       CMS, so it is never confirmed evidence for a technical claim. */
+    var x={ name:normText(txt(p,'product_name')), segs:segments(txt(p,'features')).filter(function(s){ return !foreign(s); }), desc:normText(txt(p,'description')+'\n'+txt(p,'short_desc')) };
     /* single-function video product: one video port kind in the name and not a multi-port hub/dock */
     x.single = videoKinds(x.name)===1 && !/\+|\d-in-1|\b(hub|dock|docking)\b/.test(x.name) && !/docking and hub/i.test(txt(p,'sheet_display'));
     try{ Object.defineProperty(p,'__vnlu',{value:{src:p,x:x},enumerable:false,configurable:true,writable:true}); }catch(e){}
@@ -188,6 +191,8 @@
 
   /* ======================= query analysis ======================= */
   var PRICE_BEFORE=/(₱|php|peso|pesos|budget|under|below|over|above|less than|more than|hanggang|within|price|srp|dp|at least|up to|max|min)\s*$/;
+  /* p2r2.1: token starts right after "<digit>." -> it is the decimal part of an amount ("1.5k", "2.5k"), not a resolution */
+  function decimalTail(s,idx){ return idx>=2 && s.charAt(idx-1)==='.' && /\d/.test(s.charAt(idx-2)); }
   function priceContext(s,idx,len){ var pre=s.slice(Math.max(0,idx-16),idx), post=s.slice(idx+len,idx+len+10); return PRICE_BEFORE.test(pre)||/^\s*(php|pesos?|budget)\b/.test(post)||/₱\s*$/.test(pre); }
   var NUMW={ two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 };
   var MONTHS=['january','february','march','april','may','june','july','august','september','october','november','december'];
@@ -201,8 +206,8 @@
 
     /* ---------- "X pataas / and up" -> at least X; "longer than" -> at least ---------- */
     var before=s;
-    cut(/(\d[\d.,]*\s?(?:w|mah|m|cm|gbps|g|ports?)?)\s+(?:pataas|and up|and above|or more|or higher|or above)\b/g,' at least $1 ');
-    cut(/(\d[\d.,]*\s?(?:w|mah|m|cm|gbps|g)?)\s+(?:pababa|or less|and below|or lower|and under)\b/g,' up to $1 ');
+    cut(/(\d[\d.,]*\s?(?:k\s?mah|k|w|mah|m|cm|gbps|g|ports?)?)\s+(?:pataas|and up|and above|or more|or higher|or above)\b/g,' at least $1 ');   /* p2r2.1: + "20k pataas" */
+    cut(/(\d[\d.,]*\s?(?:k\s?mah|k|w|mah|m|cm|gbps|g)?)\s+(?:pababa|or less|and below|or lower|and under)\b/g,' up to $1 ');
     cut(/\blonger than\b/g,' at least '); cut(/\bshorter than\b/g,' up to ');
     N.rewritten=(s!==before);
 
@@ -243,11 +248,13 @@
     var hasQ=/\bhdmi\b/.test(s)?'hdmi':(/\b(displayport|dp)\b/.test(s)&&!/\bdp\s?vol/.test(s)?'dp':null);
     var m, refreshDone=false;
     /* resolution + refresh pair: 4k60, 4k@60hz, 4k 60hz */
-    s=s.replace(/\b(8k|4k|2k|1080p|1440p)(\s*@\s*|\s+|)(\d{2,3})\s*(hz)?\b/g,function(all,r,sep,hz,unit){
+    s=s.replace(/\b(8k|4k|2k|1080p|1440p)(\s*@\s*|\s+|)(\d{2,3})\s*(hz)?\b/g,function(all,r,sep,hz,unit,off,str){
+      if(decimalTail(str,off)) return all;                                          /* p2r2.1: "1.2k 60hz" -> 1.2k is an amount */
       if(!unit && sep.trim()!=='@' && sep!=='') return all;                       /* "4k 60" without hz/@ -> not a refresh pair */
       N.attrs.push({k:'refresh',r:RES_RANK[r],hz:+hz,q:hasQ,label:RES_LABEL[RES_RANK[r]]+'@'+hz+'Hz'}); refreshDone=true; return ' ';
     });
     s=s.replace(/\b(8k|5k|4k|2k|1080p|1440p)\b/g,function(all,r,off,str){
+      if(decimalTail(str,off)) return all;                                          /* p2r2.1: "under 1.5k" = ₱1,500, not 5K */
       if(/^[2458]k$/.test(r) && priceContext(str,off,all.length)) return all;          /* "under 4k" = budget */
       N.attrs.push({k:'res',v:RES_RANK[r],q:hasQ,label:RES_LABEL[RES_RANK[r]]}); return ' ';
     });
@@ -328,7 +335,7 @@
     return null;
   }
 
-  var API={ version:'p2r2', analyze:analyze, normText:normText, segments:segments, resMentions:resMentions,
+  var API={ version:'p2r2.1', analyze:analyze, normText:normText, segments:segments, resMentions:resMentions,
     match:function(p,a){ return MATCH[a.k](p,a); }, matchAll:matchAll, wattsFromFeatures:function(p){ return MATCH.wattsFeat(p); },
     types:TYPES, typeLabel:TYPE_LABEL, typeWords:typeWords, typeFilter:typeFilter, flags:FLAGS,
     historyRows:historyRows, seedEvent:seedEvent, todayStr:todayStr, periodRange:periodRange };

@@ -1,4 +1,5 @@
-/* VERO — local lookup engine (Phase 1; p2r1 adds local ranking / superlatives; p2r2 adds the local intent + attribute layer via js/vero-nlu.js).
+/* VERO — local lookup engine (Phase 1; p2r1 adds local ranking / superlatives; p2r2 adds the local intent + attribute layer via js/vero-nlu.js;
+   p2r2.1 = P0 correctness fixes: '20k power bank' capacity shorthand, connector-in-name for cable ranking, MagSafe vs magnetic).
    Pure logic: no DOM, no network, no AI. Works in the browser (window.VeroEngine)
    and in Node (module.exports) for tests.
    Every answer returns item_codes only; the UI reads prices from the live
@@ -100,6 +101,11 @@
 
   var MAXW = /(?:under|below|less than|lower than|max(?:imum)?|up to|hanggang|wala pang|<=?|not more than)\s*$/;
   var MINW = /(?:above|over|more than|higher than|at least|min(?:imum)?|>=?|starting|from)\s*$/;
+  /* p2r2.1: explicit PRICE cues that make a following "Nk" a peso amount even in a capacity context:
+     ₱/budget/price words and budget-direction comparators. Minimum-direction words ("at least", "minimum",
+     "above", "more than") are NOT price cues on their own — "power bank at least 20k" = ≥20,000mAh;
+     "power bank at least ₱20k" = ≥₱20,000 (the ₱ is the cue). */
+  var K_PRICE_BEFORE = /(?:₱|budget(?:\s+(?:of|is|ko|ng))?|under|below|less than|lower than|cheaper than|up to|max(?:imum)?|hanggang|wala pang|within|not more than|price|presyo|srp|dp|magkano|worth|cost|costs)\s*$/;
 
   /* ---------- p2r1: ranking / superlative intent (local only) ---------- */
   /* stock = clear inventory intent only. Bare "available" (= in the pricelist) is NOT stock. */
@@ -129,12 +135,25 @@
     { op:'eq', re:/\b(?:with\s+)?(?:exactly\s+|only\s+)?(\d{1,2})\s*-?\s*ports?\b/ }
   ];
   var RANK_CAP=10, RANK_NEXT=2;
+  var CONN_NAME={ usbc:/\b(?:usb[\s-]?c|type[\s-]?c)\b/i, lightning:/\blightning\b/i };   /* p2r2.1 */
 
   /* ---------- query parsing ---------- */
   function parse(q){
     var raw=String(q||'');
     var s=lc(raw).replace(/₱|\bphp\b|\bpesos?\b/g,' ₱ ').replace(/(\d),(\d{3})/g,'$1$2');
-    s=s.replace(/(\d+(?:\.\d+)?)\s?k\b/g,function(_,n){ return String(Math.round(parseFloat(n)*1000)); });
+    /* p2r2.1: "Nk" = N thousand (decimals allowed: "1.5k" = 1,500). In a capacity context (power bank / mAh / capacity /
+       battery) a 5k–60k value is mAh unless an explicit price cue is attached: ₱/budget/price words or a budget-direction
+       comparator before it (under, below, less than, cheaper than, up to, hanggang …), or ₱/php/pesos/budget after it.
+       "20k power bank" / "power bank at least 20k" = mAh; "under 2k", "budget 20k", "at least ₱20k", "2k pesos" = ₱. */
+    var capCtx=/power\s?bank|powerbank|\bmah\b|\bcapacity\b|\bbattery\b/.test(s);
+    s=s.replace(/(\d+(?:\.\d+)?)\s?k\b(\s?mah\b)?/g,function(all,n,mah,off,str){
+      var v=Math.round(parseFloat(n)*1000);
+      if(mah) return v+mah;
+      var pre=str.slice(Math.max(0,off-24),off).replace(/\b(?:lowest|highest|cheapest|best)\s+(?:price|presyo)\s*$/,' ');   /* "lowest price 20k power bank" = ranking word, not a budget */
+      if(capCtx && v>=5000 && v<=60000 && !K_PRICE_BEFORE.test(pre) &&
+         !/^\s*(?:₱|(?:php|pesos?|budget)\b)/.test(str.slice(off+all.length,off+all.length+12))) return v+'mah';
+      return String(v);
+    });
     var P={ raw:raw, norm:s, asks:{}, compare:false, recommend:false, codes:[], content:[] };
 
     /* code-like tokens (item code / UPC / material / model): >=4 alphanumerics with a digit,
@@ -406,6 +425,11 @@
       if(P.content.indexOf('car')<0){ var noCar=pool.filter(function(p){ return !isCarItem(p); }); if(noCar.length) pool=noCar; }
       else{ var onlyCar=pool.filter(isCarItem); if(onlyCar.length) pool=onlyCar; }
     }
+    /* p2r2.1: a connector named in a cable query must be stated in the product name — "USB-C cable" / "type c cable"
+       is a cable whose name says USB-C/Type-C (USB-A extensions, hubs and adapters with a USB-C port do not qualify). */
+    if(!rows && P.content.indexOf('cable')>=0){
+      Object.keys(CONN_NAME).forEach(function(w){ if(P.content.indexOf(w)>=0) pool=pool.filter(function(p){ return CONN_NAME[w].test(String(p.product_name||'')); }); });
+    }
     var extra=[];
     if(P.nlu && nlu() && !rows){                      /* p2r2: data-driven product types + spec constraints */
       pool=nlu().typeFilter(pool,P.content);
@@ -576,6 +600,34 @@
     var tail=(extras.length?' ('+extras.join('; ')+')':'');
     var codes=conf.map(function(c){ return String(c.p.item_code); });
     var act=N.action||'list';
+    /* p2r2.1: "MagSafe" is a certification/compatibility claim. Only name/feature evidence that says MagSafe confirms it.
+       Products named "magnetic wireless" are shown separately as magnetic-only — never as MagSafe. */
+    var msA=A.filter(function(a){ return a.k==='flag' && a.v==='magsafe'; });
+    if(msA.length){
+      var restA=A.filter(function(a){ return !(a.k==='flag' && a.v==='magsafe'); }), inConf={};
+      conf.forEach(function(c){ inConf[String(c.p.item_code)]=1; });
+      var magOnly=pool.filter(function(p){
+        var n=String(p.product_name||''); if(inConf[String(p.item_code)] || !/\bmagnetic\b/i.test(n) || !/\bwireless\b/i.test(n)) return false;
+        if(P.content.indexOf('car')<0 && isCarItem(p)) return false;
+        if(!restA.length) return true; var m=NL.matchAll(p,restA); return !!(m && m.t!=='weak');
+      });
+      if(magOnly.length){
+        var magCodes=magOnly.map(function(p){ return String(p.item_code); });
+        magCodes.forEach(function(c){ res.detail[c]='Magnetic wireless (product name) — MagSafe not explicitly confirmed'; });
+        var one1=magOnly.length===1, typeWord=P.content.indexOf('powerbank')>=0?(one1?'power bank':'power banks'):(P.content.indexOf('charger')>=0?(one1?'charger':'chargers'):(one1?'product':'products'));
+        var weakNote=weak.length?(' MagSafe is mentioned only in product descriptions for: '+weak.slice(0,5).map(function(p){ return p.item_code; }).join(', ')+(weak.length>5?' …':'')+'.'):'';
+        var magNote=magOnly.length+' magnetic wireless '+typeWord+' in the current pricelist; MagSafe support/certification is not explicitly confirmed for '+(magOnly.length===1?'this item':'these items')+'.';
+        res.local=true; res.type='list';
+        if(!conf.length){
+          res.codes=magCodes;
+          res.note='No product in the pricelist is explicitly listed as a '+one+'. We have '+magNote+weakNote+(P.device?' I can’t confirm compatibility with your device from the pricelist.':'');
+        } else {
+          res.codes=codes.concat(magCodes);
+          res.note=(act==='exist'?'Yes — ':'')+conf.length+' '+(conf.length===1?one:label)+' in the current pricelist (MagSafe stated in the product name or features)'+carNote+tail+'. Also '+magNote;
+        }
+        return res;
+      }
+    }
     if(!conf.length){
       res.type='text';
       res.note=(act==='count'?'0 — ':'No — ')+'I can’t find '+(act==='count'?'any ':'a ')+one+' in the current pricelist'+tail+'.';
@@ -974,7 +1026,7 @@
 
   var API={ parse:parse, answer:answer, search:search, exactMatches:exactMatches,
             productWatts:productWatts, productMah:productMah, productPorts:productPorts, lenMeters:lenMeters,
-            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, version:'p2r2' };
+            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, version:'p2r2.1' };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroEngine=API;
 })(typeof window!=='undefined'?window:globalThis);
