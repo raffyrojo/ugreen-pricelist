@@ -13,7 +13,155 @@
   var GREETING='Hi! I\u2019m VERO. I can help you find, compare, and understand UGREEN products.';
   var PAGE=6, MAX_CMP=4;
 
-  var S={ open:false, msgs:[], modeKey:null, cmp:[], built:false };
+  var S={ open:false, msgs:[], modeKey:null, cmp:[], built:false, aiHist:[] };
+
+  /* ---------- Phase 2: VERO AI (off unless config.vero.aiEnabled && aiEndpoint) ---------- */
+  var AI_KEY='vero_ai_session';
+  function aiCfg(){ return { on: CFG.aiEnabled===true && !!CFG.aiEndpoint, web: CFG.webEnabled===true, url: String(CFG.aiEndpoint||'').replace(/\/+$/,'') }; }
+  function aiForUser(){ return aiCfg().on && !dealer(); }          /* dealers: AI off during the pilot */
+  function aiSession(){ try{ var x=JSON.parse(sessionStorage.getItem(AI_KEY)||'null'); if(x&&x.token&&x.exp>Date.now()) return x; }catch(_){} return null; }
+  function setAiSession(x){ try{ if(x) sessionStorage.setItem(AI_KEY,JSON.stringify(x)); else sessionStorage.removeItem(AI_KEY); }catch(_){} }
+  var AI_MSG={
+    verify:'I couldn\u2019t verify the external compatibility details right now.',
+    extOff:'External verification is unavailable right now.',
+    down:'VERO AI is temporarily unavailable. Local product search is still available.',
+    limit:'You\u2019ve reached the VERO AI limit for now. Please try again a little later.',
+    slow:'VERO AI took too long to answer.',
+    few:'I need at least two matching products to work with. Try describing the product type.'
+  };
+  /* ---- AI access gate (swappable policy component) ----
+     Today's policy: AI is for authorized sales users with a VERO access code.
+     To change the policy later (limited free AI, daily public quota, sign-in, ...), replace AI_GATE only:
+       intro(m)  -> HTML shown when a user without access asks an AI-type question
+       form(m)   -> HTML for the access step (shown only after the user opts in)
+       open(m)   -> called by the "Sales AI Access" action
+       submit(m, value) -> obtains a session (today: POST /session with the code) */
+  var AI_GATE={
+    text:{
+      intro:'This question needs VERO AI. AI access is currently available to authorized sales users.',
+      action:'Sales AI Access',
+      note:'Enter your VERO access code.',
+      invalid:'Invalid or inactive VERO access code.',
+      expired:'Your VERO AI session has expired. Enter your access code again.',
+      busy:'Too many attempts. Please try again in 15 minutes.'
+    },
+    intro:function(m){
+      return '<p class="vero-note">'+e(AI_GATE.text.intro)+'</p>'+
+        '<button type="button" class="vero-gate-btn" data-act="gateopen" data-idx="'+m.idx+'">'+ICON.spark+AI_GATE.text.action+'</button>';
+    },
+    form:function(m){
+      return (m.gateErr?'':'<p class="vero-note vero-gate-note">'+e(m.gateMsg||AI_GATE.text.note)+'</p>')+
+        (m.gateErr?'<p class="vero-ai-err">'+e(m.gateErr)+'</p>':'')+
+        '<div class="vero-unlock"><input type="password" autocomplete="off" spellcheck="false" maxlength="40" aria-label="VERO access code" placeholder="VERO access code" data-unlock="'+m.idx+'">'+
+        '<button type="button" class="vero-btn vero-btn-sm" data-act="unlock" data-idx="'+m.idx+'"'+(m.busy?' disabled':'')+'>'+(m.busy?'Checking\u2026':'Continue')+'</button></div>';
+    },
+    open:function(m){ m.gateOpen=true; m.gateErr=null; m.gateMsg=null; },
+    submit:function(m,value){ unlockAI(m,value); }
+  };
+  function aiErrText(err,route){
+    if(err==='web_budget'||err==='web_limited'||err==='web_off') return AI_MSG.extOff;
+    if(err==='no_official_source'||err==='web_unavailable'||(route==='web'&&err==='timeout')) return AI_MSG.verify;
+    if(err==='rate_limited') return AI_MSG.limit;
+    if(err==='timeout') return AI_MSG.slow;
+    if(err==='no_candidates') return AI_MSG.few;
+    return AI_MSG.down;
+  }
+  function aiRetryable(err){ return ['timeout','unavailable','web_unavailable','invalid','network'].indexOf(err)>=0; }
+  function pushAi(o){ o.role='ai'; o.idx=S.msgs.length; S.msgs.push(o); return o; }
+  function aiAfterLocal(m,text){
+    if(!aiForUser()||!window.VeroEngine.aiRoute) return;
+    var dec; try{ dec=window.VeroEngine.aiRoute(pool(),text,m.res,{}); }catch(_){ return; }
+    if(dec.route==='local'){ if(dec.canEscalate) m.offer=true; return; }
+    startAI(text,dec,'auto');
+  }
+  function startAI(q,dec,trigger){
+    var a=aiCfg(), sess=aiSession();
+    var am=pushAi({ q:q, route:dec.route, candidates:dec.candidates, trigger:trigger, state:'loading' });
+    if(dec.route==='web' && (!a.web || (sess && sess.web===false))){ am.state='error'; am.err='web_off'; return am; }
+    if(!sess){ am.state='gate'; am.gateOpen=false; return am; }
+    runAI(am); return am;
+  }
+  function runAI(am){
+    var a=aiCfg(), sess=aiSession();
+    if(!sess){ am.state='gate'; am.gateOpen=false; renderAndKeep(); return; }
+    am.state='loading'; am.err=null;
+    var ctl=('AbortController' in window)?new AbortController():null;
+    var tmo=setTimeout(function(){ if(ctl) ctl.abort(); },am.route==='web'?32000:15000);
+    var body={ v:1, q:String(am.q).slice(0,300), candidates:am.candidates.slice(0,8),
+      history:S.aiHist.slice(-2).map(function(h){ return {q:h.q,picks:h.picks.slice(0,3)}; }), route:am.route, trigger:am.trigger };
+    fetch(a.url+'/ask',{ method:'POST', headers:{'content-type':'application/json','authorization':'Bearer '+sess.token}, body:JSON.stringify(body), signal:ctl?ctl.signal:undefined })
+      .then(function(r){ return r.json().catch(function(){ return {ok:false,error:'unavailable'}; }).then(function(j){ return {status:r.status,j:j}; }); })
+      .then(function(x){
+        clearTimeout(tmo);
+        var j=x.j||{};
+        if(j.ok){
+          var allowed={}; am.candidates.forEach(function(c){ allowed[c]=1; });
+          j.picks=(j.picks||[]).filter(function(p){ return p && allowed[p.item_code] && byCode(p.item_code); });   /* dealer-safe: only codes visible to this user */
+          j.sources=(j.sources||[]).filter(function(s){ return s && /^https:\/\//.test(s.url||''); });
+          am.state='done'; am.data=j;
+          S.aiHist.push({q:am.q,picks:j.picks.map(function(p){ return p.item_code; })}); S.aiHist=S.aiHist.slice(-2);
+        } else {
+          am.state='error'; am.err=j.error||('http_'+x.status);
+          if(am.err==='unauthorized'){ setAiSession(null); renderDisc(); am.state='gate'; am.gateOpen=true; am.gateErr=null; am.gateMsg=AI_GATE.text.expired; }
+        }
+        renderAndKeep();
+      })
+      .catch(function(err){ clearTimeout(tmo); am.state='error'; am.err=(err&&err.name==='AbortError')?'timeout':'network'; renderAndKeep(); });
+    renderAndKeep();
+  }
+  function unlockAI(am,code){
+    var a=aiCfg(); code=String(code||'').trim();
+    if(!code){ am.gateErr=AI_GATE.text.note; renderAndKeep(); return; }
+    am.busy=true; am.gateErr=null; renderAndKeep();
+    fetch(a.url+'/session',{ method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({code:code}) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }); })
+      .then(function(j){
+        am.busy=false;
+        if(j&&j.ok&&j.token){ setAiSession({token:j.token,role:j.role,exp:j.exp,web:!!j.web}); renderDisc(); runAI(am); }
+        else { am.gateErr=(j&&j.error==='session_locked')?AI_GATE.text.busy:(j&&j.error==='invalid_code'?AI_GATE.text.invalid:AI_MSG.down); renderAndKeep(); }
+      })
+      .catch(function(){ am.busy=false; am.gateErr=AI_MSG.down; renderAndKeep(); });
+  }
+  function renderAndKeep(){ var log=$('vero-log'); var atEnd=!log||log.scrollHeight-log.scrollTop-log.clientHeight<40; renderLog(); if(atEnd) scrollEnd(); }
+  function basisLabel(b){ return b==='web_verified'?'Official source':(b==='product_data'?'From pricelist data':'General guidance'); }
+  function aiHtml(m){
+    var out='', av='default';
+    if(m.state==='loading'){
+      av='thinking';
+      out='<p class="vero-note vero-ai-wait"><span class="vero-dots" aria-hidden="true"><i></i><i></i><i></i></span>'+(m.route==='web'?'VERO AI is checking official sources\u2026':'VERO AI is thinking\u2026')+'</p>';
+    } else if(m.state==='gate'){
+      av='default';
+      out=m.gateOpen?AI_GATE.form(m):AI_GATE.intro(m);
+    } else if(m.state==='error'){
+      av='thinking';
+      out='<p class="vero-note">'+e(aiErrText(m.err,m.route))+'</p>'+(aiRetryable(m.err)?'<button type="button" class="vero-more vero-retry" data-act="retryai" data-idx="'+m.idx+'">Retry</button>':'');
+    } else if(m.state==='done'){
+      var d=m.data, web=d.route==='web'&&d.sources&&d.sources.length;
+      out='<div class="vero-ai-meta"><span class="vero-ai-badge">VERO AI</span><span>'+(web?'Verified with official sources':'Based on UGREEN Pricelist data')+'</span></div>';
+      out+='<p class="vero-ai-reply">'+e(d.reply)+'</p>';
+      if(d.confidence==='low') out+='<p class="vero-ai-warn">Low confidence \u2014 please verify before quoting.</p>';
+      if(d.picks.length){
+        out+='<div class="vero-list">'+d.picks.map(function(p){
+          var prod=byCode(p.item_code); if(!prod) return '';
+          return '<div class="vero-ai-pick">'+card(prod,{compact:true})+'<p class="vero-ai-why"><span class="vero-basis vero-basis-'+e(p.basis)+'">'+basisLabel(p.basis)+'</span>'+e(p.reason)+'</p></div>';
+        }).join('')+'</div>';
+      }
+      if(d.cannot_confirm&&d.cannot_confirm.length) out+='<p class="vero-ai-note"><b>Couldn\u2019t confirm:</b> '+d.cannot_confirm.map(e).join(' \u00B7 ')+'</p>';
+      if(d.conflicts&&d.conflicts.length) out+='<p class="vero-ai-note"><b>Sources disagree:</b> '+d.conflicts.map(e).join(' \u00B7 ')+'</p>';
+      if(web){
+        out+='<div class="vero-sources"><div class="vero-sources-h">Sources</div>'+d.sources.map(function(s){
+          return '<a href="'+e(s.url)+'" target="_blank" rel="noopener noreferrer nofollow">'+e(s.title||s.domain)+'</a><span class="vero-src-dom">'+e(s.domain)+'</span>';
+        }).join('')+'</div>';
+      }
+      out+='<p class="vero-fine">AI guidance \u2014 confirm specs before quoting. Prices shown are from the live pricelist.</p>';
+    }
+    return '<div class="vero-msg vero-bot vero-ai">'+avatar(av,'vero-av-sm')+'<div class="vero-bub">'+out+'</div></div>';
+  }
+  function renderDisc(){
+    var d=$('vero-disc'); if(!d) return;
+    var sess=aiForUser()?aiSession():null;
+    d.innerHTML='Answers come from the current UGREEN pricelist.'+(sess?' <span class="vero-ai-on">VERO AI on</span> \u00B7 <button type="button" class="vero-link vero-signout" data-act="aisignout">Sign out</button>':'');
+  }
 
   /* ---------- small utils ---------- */
   function $(id){ return document.getElementById(id); }
@@ -47,6 +195,7 @@
     search:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
     tag:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
     cmp:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v18M16 3v18M3 8h5M16 16h5"/></svg>',
+    spark:'<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M12 2.5c.6 4.6 2.9 6.9 7.5 7.5-4.6.6-6.9 2.9-7.5 7.5-.6-4.6-2.9-6.9-7.5-7.5 4.6-.6 6.9-2.9 7.5-7.5z" fill="currentColor"/></svg>',
     wallet:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/></svg>'
   };
 
@@ -161,7 +310,8 @@
     } else if(r.type==='text'){
       out='<p class="vero-note">'+e(r.note)+'</p>';
     }
-    if(r.needsAI && CFG.aiEnabled!==true && r.type!=='compare'){
+    if(m.offer){ out+='<button type="button" class="vero-chip vero-askai" data-act="askai" data-idx="'+m.idx+'">\u2726 Ask VERO AI</button>'; }
+    if(r.needsAI && !aiForUser() && r.type!=='compare'){
       out+='<p class="vero-fine vero-soon">Personalised recommendations and compatibility checks are coming soon. For now I\u2019m showing matching products from the pricelist.</p>';
     }
     if(r.parsed && r.parsed.priceField==='dp_volume' && dealer()){
@@ -183,7 +333,7 @@
   function renderLog(){
     var log=$('vero-log'); if(!log) return;
     var h=greetHtml();
-    S.msgs.forEach(function(m){ h+=(m.role==='me')?userHtml(m):botHtml(m); });
+    S.msgs.forEach(function(m){ h+=(m.role==='me')?userHtml(m):(m.role==='ai'?aiHtml(m):botHtml(m)); });
     log.innerHTML=h;
     renderCmpBar();
   }
@@ -215,7 +365,8 @@
       catch(err){ try{ console.warn('[VERO]',err); }catch(_){}; res={type:'text',note:'Sorry \u2014 I couldn\u2019t process that. Try an item code, model, or product type.',codes:[],chips:[]}; }
     }
     res.query=text; res.ctx=ctx||{};
-    pushBot(res);
+    var bm=pushBot(res);
+    if(!(ctx&&ctx.compareCodes)) aiAfterLocal(bm,text);
     renderLog(); scrollEnd();
   }
   function send(){
@@ -235,7 +386,7 @@
   function open(){
     build(); syncMode();
     var d=$('vero-drawer'), f=$('vero-fab'); if(!d) return;
-    place(); renderLog();
+    place(); renderLog(); renderDisc();
     d.hidden=false; requestAnimationFrame(function(){ d.classList.add('open'); });
     S.open=true; document.body.classList.add('vero-open');
     if(f){ f.setAttribute('aria-expanded','true'); }
@@ -283,6 +434,25 @@
       else if(chip.append) ask(mm.res.query+chip.append,mm.res.ctx||{});
       return;
     }
+    if(act==='askai'){
+      var lm=S.msgs[+b.getAttribute('data-idx')]; if(!lm||!lm.res) return;
+      lm.offer=false;
+      var dec=window.VeroEngine.aiRoute(pool(),lm.res.query,lm.res,{manual:true});
+      if(dec.route==='local'){ pushAi({q:lm.res.query,route:'catalog',candidates:[],trigger:'manual',state:'error',err:'no_candidates'}); renderAndKeep(); scrollEnd(); return; }
+      startAI(lm.res.query,dec,'manual'); renderAndKeep(); scrollEnd(); return;
+    }
+    if(act==='gateopen'){
+      var gm=S.msgs[+b.getAttribute('data-idx')]; if(!gm) return;
+      AI_GATE.open(gm); renderAndKeep();
+      var gi=document.querySelector('[data-unlock="'+gm.idx+'"]'); if(gi) try{ gi.focus({preventScroll:true}); }catch(_){ gi.focus(); }
+      return;
+    }
+    if(act==='unlock'){
+      var um=S.msgs[+b.getAttribute('data-idx')]; var inp2=document.querySelector('[data-unlock="'+b.getAttribute('data-idx')+'"]');
+      if(um) AI_GATE.submit(um,inp2?inp2.value:''); return;
+    }
+    if(act==='retryai'){ var rm=S.msgs[+b.getAttribute('data-idx')]; if(rm) runAI(rm); return; }
+    if(act==='aisignout'){ setAiSession(null); renderDisc(); renderAndKeep(); return; }
     if(act==='quick'){
       var inp=$('vero-input'); if(!inp) return;
       inp.value=b.getAttribute('data-fill')||''; inp.placeholder=b.getAttribute('data-ph')||inp.placeholder;
@@ -316,13 +486,14 @@
       '<div class="vero-foot">'+
         '<div class="vero-inrow"><input id="vero-input" type="text" maxlength="200" autocomplete="off" aria-label="Ask VERO" placeholder="Ask about a product, price, or spec\u2026">'+
         '<button type="button" class="vero-send" data-act="send" aria-label="Send">'+ICON.send+'</button></div>'+
-        '<div class="vero-disc">Answers come from the current UGREEN pricelist.</div>'+
+        '<div class="vero-disc" id="vero-disc">Answers come from the current UGREEN pricelist.</div>'+
       '</div>';
     d.addEventListener('click',onClick);
     document.body.appendChild(fab);
     document.body.appendChild(d);
     document.body.classList.add('vero-on');
     $('vero-input').addEventListener('keydown',function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); send(); } });
+    d.addEventListener('keydown',function(ev){ var t=ev.target; if(ev.key==='Enter'&&t&&t.hasAttribute&&t.hasAttribute('data-unlock')){ ev.preventDefault(); var um=S.msgs[+t.getAttribute('data-unlock')]; if(um) AI_GATE.submit(um,t.value); } });
   }
 
   document.addEventListener('keydown',function(ev){
