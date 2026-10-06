@@ -1,0 +1,71 @@
+name = "ugreen-vero"
+main = "worker.js"
+# Keep identical to Cloudflare > ugreen-vero > Settings > Runtime.
+compatibility_date = "2026-10-06"
+
+# Workers Logs on (needed to read per-request CPU time during the pilot)
+[observability]
+enabled = true
+
+# Daily cleanup at 02:00 Manila (18:00 UTC)
+[triggers]
+crons = ["0 18 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ugreen-vero"
+database_id = "bb878b54-fa58-4f43-b8e5-5f23241e6a41"
+migrations_dir = "migrations"
+
+# Non-secret config — safe to commit. Keep identical to Cloudflare > Worker > Settings > Variables.
+[vars]
+ALLOW_ORIGIN = "https://raffyrojo.github.io"
+AI_ENABLED = "false"            # kill switch: "true" only when the pilot opens
+WEB_ENABLED = "false"           # web-search kill switch (independent of AI_ENABLED)
+PROVIDER = "openai"
+MODEL = "gpt-6-luna"             # change here + dashboard to switch model (see README)
+OPENAI_BASE_URL = "https://api.openai.com"
+REASONING_EFFORT = "low"
+REASONING_TOKEN_ALLOWANCE = "600" # added to max_output_tokens (OpenAI counts reasoning tokens in the output limit)
+PRICE_IN_PER_MTOK = "0.10"
+PRICE_OUT_PER_MTOK = "0.50"
+PRICE_PER_SEARCH_USD = "0.01"
+MONTHLY_BUDGET_USD = "4.50"
+WEB_MONTHLY_BUDGET_USD = "2.00"
+RESERVE_CATALOG_MICRO = "7000"
+RESERVE_WEB_MICRO = "80000"
+MAX_OUTPUT_TOKENS = "450"
+RESEARCH_MAX_OUTPUT_TOKENS = "400"
+TIMEOUT_MS = "12000"
+WEB_TIMEOUT_MS = "20000"
+COMPOSE_WEB_TIMEOUT_MS = "8000"
+CODE_PER_MIN = "4"
+CODE_PER_DAY = "20"
+IP_PER_MIN = "6"
+IP_PER_DAY = "30"
+GLOBAL_PER_DAY = "60"
+WEB_CODE_PER_MIN = "1"
+WEB_CODE_PER_DAY = "3"
+WEB_GLOBAL_PER_DAY = "4"
+MAX_CANDIDATES = "8"
+MAX_QUESTION_CHARS = "300"
+MAX_HISTORY_TURNS = "2"
+CACHE_TTL_DAYS = "7"
+WEB_CACHE_TTL_DAYS = "3"
+LOG_RETENTION_DAYS = "30"
+CATALOG_URL = "https://raffyrojo.github.io/ugreen-pricelist/data/products.json"
+CATALOG_TTL_SEC = "600"
+TOKEN_TTL_HOURS = "12"
+DAY_UTC_OFFSET_MIN = "480"
+AI_ROLES = "admin,sales"
+WEB_ROLES = "admin,sales"
+WEB_TOOL_VERSION = "web_search"
+WEB_MAX_USES = "1"
+WEB_DOMAINS_T1 = "ugreen.com"
+WEB_DOMAINS_T2 = "apple.com,microsoft.com,samsung.com,support.google.com,store.google.com,lenovo.com,dell.com,hp.com,asus.com,nintendo.com,playstation.com"
+WEB_DOMAINS_T3 = "synaptics.com,usb.org,hdmi.org,vesa.org,intel.com,thunderbolttechnology.net,wirelesspowerconsortium.com"
+
+# SECRETS — never here. Set in the dashboard (Settings > Variables and Secrets > Secret):
+#   OPENAI_API_KEY      key from an OpenAI project with a hard monthly spend limit (~$5)
+#   TOKEN_SIGNING_KEY   node tools/vero-code.mjs secret
+#   IP_HASH_SALT        node tools/vero-code.mjs secret
