@@ -172,5 +172,44 @@ body.vero-on main{ padding-bottom:calc(var(--vero-fab) + var(--vero-gap) + 24px)
   .vero-pr b{ font-size:.7rem; }
 }
 @media (max-width:360px){ .vero-prices{ grid-template-columns:repeat(2,1fr); } }
+/* ---------- Phase 2: VERO AI (only rendered when AI is enabled) ---------- */
+.vero-askai{ margin-top:.5rem; border-color:#bbe6c9; color:var(--vero-g); font-weight:700; }
+.vero-ai-meta{ display:flex; align-items:center; gap:.4rem; margin:0 0 .35rem; font-size:.64rem; color:var(--text-muted,#475569); }
+.vero-ai-badge{ font:800 .56rem/1 'Metropolis',sans-serif; letter-spacing:.06em; color:var(--vero-g); background:#ecfdf3; border:1px solid #bbe6c9; border-radius:4px; padding:2px 5px; }
+.vero-ai-reply{ margin:.1rem 0 .5rem; white-space:pre-line; }
+.vero-ai-pick{ display:flex; flex-direction:column; gap:.25rem; }
+.vero-ai-why{ margin:0 .1rem .2rem; font-size:.7rem; color:var(--text,#0f172a); line-height:1.4; }
+.vero-basis{ display:inline-block; margin-right:.35rem; font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:1px 5px; border-radius:4px;
+  background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; vertical-align:1px; }
+.vero-basis-product_data{ background:#ecfdf3; color:#0b3d1f; border-color:#bbe6c9; }
+.vero-basis-web_verified{ background:#eff6ff; color:#1e3a8a; border-color:#bfdbfe; }
+.vero-ai-note{ margin:.45rem 0 0; font-size:.7rem; color:#334155; }
+.vero-ai-warn{ margin:0 0 .4rem; font-size:.7rem; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:.3rem .45rem; }
+.vero-ai-err{ margin:.35rem 0 0; font-size:.7rem; color:#b91c1c; }
+.vero-sources{ margin-top:.55rem; padding-top:.45rem; border-top:1px dashed var(--border,#e0e7f0); display:grid; grid-template-columns:1fr auto; gap:.2rem .5rem; font-size:.68rem; }
+.vero-sources-h{ grid-column:1 / -1; font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted,#475569); }
+.vero-sources a{ color:var(--vero-g); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vero-sources a:hover{ text-decoration:underline; }
+.vero-src-dom{ color:var(--text-dim,#94a3b8); white-space:nowrap; }
+.vero-unlock{ display:flex; gap:.4rem; margin:.2rem 0 .1rem; }
+.vero-unlock input{ flex:1; min-width:0; border:1px solid var(--border,#e0e7f0); border-radius:8px; padding:.5rem .6rem; font:500 .78rem 'Metropolis',sans-serif; background:#fff; }
+.vero-unlock input:focus{ outline:none; border-color:var(--vero-g); box-shadow:0 0 0 3px rgba(0,121,52,.12); }
+.vero-retry{ width:auto; padding:.35rem .8rem; }
+.vero-gate-btn{ display:inline-flex; align-items:center; gap:.3rem; margin-top:.15rem; border:1px solid var(--border,#e0e7f0); background:#fff; color:var(--text-muted,#475569);
+  border-radius:999px; padding:.28rem .65rem; font:600 .68rem 'Metropolis',sans-serif; cursor:pointer; }
+.vero-gate-btn svg{ color:var(--vero-g); }
+.vero-gate-btn:hover{ border-color:#bbe6c9; color:var(--vero-g); background:#f7fdf9; }
+.vero-gate-note{ font-size:.72rem; color:var(--text-muted,#475569); margin-bottom:.3rem; }
+.vero-btn-sm{ padding:.35rem .65rem; font-size:.7rem; }
+.vero-unlock input{ padding:.42rem .55rem; font-size:.74rem; }
+.vero-ai-wait{ display:flex; align-items:center; gap:.5rem; color:var(--text-muted,#475569); }
+.vero-dots{ display:inline-flex; gap:3px; }
+.vero-dots i{ width:5px; height:5px; border-radius:50%; background:var(--vero-g); opacity:.35; animation:veroDot 1s infinite ease-in-out; }
+.vero-dots i:nth-child(2){ animation-delay:.15s; } .vero-dots i:nth-child(3){ animation-delay:.3s; }
+@keyframes veroDot{ 0%,80%,100%{ opacity:.25; transform:translateY(0); } 40%{ opacity:1; transform:translateY(-2px); } }
+.vero-ai-on{ color:var(--vero-g); font-weight:700; }
+.vero-signout{ font-size:.62rem; padding:0; }
+@media (max-width:640px){ .vero-unlock input{ font-size:16px; } }
+@media (prefers-reduced-motion:reduce){ .vero-dots i{ animation:none; opacity:.7; } }
 @media (prefers-reduced-motion:reduce){ .vero-drawer,.vero-fab{ transition:none; } }
 @media print{ .vero-fab,.vero-drawer{ display:none !important; } }
