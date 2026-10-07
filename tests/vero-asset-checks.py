@@ -21,7 +21,9 @@ ALLOWED = {'data/products.json', 'index.html', 'css/vero.css', 'js/vero.js', 'js
            'tests/vero-asset-checks.py', 'tests/vero-p1-regression.playwright.py', 'tests/vero-p2r21.test.js', 'tests/vero-plan.test.js', 'tests/vero-plan-shadow.js',
            'tests/vero-lexicon.test.js', 'tests/vero-facts-shadow.playwright.py', 'tests/vero-plan-browser.playwright.py',
            'tests/vero-p2r3a.test.js', 'tests/vero-p2r3a-benchmark.js', 'tests/vero-p2r3a.playwright.py',
-           'tests/vero-p2r3a-fixes.test.js', 'tests/vero-p2r3a-fixes2.test.js'}
+           'tests/vero-p2r3a-fixes.test.js', 'tests/vero-p2r3a-fixes2.test.js',
+           # v2-1 accountable parse: SHADOW ONLY (not referenced by index.html; G-check below)
+           'js/vero-parse.js', 'js/vero-ontology.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js', 'tests/vero-v2-devsets.json', 'tests/vero-v2-browser.playwright.py'}
 VER = {'css/vero.css': 'p2r3a', 'js/vero-lexicon.js': 'p2r3a', 'js/vero-nlu.js': 'p2r2.1', 'js/vero-facts.js': 'p2r3a', 'js/vero-plan.js': 'p2r3a',
        'js/vero-compose.js': 'p2r3a', 'js/vero-engine.js': 'p2r3a', 'js/vero.js': 'p2r3a'}
 ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']
@@ -87,13 +89,14 @@ payload = lambda t: t[t.find('var body='):t.find("fetch(a.url+'/ask'")]
 chk('G17 AI request payload (vero.js body) identical to baseline', payload(vjs) and payload(vjs) == payload(bvjs))
 chk('G18 AI request payload has no price/MOQ/dealer fields', not re.search(r'srp|\bdp|dp_volume|special_dp|moq|dealer|price', payload(vjs), re.I), payload(vjs))
 nocom = lambda t: re.sub(r'/\*[\s\S]*?\*/|//[^\n]*', '', t)
-brain = {f: nocom(rd(f).decode('utf-8')) for f in VJS if f != 'js/vero.js'}
+brain = {f: nocom(rd(f).decode('utf-8')) for f in VJS + ['js/vero-ontology.js', 'js/vero-parse.js'] if f != 'js/vero.js' and os.path.isfile(os.path.join(R, f))}
 chk('G19 no Local Brain / engine file reads priceSchedule (future prices cannot leak)', not any('priceSchedule' in t for t in brain.values()))
 chk('G20 VERO local scripts make no network calls (no fetch/XMLHttpRequest/sendBeacon in lexicon/nlu/facts/plan/compose/engine)', not any(re.search(r'\bfetch\s*\(|XMLHttpRequest|sendBeacon', t) for t in brain.values()))
 import json
 codes = {str(p['item_code']).upper() for p in json.load(open(os.path.join(R, 'data/products.json'), encoding='utf-8'))}
 leak = sorted({(f, t) for f, t0 in brain.items() for t in re.findall(r'\b\d{5}[A-Z]{0,2}\b', t0.upper()) if t in codes})
 chk('G21 no catalog item code hardcoded in any Local Brain / engine file', not leak, leak[:5])
+chk('G23 v2-1 shadow files (vero-ontology.js, vero-parse.js) are NOT loaded by index.html, vero-engine.js or vero.js', not re.search(r'vero-parse|vero-ontology|VeroParse|VeroOntology', root + rd('js/vero-engine.js').decode('utf-8') + vjs))
 chk('G22 vero.js stores no prices in the conversation context (keepCtx/convCtx carry codes + plan only)', 'keepCtx' in vjs and not re.search(r'ctx[^;]{0,80}\.(srp|dp|dp_volume)\b', vjs))
 
 print('--- informational (not part of the deploy gate) ---')

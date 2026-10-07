@@ -1,0 +1,1394 @@
+{
+ "schema": "vero-v2-devsets/1",
+ "note": "Development / regression sets ONLY (already used for tuning p2r3a). Never cite results on these as unbiased accuracy. Items copied verbatim from the frozen held-out files; corrections are the post-run expectation fixes recorded in the grade files.",
+ "sets": {
+  "HO1": {
+   "name": "VERO p2r3a held-out set v1",
+   "items": [
+    {
+     "id": "HO01",
+     "q": "boss magkano yung 130W car charger natin?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35025"
+     ],
+     "check": "first",
+     "behavior": "EC705 35025 SRP 1,099. Car chargers only, no wall chargers."
+    },
+    {
+     "id": "HO02",
+     "q": "EC604 dp at moq pls",
+     "exp": "LOCAL",
+     "expCodes": [
+      "55910B"
+     ],
+     "check": "first",
+     "behavior": "55910B with DP 1,407 and MOQ 86 shown."
+    },
+    {
+     "id": "HO03",
+     "q": "anong colors available ng PB580?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "75984B",
+      "65840B",
+      "95931B"
+     ],
+     "check": "set",
+     "behavior": "Space Gray, Starlight Blue, White (3 SKUs)."
+    },
+    {
+     "id": "HO04",
+     "q": "cheapest magnetic power bank",
+     "exp": "LOCAL",
+     "expCodes": [
+      "25208",
+      "25919"
+     ],
+     "check": "firstIn",
+     "behavior": "First result PB561 at 1,519 (25208 or 25919). Power banks only, magnetic only, no wireless pads."
+    },
+    {
+     "id": "HO05",
+     "q": "may cat7 ba tayo na 5 meters?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "11263",
+      "80425"
+     ],
+     "check": "set",
+     "behavior": "Cat7 5m only: 11263 (NW106) and 80425 (NW150)."
+    },
+    {
+     "id": "HO06",
+     "q": "8 port switch magkano",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35499US"
+     ],
+     "check": "first",
+     "behavior": "CM834 35499US SRP 939. Not a USB sharing switch or HDMI switcher."
+    },
+    {
+     "id": "HO07",
+     "q": "may keyboard kayo?",
+     "exp": "LOCAL",
+     "expCodes": [],
+     "check": "empty",
+     "behavior": "Zero result, natural 'Wala tayong keyboard' style reply. No random products, no AI."
+    },
+    {
+     "id": "HO08",
+     "q": "nvme enclosure 10gbps pinakamura",
+     "exp": "LOCAL",
+     "expCodes": [
+      "10902"
+     ],
+     "check": "first",
+     "behavior": "10902 CM400 at 1,199 first."
+    },
+    {
+     "id": "HO09",
+     "q": "pang Samsung S24 Ultra na 45W charger, alin pwede?",
+     "exp": "WEB",
+     "expCodes": [],
+     "check": "cands",
+     "behavior": "Device compatibility (PPS 45W) needs official source. >=2 charger candidates rated >=45W. AI (catalog) = PARTIAL. No local compatibility claim."
+    },
+    {
+     "id": "HO10",
+     "q": "pwede ba isakay sa eroplano yung PB728?",
+     "exp": "WEB",
+     "expCodes": [
+      "75702B"
+     ],
+     "check": "anchorFirst",
+     "behavior": "Airline rule needs web. 75702B first candidate. Local text must not claim it is airline-safe."
+    },
+    {
+     "id": "HO11",
+     "q": "does the CM843 support 3 external monitors on M2 MacBook Air?",
+     "exp": "WEB",
+     "expCodes": [
+      "85489"
+     ],
+     "check": "anchorFirst",
+     "behavior": "85489 first candidate. Local text must not claim yes."
+    },
+    {
+     "id": "HO12",
+     "q": "DH4300 Plus vs DXP4800 Plus ano pinagkaiba?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "85449",
+      "35260"
+     ],
+     "check": "set",
+     "behavior": "Local compare of the two NAS, Taglish reply."
+    },
+    {
+     "id": "HO13",
+     "q": "ano maganda for small office na NAS, mga 5 users lang?",
+     "exp": "AI",
+     "expCodes": [],
+     "check": "candsNas",
+     "behavior": "Judgement question with a product type. >=2 candidates, all NAS."
+    },
+    {
+     "id": "HO14",
+     "q": "ano best seller natin ngayon?",
+     "exp": "NOT_AI",
+     "expCodes": [],
+     "check": "none",
+     "behavior": "No sales data in the pricelist. Must not name a best seller or invent one. Coach-future, clarify or honest 'no sales data' is fine."
+    },
+    {
+     "id": "HO15",
+     "q": "ilan pa natitira sa PB552?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "55995B"
+     ],
+     "check": "first",
+     "behavior": "Stock-like wording without the word stock. 55995B shown with a can't-confirm-stock caveat. No stock number.",
+     "inventory": true
+    },
+    {
+     "id": "HO16",
+     "q": "nag-increase ba yung price ng mga docking station recently?",
+     "exp": "LOCAL",
+     "expCodes": [],
+     "check": "history",
+     "behavior": "Yes: many docking stations went up 2026-10-01 (e.g. CM681 15978 3,799 to 3,969). Docking stations only."
+    },
+    {
+     "id": "HO17",
+     "q": "salamat VERO! last na, may 1m na usb c to lightning ba?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "60751",
+      "10493",
+      "60759",
+      "70523"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "Product answer, not swallowed by the thanks. 1m USB-C to Lightning cables only."
+    },
+    {
+     "id": "HO18",
+     "q": "something for gaming",
+     "exp": "CLARIFY",
+     "expCodes": [],
+     "check": "none",
+     "behavior": "Vague. Clarify with chips. No AI."
+    },
+    {
+     "id": "HO19",
+     "q": "cat5e 10m?",
+     "exp": "LOCAL",
+     "expCodes": [],
+     "check": "noCat5eClaim",
+     "behavior": "No product named Cat5e. Must say we don't have Cat5e; may offer Cat6/Cat7 10m as alternatives but must not present them as Cat5e."
+    },
+    {
+     "id": "HO20",
+     "q": "X860 meron bang ibang kulay?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "95169B",
+      "95169HSR"
+     ],
+     "check": "set",
+     "behavior": "Grey 95169B and Blue Star Rail set 95169HSR."
+    },
+    {
+     "id": "SQ1-1",
+     "seq": "SQ1",
+     "q": "may 100W na wall charger tayo?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "45514B",
+      "25873",
+      "95405B",
+      "65619B"
+     ],
+     "check": "set",
+     "behavior": "4 wall chargers at 100W."
+    },
+    {
+     "id": "SQ1-2",
+     "seq": "SQ1",
+     "q": "e yung 45w?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "65050B",
+      "85691B",
+      "95960B"
+     ],
+     "check": "set",
+     "followUp": true,
+     "behavior": "Inherits wall charger, changes only wattage. Echo shown."
+    },
+    {
+     "id": "SQ1-3",
+     "seq": "SQ1",
+     "q": "white lang",
+     "exp": "LOCAL",
+     "expCodes": [
+      "85691B"
+     ],
+     "check": "set",
+     "followUp": true,
+     "behavior": "Inherits 45W wall charger, adds white. 85691B only."
+    },
+    {
+     "id": "SQ1-4",
+     "seq": "SQ1",
+     "q": "dp nyan?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "85691B"
+     ],
+     "check": "first",
+     "followUp": true,
+     "behavior": "DP of 85691B = 807."
+    },
+    {
+     "id": "SQ2-1",
+     "seq": "SQ2",
+     "q": "10k powerbank na may sariling cable",
+     "exp": "LOCAL",
+     "expCodes": [
+      "75982B",
+      "65839B",
+      "75983B",
+      "75701B",
+      "75701C",
+      "85301B",
+      "75161B",
+      "75161C"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "10,000mAh power banks with built-in cable only (PB570, PB727; PB526 'with Cable' acceptable). No 20k."
+    },
+    {
+     "id": "SQ2-2",
+     "seq": "SQ2",
+     "q": "yung pinakamura dun",
+     "exp": "LOCAL",
+     "expCodes": [
+      "75161B",
+      "85301B"
+     ],
+     "check": "firstIn",
+     "followUp": true,
+     "behavior": "Cheapest from the previous list: 75161B (1,299) if PB526 counts, else 85301B (2,199)."
+    },
+    {
+     "id": "SQ2-3",
+     "seq": "SQ2",
+     "q": "ok iba naman, hdmi switch meron?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50966",
+      "80125",
+      "90512",
+      "50744"
+     ],
+     "check": "subsetNonEmpty",
+     "topicSwitch": true,
+     "behavior": "Fresh topic. HDMI switchers only, no power banks, no echo."
+    },
+    {
+     "id": "SQ3-1",
+     "seq": "SQ3",
+     "q": "magkano yung CM843?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "85489"
+     ],
+     "check": "first",
+     "behavior": "85489 SRP 7,999."
+    },
+    {
+     "id": "SQ3-2",
+     "seq": "SQ3",
+     "q": "kaya ba nito 3 monitors sa windows laptop?",
+     "exp": "WEB",
+     "expCodes": [
+      "85489"
+     ],
+     "check": "anchorFirst",
+     "followUp": true,
+     "behavior": "'nito' = CM843. 85489 first candidate, >=2 candidates. AI catalog = PARTIAL."
+    },
+    {
+     "id": "SQ4-1",
+     "seq": "SQ4",
+     "q": "may stock ba ng 2.5 inch hdd enclosure?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "60353",
+      "70499",
+      "70498",
+      "30848",
+      "30847",
+      "50743",
+      "60561",
+      "70609",
+      "70610",
+      "50423"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "2.5\" enclosures + stock caveat. No stock claim.",
+     "inventory": true
+    },
+    {
+     "id": "SQ4-2",
+     "seq": "SQ4",
+     "q": "alin dun yung type c?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50743",
+      "70610"
+     ],
+     "check": "subsetNonEmpty",
+     "followUp": true,
+     "behavior": "USB-C 2.5\" options: 50743 enclosure (70610 adapter cable acceptable)."
+    },
+    {
+     "id": "SQ5-1",
+     "seq": "SQ5",
+     "q": "top 3 pinakamahal na webcam",
+     "exp": "LOCAL",
+     "expCodes": [
+      "75725A",
+      "35626",
+      "65381"
+     ],
+     "check": "ordered",
+     "behavior": "75725A 3,799 > 35626 2,349 > 65381 1,899."
+    },
+    {
+     "id": "SQ5-2",
+     "seq": "SQ5",
+     "q": "thank you!",
+     "exp": "SMALLTALK",
+     "expCodes": [],
+     "check": "empty",
+     "behavior": "Warm reply, no products."
+    },
+    {
+     "id": "SQ5-3",
+     "seq": "SQ5",
+     "q": "how about the cheapest?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "15728"
+     ],
+     "check": "first",
+     "followUp": true,
+     "behavior": "Still webcams after the thanks. 15728 CM678 1,139."
+    },
+    {
+     "id": "SQ6-1",
+     "seq": "SQ6",
+     "q": "PB722 specs",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35525B"
+     ],
+     "check": "first",
+     "behavior": "35525B listing/specs."
+    },
+    {
+     "id": "SQ6-2",
+     "seq": "SQ6",
+     "q": "same capacity pero mas mura",
+     "exp": "LOCAL",
+     "expCodes": [
+      "90597A",
+      "55995B"
+     ],
+     "check": "ordered",
+     "followUp": true,
+     "behavior": "25,000mAh, cheaper than 4,299, cheapest first: 90597A 3,379 then 55995B 3,629. No 'equivalent' wording."
+    },
+    {
+     "id": "SQ7-1",
+     "seq": "SQ7",
+     "q": "may irerecommend ka for my client?",
+     "exp": "CLARIFY",
+     "expCodes": [],
+     "check": "none",
+     "behavior": "Vague. Clarify, no AI."
+    },
+    {
+     "id": "SQ7-2",
+     "seq": "SQ7",
+     "q": "charger para sa Nintendo Switch 2",
+     "exp": "AI",
+     "expCodes": [],
+     "check": "cands",
+     "behavior": "Device recommendation. >=2 charger candidates. No invented compatibility claim in local text."
+    }
+   ],
+   "corrections": {},
+   "contextTurns": [
+    "SQ1-2",
+    "SQ1-3",
+    "SQ1-4",
+    "SQ2-2",
+    "SQ2-3",
+    "SQ3-2",
+    "SQ4-2",
+    "SQ5-3",
+    "SQ6-2"
+   ]
+  },
+  "HO2": {
+   "name": "VERO p2r3a held-out set #2 (fresh)",
+   "items": [
+    {
+     "id": "N01",
+     "q": "magkano ang Studio Max5s?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "16172",
+      "16171"
+     ],
+     "check": "set",
+     "behavior": "Product-name lookup: both HD208 Studio Max5s SKUs (Black 1,939 / White 1,899)."
+    },
+    {
+     "id": "N04",
+     "q": "pinakamurang open ear earbuds",
+     "exp": "LOCAL",
+     "expCodes": [
+      "45785",
+      "75777",
+      "55430",
+      "45786"
+     ],
+     "check": "firstIn",
+     "behavior": "Cheapest open-wearable earbuds = WS209 at 819 (any colour). Earbuds only."
+    },
+    {
+     "id": "N06",
+     "q": "card reader na may usb c at usb a",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50704",
+      "50706",
+      "80191",
+      "80798"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "Card readers with both USB-C and USB-A plugs (CM184 / CM185 / CM304; CM387 acceptable). No USB-A-only readers."
+    },
+    {
+     "id": "N08",
+     "q": "may capture card ba tayo for streaming?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "40189"
+     ],
+     "check": "first",
+     "behavior": "Yes, CM489 USB 1080P capture device. Local, no AI needed."
+    },
+    {
+     "id": "N09",
+     "q": "laptop bag 15.6 inch",
+     "exp": "LOCAL",
+     "expCodes": [
+      "30325"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "LP437 15\"-15.9\" bag (30325). Listing all bags incl. 30325 = PARTIAL. Must not read 15.6 as metres or price."
+    },
+    {
+     "id": "N10",
+     "q": "mini displayport to hdmi 4k",
+     "exp": "LOCAL",
+     "expCodes": [
+      "40360"
+     ],
+     "check": "set",
+     "behavior": "Only MD112 4K (40360); the 1080P MD112 versions excluded."
+    },
+    {
+     "id": "N11",
+     "q": "usb c to dp cable 3 meters",
+     "exp": "LOCAL",
+     "expCodes": [
+      "25839"
+     ],
+     "check": "first",
+     "behavior": "CM556 3M USB-C to DP cable 25839."
+    },
+    {
+     "id": "N13",
+     "q": "pinakamurang 240W na usb-c to usb-c 1m",
+     "exp": "LOCAL",
+     "expCodes": [
+      "65907"
+     ],
+     "check": "first",
+     "behavior": "240W 1m USB-C to USB-C, cheapest first: L532 65907 at 279."
+    },
+    {
+     "id": "N17",
+     "q": "may samsung tracker kayo?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "55769",
+      "55769P",
+      "55770"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "Catalogue question: Galaxy-series trackers CM829 / CM830. Sending it to WEB is a wasted call."
+    },
+    {
+     "id": "N18",
+     "q": "magnetic wireless charger 25w cheapest",
+     "exp": "LOCAL",
+     "expCodes": [
+      "85451"
+     ],
+     "check": "first",
+     "behavior": "25W magnetic wireless chargers, cheapest = W750 85451 at 1,039."
+    },
+    {
+     "id": "N19",
+     "q": "sobrang init ng phone ko pag nagcha-charge, may wireless charger na may fan?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "75247"
+     ],
+     "check": "first",
+     "behavior": "W773 25W wireless charger with fan (75247). Small-talk-ish lead-in must not block it."
+    },
+    {
+     "id": "N20",
+     "q": "pwede ba yung W720 sa iPhone 16 Pro?",
+     "exp": "WEB",
+     "expCodes": [
+      "85899"
+     ],
+     "check": "anchorFirst",
+     "behavior": "Device compatibility: W720 85899 first candidate, >=2 candidates, no local compatibility claim."
+    },
+    {
+     "id": "N21",
+     "q": "kaya ba ng DXP4800 Plus mag-run ng Jellyfin?",
+     "exp": "WEB",
+     "expCodes": [
+      "35260"
+     ],
+     "check": "anchorFirst",
+     "behavior": "NAS app question: DXP4800 Plus first candidate. No local claim."
+    },
+    {
+     "id": "N22",
+     "q": "macbook pro m3 kaya ba mag dual monitor gamit CM681?",
+     "exp": "WEB",
+     "expCodes": [
+      "15978"
+     ],
+     "check": "anchorFirst",
+     "behavior": "Mac display question: CM681 15978 first candidate. No local claim."
+    },
+    {
+     "id": "N23",
+     "q": "dock na may 2 HDMI at DP under 3k",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35625"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "Docks with 2x HDMI + DP under 3,000: CM639 8-in-1 35625 (2,609)."
+    },
+    {
+     "id": "N24",
+     "q": "nag-iba ba presyo ng WS210?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "45760",
+      "45761"
+     ],
+     "check": "history",
+     "behavior": "Yes: WS210 SRP 1,149 -> 1,229 on 2026-10-01 (both colours)."
+    },
+    {
+     "id": "N25",
+     "q": "price history ng PB722",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35525B"
+     ],
+     "check": "history",
+     "behavior": "No recorded price change for PB722. Must not invent one."
+    },
+    {
+     "id": "N26",
+     "q": "earbuds na tumaas this month",
+     "exp": "LOCAL",
+     "expCodes": [],
+     "check": "history",
+     "behavior": "Yes, Bluetooth earphones with the 2026-10-01 SRP increase. Earphones only."
+    },
+    {
+     "id": "N27",
+     "q": "available pa ba yung HiTune Max 6?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "55687",
+      "55614"
+     ],
+     "check": "subsetNonEmpty",
+     "inventory": true,
+     "behavior": "INVENTORY: HP206 listed in the pricelist + no-live-inventory caveat. No stock claim, no count."
+    },
+    {
+     "id": "N28",
+     "q": "ilan stocks natin ng Cat8 15m?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "30799"
+     ],
+     "check": "subsetNonEmpty",
+     "inventory": true,
+     "behavior": "INVENTORY: Cat8 15m 30799 listed + quantity caveat. Never '1 na …' or any unit count."
+    },
+    {
+     "id": "N29",
+     "q": "may naubos na ba sa smart finders?",
+     "exp": "LOCAL",
+     "expCodes": [],
+     "check": "none",
+     "inventory": true,
+     "behavior": "INVENTORY: cannot know sold-out status. Must not say any item is sold out / out of stock. Listed finders + caveat."
+    },
+    {
+     "id": "N30",
+     "q": "pang regalo sa girlfriend ko, ano maganda?",
+     "exp": "CLARIFY",
+     "expCodes": [],
+     "check": "none",
+     "behavior": "Vague gift question, no product. Clarify locally, no AI."
+    },
+    {
+     "id": "N31",
+     "q": "hello! anong pinaka bagong product natin?",
+     "exp": "NOT_AI",
+     "expCodes": [],
+     "check": "none",
+     "behavior": "Pricelist has no launch dates. Must not name a 'newest' product as fact. Clarify / honest answer, no AI."
+    },
+    {
+     "id": "Q1-1",
+     "seq": "Q1",
+     "q": "usb c to usb c 100w 2m",
+     "exp": "LOCAL",
+     "expCodes": [
+      "65250",
+      "35221",
+      "35512",
+      "65216",
+      "45064",
+      "65833",
+      "65863"
+     ],
+     "check": "set",
+     "behavior": "All 2m 100W USB-C to USB-C cables (7)."
+    },
+    {
+     "id": "Q1-2",
+     "seq": "Q1",
+     "q": "yung white lang",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35221"
+     ],
+     "check": "set",
+     "followUp": true,
+     "behavior": "Inherits the cable spec, adds white: L502 White 2M 35221."
+    },
+    {
+     "id": "Q1-3",
+     "seq": "Q1",
+     "q": "magkano DP nun?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35221"
+     ],
+     "check": "first",
+     "followUp": true,
+     "behavior": "DP of 35221 (311) via DP field."
+    },
+    {
+     "id": "Q2-1",
+     "seq": "Q2",
+     "q": "magandang hapon VERO",
+     "exp": "SMALLTALK",
+     "expCodes": [],
+     "check": "empty",
+     "behavior": "Warm greeting, no products."
+    },
+    {
+     "id": "Q2-2",
+     "seq": "Q2",
+     "q": "need ko ng phone holder sa kotse na magnetic",
+     "exp": "LOCAL",
+     "expCodes": [
+      "80785",
+      "95067",
+      "75666",
+      "80712B"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "Magnetic car phone holders; must include LP292 80785. No laptop stands / tripods."
+    },
+    {
+     "id": "Q2-3",
+     "seq": "Q2",
+     "q": "iba naman: may laptop stand na foldable?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "40291",
+      "40289",
+      "90849"
+     ],
+     "check": "subsetNonEmpty",
+     "topicSwitch": true,
+     "behavior": "Topic switch: foldable laptop stands only, no phone holders, no echo."
+    },
+    {
+     "id": "Q3-1",
+     "seq": "Q3",
+     "q": "55137 vs 75288",
+     "exp": "LOCAL",
+     "expCodes": [
+      "55137",
+      "75288"
+     ],
+     "check": "set",
+     "behavior": "Local compare of WS211 vs WS216 black."
+    },
+    {
+     "id": "Q3-2",
+     "seq": "Q3",
+     "q": "alin mas mura?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "55137",
+      "75288"
+     ],
+     "check": "set",
+     "followUp": true,
+     "behavior": "Verdict: 75288 is cheaper (2,119 vs 2,129, by 10)."
+    },
+    {
+     "id": "Q3-3",
+     "seq": "Q3",
+     "q": "e yung FitBuds magkano?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "65655",
+      "65387"
+     ],
+     "check": "set",
+     "topicSwitch": true,
+     "behavior": "New product by name: WS213 FitBuds (2 SKUs). Not the old comparison."
+    },
+    {
+     "id": "Q4-1",
+     "seq": "Q4",
+     "q": "may maganda ka bang mouse?",
+     "exp": "AI",
+     "expCodes": [],
+     "check": "candsMouse",
+     "behavior": "Judgement with a product type: AI catalog with >=2 mouse candidates only."
+    },
+    {
+     "id": "Q4-2",
+     "seq": "Q4",
+     "q": "under 500 lang",
+     "exp": "LOCAL",
+     "expCodes": [
+      "65892",
+      "55780",
+      "90545",
+      "15063",
+      "90672",
+      "90686",
+      "90671",
+      "90550",
+      "90669"
+     ],
+     "check": "set",
+     "followUp": true,
+     "behavior": "Inherits mouse, adds SRP <= 500: 9 mice. Local list (no second AI call)."
+    },
+    {
+     "id": "Q5-1",
+     "seq": "Q5",
+     "q": "magkano yung CM591?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "90225"
+     ],
+     "check": "first",
+     "behavior": "CM591 Bluetooth 5.3 adapter 90225."
+    },
+    {
+     "id": "Q5-2",
+     "seq": "Q5",
+     "q": "meron pa ba nito sa warehouse?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "90225"
+     ],
+     "check": "first",
+     "followUp": true,
+     "inventory": true,
+     "behavior": "INVENTORY: 'nito' = CM591; listed + no-live-inventory caveat."
+    },
+    {
+     "id": "Q6-1",
+     "seq": "Q6",
+     "q": "ilang bays ng DXP6800 Pro?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "25898B"
+     ],
+     "check": "first",
+     "behavior": "6 bays."
+    },
+    {
+     "id": "Q6-2",
+     "seq": "Q6",
+     "q": "how about the DXP8800 Plus?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35126B"
+     ],
+     "check": "first",
+     "followUp": true,
+     "behavior": "Keeps the bays question for the new model: 8 bays."
+    }
+   ],
+   "corrections": {
+    "Q1-1": {
+     "codes": [
+      "65250",
+      "35221",
+      "35512",
+      "65216",
+      "45064",
+      "65833",
+      "65863",
+      "70429",
+      "70645"
+     ],
+     "check": "set",
+     "why": "My frozen list missed US316 70429 and US334 70645 (2m Type-C to Type-C, 100W max in features). VERO was right; expectation corrected after the run."
+    },
+    "N10": {
+     "codes": [
+      "40360",
+      "20848"
+     ],
+     "check": "set",
+     "why": "MD101 20848 is a Mini DP to HDMI 4K cable; the question did not say adapter. VERO was right on codes; expectation corrected after the run."
+    },
+    "N25": {
+     "codes": [
+      "35525B"
+     ],
+     "check": "first",
+     "why": "PB722 has a recorded SRP change (3,999 to 4,299, 2026-09-18) in previousSRP/srpChangeDate. My expectation looked only at priceHistory. VERO was right; expectation corrected after the run."
+    }
+   },
+   "contextTurns": [
+    "Q1-2",
+    "Q1-3",
+    "Q2-3",
+    "Q3-2",
+    "Q3-3",
+    "Q4-2",
+    "Q5-2",
+    "Q6-2"
+   ]
+  },
+  "HO3": {
+   "name": "VERO p2r3a held-out set #3 (fresh)",
+   "items": [
+    {
+     "id": "T01",
+     "q": "magkano yung ClipBuds Pro?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "85185",
+      "85911",
+      "65880"
+     ],
+     "check": "set",
+     "anchorKind": "name",
+     "behavior": "Name lookup: WS218 ClipBuds Pro, 3 colour SKUs, price fields."
+    },
+    {
+     "id": "T02",
+     "q": "EchoBuds Plus colors?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "95164",
+      "85769"
+     ],
+     "check": "set",
+     "anchorKind": "name",
+     "behavior": "Colours of WS222 EchoBuds Plus: Gray, Silver."
+    },
+    {
+     "id": "T03",
+     "q": "nexode mini 30w dp",
+     "exp": "LOCAL",
+     "expCodes": [
+      "25036",
+      "15550"
+     ],
+     "check": "set",
+     "anchorKind": "name",
+     "behavior": "Nexode Mini 30W (CD359, 2 colours) with DP 569. Not the 'Nexode N Mini' 20W."
+    },
+    {
+     "id": "T04",
+     "q": "robot gan 65w",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35314",
+      "15570"
+     ],
+     "check": "set",
+     "behavior": "65W Robot GaN (CD361, Purple / Space Gray). Not the 100W Robot GaN."
+    },
+    {
+     "id": "T05",
+     "q": "DP112 3m price",
+     "exp": "LOCAL",
+     "expCodes": [
+      "60844"
+     ],
+     "check": "first",
+     "anchorKind": "code",
+     "behavior": "DP112 DP 1.4 cable 3M (60844), SRP 959."
+    },
+    {
+     "id": "T06",
+     "q": "optical audio cable 2m",
+     "exp": "LOCAL",
+     "expCodes": [
+      "10540"
+     ],
+     "check": "set",
+     "behavior": "Toslink optical 2M (AV108 10540)."
+    },
+    {
+     "id": "T07",
+     "q": "3.5mm to rca 5 meters",
+     "exp": "LOCAL",
+     "expCodes": [
+      "10513",
+      "10591"
+     ],
+     "check": "set",
+     "behavior": "3.5mm male to 2 RCA male, 5m: AV102 10513 and AV116 10591."
+    },
+    {
+     "id": "T08",
+     "q": "usb extension 10m",
+     "exp": "LOCAL",
+     "expCodes": [
+      "10321"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "US121 active USB extension 10M (10321). Not the AM-BM print cable."
+    },
+    {
+     "id": "T09",
+     "q": "cheapest dual band wifi adapter",
+     "exp": "LOCAL",
+     "expCodes": [
+      "20204"
+     ],
+     "check": "first",
+     "behavior": "Dual-band Wi-Fi adapters, cheapest = CM448 AC650 (569), below CM763 (589)."
+    },
+    {
+     "id": "T10",
+     "q": "pinakamahal na wireless hdmi extender",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50633A"
+     ],
+     "check": "first",
+     "behavior": "CM506 50M (5,399) first."
+    },
+    {
+     "id": "T11",
+     "q": "may stylus para sa ipad?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "90915",
+      "15910"
+     ],
+     "check": "set",
+     "behavior": "Smart Stylus Pen for iPad (LP452S, LP653). Catalogue existence, LOCAL."
+    },
+    {
+     "id": "T12",
+     "q": "ano moq ng LP452S?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "90915"
+     ],
+     "check": "first",
+     "anchorKind": "code",
+     "behavior": "MOQ 156 via MOQ field."
+    },
+    {
+     "id": "T13",
+     "q": "5 port switch",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35492US"
+     ],
+     "check": "first",
+     "behavior": "CM833 5-port gigabit switch."
+    },
+    {
+     "id": "T14",
+     "q": "type c to 3.5mm adapter na may charging port",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50596",
+      "60164"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "Type-C to 3.5mm + Type-C female (pass-through) adapters CM193 / CM231. A broader list with an explicit 'not confirmed' note = PARTIAL."
+    },
+    {
+     "id": "T15",
+     "q": "lightning to 3.5mm",
+     "exp": "LOCAL",
+     "expCodes": [
+      "30756",
+      "70509"
+     ],
+     "check": "set",
+     "behavior": "US211 adapter and US315 cable."
+    },
+    {
+     "id": "T16",
+     "q": "ilang watts yung X757?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "25873"
+     ],
+     "check": "first",
+     "anchorKind": "code",
+     "behavior": "100W."
+    },
+    {
+     "id": "T17",
+     "q": "pinakamalaking capacity na power bank na may built-in cable",
+     "exp": "LOCAL",
+     "expCodes": [
+      "55995B",
+      "75702B"
+     ],
+     "check": "firstIn",
+     "behavior": "Biggest capacity among built-in-cable power banks: 25,000mAh (PB552 or PB728)."
+    },
+    {
+     "id": "T18",
+     "q": "dp 1.4 cable 2 meters pinakamura",
+     "exp": "LOCAL",
+     "expCodes": [
+      "25905"
+     ],
+     "check": "first",
+     "behavior": "2m DP 1.4 cables, cheapest DP120 25905 (379)."
+    },
+    {
+     "id": "T19",
+     "q": "price history ng AV112",
+     "exp": "LOCAL",
+     "expCodes": [
+      "60179",
+      "60181"
+     ],
+     "check": "history",
+     "behavior": "AV112 angled 1M 159→169 and 2M 199→219 on 2026-10-01. No invented changes for the others."
+    },
+    {
+     "id": "T20",
+     "q": "anong mga nagbago presyo sa wifi adapters?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50340"
+     ],
+     "check": "history",
+     "behavior": "SRP change: CM492 909→989 (2026-10-01). DP-only changes may be mentioned."
+    },
+    {
+     "id": "T21",
+     "q": "available ba stocks ng CM737?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "35031A"
+     ],
+     "check": "first",
+     "inventory": true,
+     "anchorKind": "code",
+     "behavior": "INVENTORY: listed + no-live-inventory caveat; no stock claim."
+    },
+    {
+     "id": "T22",
+     "q": "ilan pa ang natira sa US121 15m?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "10323"
+     ],
+     "check": "subsetNonEmpty",
+     "inventory": true,
+     "behavior": "INVENTORY: 15m US121 listed + quantity caveat; no count."
+    },
+    {
+     "id": "T23",
+     "q": "any left of the NW301 splitter?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "45311"
+     ],
+     "check": "first",
+     "inventory": true,
+     "anchorKind": "code",
+     "behavior": "INVENTORY: listed + caveat; no 'yes we have N left'."
+    },
+    {
+     "id": "T24",
+     "q": "earphones na may mic na type c",
+     "exp": "LOCAL",
+     "expCodes": [
+      "30638"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "EP103 Type-C earphones. 'mic' is not in the name: must be marked not confirmed (or clarified), never claimed."
+    },
+    {
+     "id": "T25",
+     "q": "usb c to micro usb cable",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50590"
+     ],
+     "check": "subsetOrEmpty",
+     "behavior": "No USB-C-to-Micro-USB cable is listed. Honest no-match; showing only the Micro-USB-to-USB-C adapter (US282) is acceptable."
+    },
+    {
+     "id": "T26",
+     "q": "anong pinaka murang NASync?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "95432"
+     ],
+     "check": "first",
+     "anchorKind": "name",
+     "behavior": "Line name NASync (all 6 NAS): cheapest DH2300 Bundle 17,099."
+    },
+    {
+     "id": "S1-1",
+     "seq": "S1",
+     "q": "hdmi to vga adapter",
+     "exp": "LOCAL",
+     "expCodes": [
+      "40248",
+      "40253",
+      "30449"
+     ],
+     "check": "subsetNonEmpty",
+     "behavior": "HDMI-to-VGA converters (MM103, MM105; MM101 cable acceptable)."
+    },
+    {
+     "id": "S1-2",
+     "seq": "S1",
+     "q": "yung may audio",
+     "exp": "LOCAL",
+     "expCodes": [
+      "40248"
+     ],
+     "check": "first",
+     "followUp": true,
+     "behavior": "Refine to the one with 3.5mm audio: MM103 40248 (MM105 is 'Without Audio' and must not be first)."
+    },
+    {
+     "id": "S1-3",
+     "seq": "S1",
+     "q": "magkano yun?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "40248"
+     ],
+     "check": "first",
+     "followUp": true,
+     "behavior": "Price of MM103 (419)."
+    },
+    {
+     "id": "S2-1",
+     "seq": "S2",
+     "q": "usb-a hub 4 ports na may power port",
+     "exp": "LOCAL",
+     "expCodes": [
+      "20805"
+     ],
+     "check": "first",
+     "behavior": "CM473 USB 3.0 A 4-port hub with USB-C power port (20805)."
+    },
+    {
+     "id": "S2-2",
+     "seq": "S2",
+     "q": "e yung 7 ports?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "90305"
+     ],
+     "check": "first",
+     "followUp": true,
+     "behavior": "7-port hub CM481 (90305)."
+    },
+    {
+     "id": "S2-3",
+     "seq": "S2",
+     "q": "ok next question: may screwdriver set kayo?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "80459"
+     ],
+     "check": "first",
+     "topicSwitch": true,
+     "behavior": "Topic switch: CM372 screwdriver set, no echo, no hub."
+    },
+    {
+     "id": "S3-1",
+     "seq": "S3",
+     "q": "CM448 vs CM492 alin mas mabilis?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "20204",
+      "50340"
+     ],
+     "check": "set",
+     "anchorKind": "code",
+     "behavior": "Local compare of the two Wi-Fi adapters (AC650 vs AC1300). A verdict only if speed is in the listing."
+    },
+    {
+     "id": "S3-2",
+     "seq": "S3",
+     "q": "alin mas mahal?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "20204",
+      "50340"
+     ],
+     "check": "set",
+     "followUp": true,
+     "behavior": "Verdict: CM492 (50340) higher SRP by ₱420."
+    },
+    {
+     "id": "S4-1",
+     "seq": "S4",
+     "q": "may suggestion ka for gaming setup?",
+     "exp": "CLARIFY",
+     "expCodes": [],
+     "check": "none",
+     "behavior": "Vague, no product: local clarify, no AI."
+    },
+    {
+     "id": "S4-2",
+     "seq": "S4",
+     "q": "mouse sana",
+     "exp": "NOT_CLARIFY_LOCAL_OR_AI",
+     "expCodes": [],
+     "check": "allFamilyMouse",
+     "behavior": "Now a product: mice (local list or AI with mouse candidates). Mice only."
+    },
+    {
+     "id": "S5-1",
+     "seq": "S5",
+     "q": "pwede ba ang CM506 sa projector na walang wifi?",
+     "exp": "AI",
+     "expCodes": [
+      "50633A"
+     ],
+     "check": "anchorFirst",
+     "anchorKind": "code",
+     "behavior": "Use-case fit question: AI (catalog or web) with CM506 first. No local yes/no."
+    },
+    {
+     "id": "S5-2",
+     "seq": "S5",
+     "q": "how about with a macbook air?",
+     "exp": "WEB",
+     "expCodes": [
+      "50633A"
+     ],
+     "check": "anchorFirst",
+     "followUp": true,
+     "behavior": "Same product, now a named device: WEB intent, CM506 first."
+    },
+    {
+     "id": "S6-1",
+     "seq": "S6",
+     "q": "salamat sa help kanina",
+     "exp": "SMALLTALK",
+     "expCodes": [],
+     "check": "empty",
+     "behavior": "Thanks: warm reply, no products."
+    },
+    {
+     "id": "S6-2",
+     "seq": "S6",
+     "q": "last na: dp ng CM210?",
+     "exp": "LOCAL",
+     "expCodes": [
+      "50923"
+     ],
+     "check": "first",
+     "anchorKind": "code",
+     "behavior": "CM210 DP 239 via DP field."
+    }
+   ],
+   "corrections": {
+    "T06": {
+     "codes": [
+      "10540",
+      "70892"
+     ],
+     "check": "set",
+     "why": "AV122 70892 is also a 2M Toslink optical cable; my frozen list missed it. VERO was right."
+    }
+   },
+   "contextTurns": [
+    "S1-2",
+    "S1-3",
+    "S2-2",
+    "S2-3",
+    "S3-2",
+    "S4-2",
+    "S5-2",
+    "S6-2"
+   ]
+  }
+ }
+}
