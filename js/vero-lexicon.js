@@ -9,7 +9,7 @@
 (function(root){
   'use strict';
   var LEX = {
-    version: 'f2',   /* f2 (QueryPlan shadow step): attribute / metric words, history direction, use cases, devices, external-fact words, a few Taglish phrases */
+    version: 'f3',   /* f3 (p2r3a): small talk, follow-up / topic-switch cues, cable standards, speed attribute, key specs, reply templates (en + Taglish) */   /* f2 (QueryPlan shadow step): attribute / metric words, history direction, use cases, devices, external-fact words, a few Taglish phrases */
 
     /* ---------------- taxonomy ----------------
        family / subtype assignment from STRUCTURED fields only (sheet_display, category); a rule matches when every
@@ -71,7 +71,7 @@
         { id:'network_switch', label:'network switch', plural:'network switches',
           rules:[ { sheet_display:['Transmission: Lan Cable and Accessories'], category:['Switch'] } ], nameCues:['switch'], expects:['ethGbps'] },
         { id:'serial_card', label:'serial / expansion card', plural:'serial and expansion cards',
-          rules:[ { category:['Serial Conversion/Expansion Card'] } ], nameCues:['rs232','rs-232','serial','pci'], expects:['connectors'] },
+          rules:[ { category:['Serial Conversion/Expansion Card'] }, { category:['PCIe Expansion Card'] } ], nameCues:['rs232','rs-232','serial','pci'], expects:['connectors'] },   /* PCIe Expansion Card: 2026-10-07 data correction (CM302 / CM465) */
         { id:'network_adapter', label:'network adapter', plural:'network adapters',
           rules:[ { sheet_display:['Transmission: Ethernet Adapter'] } ],
           subtypes:[
@@ -154,6 +154,8 @@
       { term:'lan cable', to:'lan_cable', relation:'same' },
       { term:'ethernet cable', to:'lan_cable', relation:'same' },
       { term:'network cable', to:'lan_cable', relation:'same' },
+      { term:'patch cable', to:'lan_cable', relation:'same' },
+      { term:'patch cord', to:'lan_cable', relation:'same' },
       { term:'card reader', to:'card_reader', relation:'same' },
       { term:'enclosure', to:'enclosure', relation:'same' },
       { term:'ssd enclosure', to:'enclosure', relation:'narrower' },
@@ -168,6 +170,16 @@
       { term:'phone holder', to:'holder.phone_tablet', relation:'same' },
       { term:'laptop stand', to:'holder.laptop_stand', relation:'same' },
       { term:'car mount', to:'holder.car_mount', relation:'same' },
+      { term:'car holder', to:'holder.car_mount', relation:'same' },
+      { term:'car phone holder', to:'holder.car_mount', relation:'same' },
+      { term:'laptop bag', to:'bag.laptop_bag', relation:'same' },
+      { term:'laptop backpack', to:'bag.laptop_bag', relation:'same' },
+      { term:'tracker', to:'smart_finder', relation:'same' },
+      { term:'trackers', to:'smart_finder', relation:'same' },
+      { term:'bluetooth tracker', to:'smart_finder', relation:'same' },
+      { term:'item finder', to:'smart_finder', relation:'same' },
+      { term:'finder', to:'smart_finder', relation:'same' },
+      { term:'finders', to:'smart_finder', relation:'same' },
 
       /* connector / feature terms */
       { term:'type c', to:'connector.usb_c', relation:'same' },
@@ -191,7 +203,11 @@
       { term:'usb 4', to:'connector.usb4', relation:'same' },
       { term:'built in cable', to:'flag.builtin', relation:'same' },
       { term:'build in cable', to:'flag.builtin', relation:'same' },
-      { term:'integrated cable', to:'flag.builtin', relation:'same' }
+      { term:'integrated cable', to:'flag.builtin', relation:'same' },
+      { term:'sariling cable', to:'flag.builtin', relation:'same' },
+      { term:'may cable na nakakabit', to:'flag.builtin', relation:'same' },
+      { term:'nakakabit na cable', to:'flag.builtin', relation:'same' },
+      { term:'attached cable', to:'flag.builtin', relation:'same' }
     ],
 
     /* connector vocabulary as it appears in product names / feature lines (not a product list) */
@@ -286,9 +302,9 @@
       rangeBetween:['between','to','hanggang'],
       priceCue:['₱','php','peso','pesos','budget','srp','dp','price','presyo','magkano','cost','worth'],
       reference:['ito','nito','iyan','yan','yun','yung','iyon','this','that','these','those','dito','diyan','it','them','previous one','same one'],
-      stock:['in stock','on hand','may stock','meron pang stock','available stock','stocks','inventory','meron pa'],
+      stock:['in stock','on hand','may stock','meron pang stock','available stock','stocks','stock','inventory','meron pa'],
       period:['this month','last month','this year','ngayong buwan','nakaraang buwan','ngayong taon','since'],
-      judgement:['best','reco','recommend','recommendation','recomendation','suggest','suggestion','okay','ok','maganda','premium','sulit','worth it','ideal','suitable','bagay','mas okay','better','enough','sapat','bakit','why','explain','i-explain'],
+      judgement:['best','reco','recommend','recommendation','recomendation','suggest','suggestion','okay','ok','maganda','premium','sulit','worth it','ideal','suitable','bagay','mas okay','better','enough','sapat','bakit','why','explain','i-explain','irerecommend','i-recommend','ire-recommend','marecommend','ma-recommend','mairerecommend','maire-recommend','isu-suggest','i-suggest','masuggest','ma-suggest','mairecommend'],
       useCase:['pang','para sa','for','gamit sa','pang-'],
       compat:['compatible','compatibility','works with','work with','kaya ba','pwede ba sa','puwede ba sa','pwede ba ito sa','pwede sa','puwede sa','gagana ba','gagana sa','support','supports'],
       coach:['upsell','bundle','i-bundle','hero sku','i-push','push','objection','ano sasabihin','pwede sabihin','customer says','paano i-explain','pitch','cross-sell'],
@@ -303,7 +319,8 @@
       sku:['sku','skus','item code'], srp:['srp','retail price'], dp:['dp','dealer price'], dp_volume:['dp vol','dp volume','dpv','volume price'],
       moq:['moq','mcq','minimum order','minimum qty'], price:['price','presyo','magkano','how much','cost'],
       description:['description','details','desc'], colors:['ibang color','other color','other colors','ibang kulay','colors','color','colour','kulay'],
-      nasBays:['bays','bay'], nasCpu:['cpu','processor'], nasRam:['ram','memory']
+      nasBays:['bays','bay'], nasCpu:['cpu','processor'], nasRam:['ram','memory'],
+      speed:['speed','bilis','gaano kabilis','bandwidth','transfer rate','data rate']
     },
     /* comparison metric nouns (direction comes from the comparative word) */
     metrics: { srp:['mura','mahal','cheaper','price','presyo'], watts:['wattage','watts','watt'], ports:['ports','port'],
@@ -320,7 +337,10 @@
     devices: {
       classes:{ laptop:['laptop','laptops','notebook'], phone:['phone','phones','smartphone','cellphone','cp','selpon'], tablet:['tablet','tablets'] },
       brands:{ laptop:['macbook','chromebook','thinkpad','zenbook','matebook'], phone:['iphone','samsung','galaxy','pixel','xiaomi','redmi','oppo','vivo','realme','infinix','tecno','huawei','oneplus'],
-               tablet:['ipad'], console:['ps5','playstation','xbox','nintendo switch','steam deck'], desktop:['imac','mac mini','mac studio','mac'] }
+               tablet:['ipad'], console:['ps5','playstation','xbox','nintendo switch','steam deck'], desktop:['imac','mac mini','mac studio','mac'], ecosystem:['apple','google','android'] },
+      /* product-NAME words that mean "made for this device line" ("Tracker for Galaxy Series", "Finder 2 for Apple"): a catalogue fact, not a compatibility check */
+      nameWords:{ samsung:['galaxy','samsung'], galaxy:['galaxy','samsung'], iphone:['apple','iphone','ios'], ipad:['apple','ipad','ios'], macbook:['apple','macbook','mac'], mac:['apple','mac'], imac:['apple','mac'],
+                  apple:['apple','iphone','ios'], google:['google'], pixel:['google','pixel'], android:['android','google'] }
     },
     /* external facts the pricelist cannot hold (software / travel regulations) -> WEB */
     external:['plex','jellyfin','docker','eroplano','airplane','plane','flight','airline','airlines','hand carry'],
@@ -334,8 +354,156 @@
       { term:'k', senses:['thousand.price','thousand.mah'], rule:'mAh only in a capacity context with no price cue (engine K_PRICE_BEFORE rule)' },
       { term:'g', senses:['Gbps','generation'], rule:'Gbps when attached to a number (10g); "gen" stays generation' },
       { term:'switch', senses:['family.av_switch','family.network_switch','family.usb_switch','device.nintendo_switch'], rule:'clarify when no qualifier' },
-      { term:'available', senses:['in the pricelist','stock'], rule:'bare "available" = in the pricelist; "available stock" = stock (never claim stock)' }
+      { term:'available', senses:['in the pricelist','stock'], rule:'p2r3a fix 1: "available" / "availability" add the inventory caveat (VERO has no live inventory) but never change the search; catalog presence is worded "listed" (colour / variant questions excepted)' }
     ],
+
+    /* ---------------- p2r3a conversation vocabulary (f3) ---------------- */
+    /* small talk: answered locally only when the WHOLE message is small talk (no product signal) */
+    smalltalk: {
+      greeting:['hi','hello','hey','hi there','hello there','good morning','good afternoon','good evening','magandang umaga','magandang hapon','magandang gabi','kumusta','kamusta','musta','yo'],
+      howAreYou:['how are you','how are you doing','kumusta ka','kamusta ka','musta ka','how is it going'],
+      help:['can you help me','can you really help me','can you really help me with my questions','can you help','help me','help','what can you do','ano kaya mong gawin','ano pwede mong gawin','pwede mo ba akong tulungan','tulungan mo ako','paano ka gamitin','how do i use you','what do you do'],
+      identity:['who are you','what are you','ano ka','sino ka','are you a bot','are you ai'],
+      nameWhy:['why is your name vero','why vero','what does vero mean','ano ibig sabihin ng vero','bakit vero','bakit vero pangalan mo'],
+      thanks:['thank you','thanks','thank you very much','thanks a lot','salamat','maraming salamat','ty','tnx','thx'],
+      bye:['bye','goodbye','see you','paalam','ok bye','sige bye']
+    },
+    /* words that may sit around small talk without making it a product question */
+    smalltalkFiller:['po','vero','sir','maam','miss','please','pls','naman','lang','talaga','again','ulit','so','ok','okay','sige','ah','oh','and','at','with','my','questions','question','me','mo','ko','ka','you','your','ba','na','nga','din','rin','really'],
+    /* a turn that starts with one of these continues the previous question (plan mutation) */
+    followUpCues:['yung alin dun','alin dun','alin doon','alin diyan','alin dyan','alin dito','which one there','which ones there','which of those','which of these','how about','what about','how bout','what if','paano kung','e yung','eh yung','e kung','eh kung','yung mas','same but','same pero','pareho pero','ganun din pero','ano naman','e di','sa','eh','e','and','pero','then','tapos','ok','okay','sige'],
+    /* inventory / stock-like wording: VERO has NO live inventory data. These only add the inventory caveat and switch the reply to
+       "listed in the current pricelist" wording (never a SKU count). "meron pa" is inventory unless it asks for more options. */
+    inventoryWords:['in stock','in-stock','out of stock','stocks','stock','on hand','onhand','inventory','available','availability','still available','sold out','soldout','remaining',
+      'natitira','natira','ilan pa','may natira','meron pa','meron pa ba','may stock pa','may available pa','ubos','ubos na','naubos','ilan on hand'],
+    /* a turn containing one of these starts a fresh question (no inheritance) */
+    topicSwitchCues:['new question','another question','different question','new topic','iba naman','ibang tanong','iba pang tanong','bagong tanong','by the way','btw','next question','change topic'],
+    /* cable standards: a name / feature fact; the family they imply */
+    standards: { cat5e:{ terms:['cat5e','cat 5e'], family:'lan_cable' }, cat6:{ terms:['cat6','cat 6'], family:'lan_cable' }, cat6a:{ terms:['cat6a','cat 6a'], family:'lan_cable' },
+                 cat7:{ terms:['cat7','cat 7'], family:'lan_cable' }, cat8:{ terms:['cat8','cat 8'], family:'lan_cable' } },
+    /* product-name qualifiers: narrow a typed search to names containing the word. 'soft' ones are dropped (with a note) when nothing matches. */
+    /* product-name words never used as a NAME anchor / name filter on their own (generic or handled elsewhere) */
+    nameGeneric:['ugreen','pro','plus','max','mini','ultra','lite','series','set','version','design','edition','new','gen','generation','original','fast','quick','charging','charger','chargers','cable','cables',
+      'adapter','adaptor','converter','hub','dock','power','bank','wireless','magnetic','with','for','and','the','to','male','female','port','ports','type','high','speed','data','sync','support','compatible','universal',
+      'multi','function','multifunction','tech','pack','pcs','piece','pieces','in1','plug','socket','dual','single','output','input','version','co','branded','3c','retail',
+      'built-in','build-in','built','build','integrated','retractable','magsafe','qi2','gan','pd','qc','air','vent'],
+    /* user-visible connector labels (plan echo + composer use the same table; never show a raw key / undefined) */
+    connectorLabels:{ usb_c:'USB-C', usb_a:'USB-A', lightning:'Lightning', micro_usb:'Micro USB', hdmi:'HDMI', mini_hdmi:'Mini HDMI', micro_hdmi:'Micro HDMI', dp:'DisplayPort', mini_dp:'Mini DisplayPort',
+      vga:'VGA', dvi:'DVI', rj45:'LAN', aux35:'3.5mm', sd:'SD', tf:'microSD', thunderbolt:'Thunderbolt', usb4:'USB4', m2:'M.2', usb:'USB' },
+    nameQualifiers: { magnetic:{ soft:false }, travel:{ soft:true }, desktop:{ soft:true }, mini:{ soft:true }, slim:{ soft:true }, foldable:{ soft:true }, braided:{ soft:true } },
+    /* taxonomy labels that are too generic to be used as a product-type word on their own */
+    genericLabels:['adapter','cable','case','film','switch','stand','product','other'],
+    /* key spec per family, used by "same but cheaper" (kept equal when known) */
+    keySpecs: { charger:['watts'], power_bank:['mah'], charging_cable:['watts','lengthM'], video_cable:['lengthM'], lan_cable:['lengthM'], audio_cable:['lengthM'],
+                hub_dock:['ports'], nas:['nasBays'], network_adapter:['ethGbps'], card_reader:[], enclosure:['dataGbps'] },
+
+    /* reply templates — {x} filled at runtime. en = English, tl = Taglish (used when the user writes Taglish). */
+    replies: {
+      en: {
+        greeting:'Hi! I’m VERO, your UGREEN Product & Sales Assistant. Ask me about any UGREEN product — price, specs, or what we carry.',
+        howAreYou:'Doing great, thanks for asking! What product can I help you find today?',
+        help:'Yes, I can help! I can find products, check SRP and DP, compare SKUs, show recent price changes, and answer spec questions from the pricelist. Just type a product type with a spec or budget, an item code or model, or “compare” with two item codes.',
+        identity:'I’m VERO, your UGREEN Product & Sales Assistant. I answer from the current pricelist so you can quote with confidence.',
+        nameWhy:'VERO is the name of your UGREEN Product & Sales Assistant — built to help you find the right product faster and answer product questions with confidence.',
+        thanks:'You’re welcome! Anything else you need?',
+        bye:'Anytime — good luck with the sale!',
+        hiPrefix:'Hi! ',
+        using:'Using: {x}',
+        existYes:'Yes — {n} {label} in the current pricelist{tail}:',
+        existNo:'We don’t have {a} {label} in the current pricelist{tail}.',
+        facets:'{family} we carry: {values}.',
+        count:'{n} {label} in the current pricelist{tail}:',
+        list:'{n} {label}{tail}:',
+        rankTop:'{word} {label}{tail}:',
+        none:'I couldn’t find {a} {label} in the current pricelist.',
+        cheaper:'{n} cheaper options with the same {spec}, cheapest first:',
+        cheaperNone:'No cheaper option with the same {spec} in the current pricelist.',
+        cheaperList:'Same search, cheapest first:',
+        attrOne:'{code} — {attr}: {value}{src}.',
+        attrNone:'{attr} is not listed for {code} in the pricelist.',
+        attrList:'{label} — {attr} per product listing:',
+        verdict:'{winner} has the {better} {metric}{diff}.',
+        verdictTie:'Both have the same {metric}.',
+        verdictUnknown:'I can’t compare {metric} — it isn’t listed for {codes}.',
+        mentioned:'mentioned only in product descriptions, not confirmed: {codes}',
+        perFeatures:'{n} confirmed per product features',
+        magnetic:'Also {n} magnetic wireless {label}; MagSafe is not explicitly confirmed for {them}.',
+        compat:'I can’t confirm compatibility with your {device} from the pricelist',
+        stock:'I don’t have live inventory data, so I can’t confirm current stock. Please check availability before quoting.',
+        stockQty:'I don’t have live inventory data, so I can’t confirm how many units are left. Please check availability before quoting.',
+        invListed:'{x} is listed in the current pricelist.',
+        invListedList:'These {label} are listed in the current pricelist:',
+        invNone:'No {label} is listed in the current pricelist.',
+        noNoun:'We don’t have any {x} in the current UGREEN pricelist.',
+        nameNotFound:'I can’t find “{x}” in the current pricelist — no item code, model or product name matches. Check the spelling or send the SKU.',
+        unconfirmed:'“{x}” isn’t confirmed in the pricelist, so it isn’t applied — showing {label}',
+        cableClarify:'Do you mean a built-in cable, or just a cable included in the box?',
+        listed:'Listed in the current pricelist.',
+        clarifyNumber:'Did you mean {options}?',
+        clarifyTarget:'Which product do you mean? Send the SKU or model, or ask about a product type.',
+        clarifyCompare:'Which products should I compare? Tap Compare on two cards or send two item codes.',
+        clarifyType:'Which product type do you mean? For example a charger by wattage, an HDMI cable by length, or a USB-C hub.',
+        clarifyCable:'Which cable do you need? For example HDMI, DisplayPort, USB-C to HDMI, or a LAN cable.',
+        clarifyJudgement:'Happy to help — which product type or SKU are you choosing from?',
+        clarifyClient:'Sure — what product or need does your client have? Charger, power bank, hub/dock, cable, NAS, or something else?',
+        coach:'Sales coaching (hero SKUs, upsell, bundles, objection handling) isn’t available yet. I can show the product details, compare options or list cheaper ones from the pricelist.',
+        alternativePending:'I can’t pick alternatives yet. Here’s {code}; try “same but cheaper” for cheaper options with the same key spec.',
+        help2:'Try a product type with a spec or budget, an item code, or “compare A and B”.'
+      },
+      tl: {
+        greeting:'Hi! Ako si VERO, ang UGREEN Product & Sales Assistant mo. Tanong ka lang tungkol sa kahit anong UGREEN product — presyo, specs, o kung ano ang meron tayo.',
+        howAreYou:'Okay naman, salamat sa pagtanong! Anong product ang hanapin natin?',
+        help:'Oo naman! Kaya kong maghanap ng product, mag-check ng SRP at DP, mag-compare ng SKU, magpakita ng price changes, at sumagot sa spec questions mula sa pricelist. I-type lang ang product type na may spec o budget, item code o model, o “compare” at dalawang item code.',
+        identity:'Ako si VERO, ang UGREEN Product & Sales Assistant natin. Sumasagot ako mula sa current pricelist para kampante ka sa quote mo.',
+        nameWhy:'VERO ang UGREEN Product & Sales Assistant natin — ginawa para mas mabilis kang makahanap ng tamang product at masagot ang product questions mo.',
+        thanks:'Walang anuman! May iba ka pa bang kailangan?',
+        bye:'Sige! Good luck sa benta!',
+        hiPrefix:'Hi! ',
+        using:'Using: {x}',
+        existYes:'Meron — {n} na {label} sa current pricelist{tail}:',
+        existNo:'Wala tayong {label} sa current pricelist{tail}.',
+        facets:'Mga {family} natin: {values}.',
+        count:'{n} na {label} sa current pricelist{tail}:',
+        list:'{n} na {label}{tail}:',
+        rankTop:'{word} {label}{tail}:',
+        none:'Wala akong makitang {label} sa current pricelist.',
+        cheaper:'{n} na mas murang option na pareho ang {spec}, pinakamura muna:',
+        cheaperNone:'Walang mas murang option na pareho ang {spec} sa current pricelist.',
+        cheaperList:'Parehong search, pinakamura muna:',
+        attrOne:'{code} — {attr}: {value}{src}.',
+        attrNone:'Hindi naka-lista ang {attr} ng {code} sa pricelist.',
+        attrList:'{label} — {attr} ayon sa product listing:',
+        verdict:'Mas {betterTl} ang {metric} ng {winner}{diff}.',
+        verdictTie:'Pareho ang {metric} nila.',
+        verdictUnknown:'Hindi ko ma-compare ang {metric} — hindi naka-lista para sa {codes}.',
+        mentioned:'nabanggit lang sa product description, hindi confirmed: {codes}',
+        perFeatures:'{n} confirmed ayon sa product features',
+        magnetic:'May {n} din na magnetic wireless {label}; hindi explicitly confirmed ang MagSafe para dito.',
+        compat:'Hindi ko ma-confirm ang compatibility sa {device} mo mula sa pricelist',
+        stock:'Wala akong live inventory data kaya hindi ko ma-confirm ang current stock. Pakicheck muna ang availability bago mag-quote.',
+        stockQty:'Wala akong live inventory data kaya hindi ko ma-confirm kung ilan pa ang natitira. Pakicheck muna ang availability bago mag-quote.',
+        invListed:'Naka-lista ang {x} sa current pricelist.',
+        invListedList:'Naka-lista sa current pricelist ang mga {label} na ito:',
+        invNone:'Walang {label} na naka-lista sa current pricelist.',
+        noNoun:'Wala tayong {x} sa current UGREEN pricelist.',
+        nameNotFound:'Hindi ko makita ang “{x}” sa current pricelist — walang item code, model o product name na tugma. Pakicheck ang spelling o ibigay ang SKU.',
+        unconfirmed:'Hindi confirmed sa pricelist ang “{x}”, kaya hindi ito na-apply — lahat ng {label} ang pinapakita',
+        cableClarify:'Built-in cable ba (nakakabit na), o kasama lang na cable sa box?',
+        listed:'Naka-lista sa current pricelist.',
+        clarifyNumber:'{options} ba ang ibig mong sabihin?',
+        clarifyTarget:'Aling product ang tinutukoy mo? Ibigay ang SKU o model, o sabihin ang product type.',
+        clarifyCompare:'Aling products ang iko-compare ko? I-tap ang Compare sa dalawang card o magbigay ng dalawang item code.',
+        clarifyType:'Anong product type ang hanap mo? Halimbawa charger ayon sa wattage, HDMI cable ayon sa haba, o USB-C hub.',
+        clarifyCable:'Anong cable ang kailangan mo? Halimbawa HDMI, DisplayPort, USB-C to HDMI, o LAN cable.',
+        clarifyJudgement:'Sige, tulungan kita — anong product type o SKU ang pinagpipilian?',
+        clarifyClient:'Sige — anong product o need ng client mo? Charger, power bank, hub/dock, cable, NAS, o iba pa?',
+        coach:'Wala pa ang sales coaching (hero SKUs, upsell, bundles, objection handling). Pwede kong ipakita ang product details, mag-compare, o maglista ng mas murang options mula sa pricelist.',
+        alternativePending:'Hindi pa ako makapili ng alternatives. Heto ang {code}; subukan ang “same but cheaper” para sa mas murang options na pareho ang key spec.',
+        help2:'Subukan ang product type na may spec o budget, item code, o “compare A at B”.'
+      }
+    },
+    /* words that mark a question as Taglish (reply language) */
+    taglishMarkers:['ba','po','kayo','ka','mo','ko','pa','irerecommend','marecommend','irecommend','natira','natitira','ubos','sariling','nakakabit','dun','doon','ano','anong','meron','mayroon','alin','yung','natin','tayo','naman','pang','wala','sana','lang','ng','mga','magkano','ilan','ilang','kaya','pwede','puwede','na','sa','mas','pinaka','ito','nito','yan','dito','paano','bakit','sige','salamat','kasi','eh','tsaka','din','rin','nga','kung','gusto','kailangan','customer','pag'],
 
     /* ---------------- clarification / caveat templates ({x} = filled at runtime) ---------------- */
     templates: {

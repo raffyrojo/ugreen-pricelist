@@ -95,11 +95,12 @@ const covered=pr=>{ const [s,c]=pr.split('||'); const p={sheet_display:s,categor
 const unc=[...pairs].filter(pr=>!covered(pr));
 chk('L27 every (section, category) pair in products.json is covered by a family or the documented unclassified list', !unc.length, unc.join(' ; '));
 
-/* 8. shadow only */
+/* 8. p2r3a: loaded by index.html in dependency order (lexicon -> nlu -> facts -> plan -> compose -> engine -> vero.js) */
 const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
-chk('L28 lexicon / facts NOT loaded by index.html in this step (no production behaviour change)', !/vero-lexicon|vero-facts/.test(html));
-const live=['vero.js','vero-engine.js','vero-nlu.js'].map(f=>fs.readFileSync(path.join(ROOT,'js',f),'utf8')).join('\n');
-chk('L29 live answer path does not reference VeroLexicon / VeroFacts', !/VeroLexicon|VeroFacts|vero-lexicon|vero-facts/.test(live));
+const ord=['js/vero-lexicon.js','js/vero-nlu.js','js/vero-facts.js','js/vero-plan.js','js/vero-compose.js','js/vero-engine.js','js/vero.js?'].map(f=>html.indexOf(f));
+chk('L28 index.html loads the Local Brain before the engine, in dependency order', ord.every(i=>i>0) && ord.every((v,i)=>i===0||v>ord[i-1]), ord.join(','));
+const live=['vero.js','vero-nlu.js'].map(f=>fs.readFileSync(path.join(ROOT,'js',f),'utf8')).join('\n');
+chk('L29 UI and NLU never reach into the lexicon / facts directly (engine -> VeroCompose is the only entry point)', !/VeroLexicon|VeroFacts|VeroPlan/.test(live) && /VeroCompose/.test(fs.readFileSync(path.join(ROOT,'js','vero-engine.js'),'utf8')));
 
 console.log(`\nVERO lexicon tests: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

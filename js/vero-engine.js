@@ -1,5 +1,7 @@
 /* VERO — local lookup engine (Phase 1; p2r1 adds local ranking / superlatives; p2r2 adds the local intent + attribute layer via js/vero-nlu.js;
-   p2r2.1 = P0 correctness fixes: '20k power bank' capacity shorthand, connector-in-name for cable ranking, MagSafe vs magnetic).
+   p2r2.1 = P0 correctness fixes: '20k power bank' capacity shorthand, connector-in-name for cable ranking, MagSafe vs magnetic;
+   p2r3a = Local Brain switch-over: when VeroCompose (+ VeroPlan, VeroFacts, VeroLexicon) is loaded, answer() and aiRoute() use the
+   QueryPlan path; the p2r2.1 path below stays as the per-question fallback and for price history, section chips and the compare tray).
    Pure logic: no DOM, no network, no AI. Works in the browser (window.VeroEngine)
    and in Node (module.exports) for tests.
    Every answer returns item_codes only; the UI reads prices from the live
@@ -665,7 +667,8 @@
     var all=products.filter(function(p){ return p && !p.disabled; });
     if(P.codes.length && !ex.length){ res.type='text'; res.note='No product with item code or model “'+P.codes.join(', ')+'” in this pricelist.'; return res; }
     var pool;
-    if(ex.length) pool=ex.map(function(o){ return o.p; }).filter(function(p){ return !p.disabled; });
+    if(P.poolOverride && !ex.length) pool=P.poolOverride.filter(function(p){ return p && !p.disabled; });      /* p2r3a: type pool from the QueryPlan */
+    else if(ex.length) pool=ex.map(function(o){ return o.p; }).filter(function(p){ return !p.disabled; });
     else if(P.content.length || P.watts || P.mah || P.lengthM) pool=nluPool(all,P,{});
     else pool=all;
     var allRows=NL.historyRows(all,{today:today,fields:[field]});
@@ -713,7 +716,7 @@
     g.order.forEach(function(c){ res.detail[c]=g.m[c].map(rowText).join(' | '); });
     var ups=g.order.filter(function(c){ return g.m[c].some(function(r){ return r.delta>0; }); }).length;
     var downs=g.order.filter(function(c){ return g.m[c].some(function(r){ return r.delta<0; }); }).length;
-    var thing=P.content.length?(' '+P.content.map(function(w){ return THING_LABEL[w]||w; }).join(' ')):'';
+    var thing=P.thingLabel?(' '+P.thingLabel):(P.content.length?(' '+P.content.map(function(w){ return THING_LABEL[w]||w; }).join(' ')):'');
     if(H.kind==='rank'){
       var pct=H.metric==='pct';
       var key=function(r){ var v=pct?(r.pct==null?0:r.pct):r.delta; return H.dir==='down'?-v:(H.dir==='up'?v:Math.abs(v)); };
@@ -760,7 +763,18 @@
   /* products: the list the user is allowed to see (caller passes ALL_PRODUCTS minus disabled;
      in dealer mode that list is already the dealer's own SKUs).
      ctx: { sheet: restrict to a section (from a clarify chip), compareCodes: [...] } */
+  /* p2r3a: Local Brain path first (QueryPlan -> composer); any exception falls back to the p2r2.1 path for that question */
+  function brain(){ var C=root.VeroCompose; return (C && C.ready && C.ready())?C:null; }
   function answer(products,query,ctx){
+    ctx=ctx||{};
+    var C=brain();
+    if(C && !(ctx.compareCodes && ctx.compareCodes.length) && !ctx.sheet && !ctx.legacy){
+      try{ return C.answer(products,query,ctx,legacyAnswer); }
+      catch(e){ try{ console.warn('[VERO] Local Brain fallback to p2r2.1 path:',e); }catch(_){} }
+    }
+    return legacyAnswer(products,query,ctx);
+  }
+  function legacyAnswer(products,query,ctx){
     ctx=ctx||{};
     var NL=nlu(), N=null;
     if(NL && !(ctx.compareCodes && ctx.compareCodes.length)){ try{ N=NL.analyze(query); }catch(e){ N=null; } }
@@ -1004,8 +1018,35 @@
   function candidateText(p){ return [p.product_name,p.features,p.description].join(' '); }
 
   /* LOCAL | AI_WITH_CATALOG | AI_WITH_WEB. opts.manual = user pressed "Ask VERO AI". */
+  /* p2r3a: price history from a QueryPlan (Taglish verbs, anchors, type pool) through the proven p2r2.1 executor:
+     effective dates only, never priceSchedule, dealers SRP only. */
+  function historyFromPlan(products,q,H,codes,poolCodes,thing,ctx){
+    var by={}; (products||[]).forEach(function(p){ if(p && !p.disabled) by[String(p.item_code)]=p; });
+    var P={ raw:String(q||''), norm:String(q||'').toLowerCase(), codes:[], content:[], asks:{}, nlu:{ hist:H, raw:String(q||'') }, thingLabel:thing||null };
+    if(poolCodes) P.poolOverride=poolCodes.map(function(c){ return by[c]; }).filter(Boolean);
+    var res={ query:P.raw, parsed:P, type:'none', codes:[], fields:[], chips:[], note:'', needsAI:false, aiReason:'' };
+    var ex=(codes||[]).map(function(c){ return { p:by[c] }; }).filter(function(o){ return !!o.p; });
+    return historyAnswer(products,P,ctx||{},res,ex);
+  }
+  /* p2r3a: the QueryPlan route decides; candidates = plan candidates (anchor first, same family, >= 2). Payload schema unchanged. */
+  function planRoute(products, res, opts){
+    var pl=res.plan, r=pl.route||{}, out={ route:'local', candidates:[], canEscalate:false, web:null, brain:true };
+    var have={}, by={}; products.forEach(function(p){ if(p && !p.disabled){ have[String(p.item_code)]=1; by[String(p.item_code)]=p; } });
+    var cands=(r.candidates||[]).filter(function(c){ return have[c]; }).slice(0,8);
+    if(r.route==='AI_CATALOG' && cands.length>=2){ out.route='catalog'; out.candidates=cands; return out; }
+    if(r.route==='WEB' && cands.length>=2){ out.route='web'; out.candidates=cands; return out; }
+    if(r.route==='LOCAL' && (pl.intent==='list'||pl.intent==='exist') && (pl.flags.devices.named.length||pl.flags.devices.classes.length) && (res.codes||[]).length>=2) out.canEscalate=true;
+    if(opts && opts.manual){                                            /* "Ask VERO AI": shown products, max 2 per model, one family */
+      var fam=null, perModel={}, list=[];
+      (res.codes||[]).forEach(function(c){ var p=by[c]; if(!p || list.length>=8) return; var f=p.sheet_display; if(fam===null) fam=f; if(f!==fam) return;
+        var m=lc(p.model).trim()||c; if((perModel[m]||0)>=2) return; perModel[m]=(perModel[m]||0)+1; list.push(c); });
+      if(list.length>=2 && pl.intent!=='smalltalk' && pl.intent!=='price_history' && pl.intent!=='coach'){ out.route='catalog'; out.candidates=list; }
+    }
+    return out;
+  }
   function aiRoute(products, query, res, opts){
     opts=opts||{};
+    if(res && res.plan) return planRoute(products, res, opts);
     var out={ route:'local', candidates:[], canEscalate:false, web:null };
     if(!res||!res.parsed) return out;
     var P=res.parsed;
@@ -1026,7 +1067,7 @@
 
   var API={ parse:parse, answer:answer, search:search, exactMatches:exactMatches,
             productWatts:productWatts, productMah:productMah, productPorts:productPorts, lenMeters:lenMeters,
-            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, version:'p2r2.1' };
+            webDecision:webDecision, aiRoute:aiRoute, aiCandidates:aiCandidates, canEscalate:canEscalate, legacyAnswer:legacyAnswer, historyFromPlan:historyFromPlan, version:'p2r3a' };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroEngine=API;
 })(typeof window!=='undefined'?window:globalThis);

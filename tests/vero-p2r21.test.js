@@ -23,7 +23,7 @@ const USBC = /\b(?:usb[\s-]?c|type[\s-]?c)\b/i;
 let syn = 0; const mk = o => Object.assign({ sheet: 'Mobile-Power Bank', sheet_display: 'Mobile: Power Bank', category: 'Power Bank', model: 'ZZT' + (++syn), item_code: 'ZZ' + (900 + syn), color: 'Black', length: '', srp: 999, dp: 799, dp_volume: 749, moq: 10, description: '', features: '', short_desc: '' }, o);
 
 console.log('E.version =', E.version);
-chk('V0 engine version label is p2r2.1', E.version === 'p2r2.1', E.version);
+chk('V0 engine version label is p2r2.1 or later (p2r3a)', E.version === 'p2r2.1' || E.version === 'p2r3a', E.version);
 
 /* ===================== P0-1: "20k" capacity shorthand ===================== */
 const pb20 = ALL.filter(p => isPB(p) && mahOf(p) === 20000);

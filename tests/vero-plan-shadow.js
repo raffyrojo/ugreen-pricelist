@@ -187,7 +187,7 @@ const leakQ=Qs.filter(q=>{ const t=q.question.toLowerCase().replace(/[?!.]+$/,''
 chk('S15 no benchmark question text in js/vero-plan.js', !leakQ.length, leakQ.map(q=>q.id).join(','));
 chk('S16 no network call in js/vero-plan.js (no fetch / XMLHttpRequest / import())', !/\bfetch\s*\(|XMLHttpRequest|\bimport\s*\(/.test(SRC));
 const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8'), live=['vero.js','vero-engine.js','vero-nlu.js'].map(f=>fs.readFileSync(path.join(ROOT,'js',f),'utf8')).join('\n');
-chk('S17 shadow only: index.html and the live VERO files do not load / reference the plan builder', !/vero-plan/.test(html) && !/VeroPlan|vero-plan/.test(live));
+chk('S17 p2r3a: index.html loads vero-plan.js after vero-facts.js and before vero-engine.js; UI/NLU do not call VeroPlan directly', html.indexOf('js/vero-facts.js')>0 && html.indexOf('js/vero-facts.js')<html.indexOf('js/vero-plan.js') && html.indexOf('js/vero-plan.js')<html.indexOf('js/vero-engine.js') && !/VeroPlan/.test(fs.readFileSync(path.join(ROOT,'js','vero.js'),'utf8')+fs.readFileSync(path.join(ROOT,'js','vero-nlu.js'),'utf8')));
 
 /* ---------- 6. metrics ---------- */
 function M(sel){ const rs=ROWS.filter(sel), x={ n:rs.length };

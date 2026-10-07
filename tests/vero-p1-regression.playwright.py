@@ -1,6 +1,7 @@
-"""VERO browser regression: same local (non-ranking) VERO questions on the LOCAL build vs the LIVE production site.
-Baseline (updated for p2r2.1): Phase 2 + p2r2 are live with frontend AI enabled; the local build loads vero-engine.js + vero-nlu.js ?v=p2r2.1 (P0 fixes + parser/evidence
-refinements) and vero.js ?v=p2r2 (unchanged).
+"""VERO browser regression: same VERO questions on the LOCAL build vs the LIVE production site, asked in ONE conversation (so follow-up
+context is exercised exactly as a user would hit it).
+Baseline (updated for p2r3a): live = p2r2.1 (vero-engine/nlu ?v=p2r2.1, vero.js ?v=p2r2). The local build loads the Local Brain
+(lexicon -> nlu -> facts -> plan -> compose -> engine -> vero.js, ?v=p2r3a; vero-nlu stays ?v=p2r2.1).
 Every answer must be identical, EXCEPT the questions in P2R2_CHANGED: p2r2 intentionally answers those differently
 (local attribute / price-history layer). Each of those must instead match its expected p2r2 answer pattern.
 Usage: python3 -I p1_regression.py <repo_root>"""
@@ -25,6 +26,34 @@ Q = [*codes[0:400:40], *models[5:300:37], *upcs[3:200:40],
      'hello', 'help', 'asdfqwer', 'new arrivals', 'price decrease', 'docking station', 'earbuds', 'mouse', 'usb c to usb c cable', 'wireless charger', 'charger for iphone', f'{codes[5]} srp', 'gan charger 100w']
 Q = Q[:64]
 # p2r2: intentional, reviewed answer changes (live = p2r1). Each must match the p2r2 pattern on the LOCAL build.
+# p2r3a: intentional, reviewed answer changes vs live p2r2.1 (Local Brain switch-over). Each must match its pattern on the LOCAL build.
+P2R3A_CHANGED = {
+    '65W charger': r'^6 65W chargers:',                                          # was "6 products found" (same 6 SKUs)
+    'usb c cable 2m': r'^\d+ 2m USB-C cables:',                                 # USB-C must be in the product name (was a loose 45-item text match)
+    'power bank 20000mAh': r'^13 20,000mAh power banks:',                        # same 13, labelled
+    'hdmi cable': r'^\d+ HDMI cables:',                                         # HDMI cables only (adapters/switchers no longer counted)
+    'car charger': r'^\d+ car chargers:',                                       # car-charger category only (no car mounts / accessories)
+    'magnetic power bank': r'^18 magnetic power banks:',                         # same 18, labelled
+    'type c to lightning': r'^8 USB-C to Lightning charging cables:',            # pair must be in the name (was 34 loose matches)
+    'compare 20503 vs AV102': r'^Model AV102 has 7 SKUs\. Tap Compare',          # same guidance; card list differs
+    'AV104 or AV108': r'^8 SKUs for AV104 and AV108:',                           # both models listed (was AV104 only)
+    'travel charger': r'^1 travel charger:',                                     # no "Ask VERO AI" offer on a plain catalog lookup
+    'something for my desk setup': r'^Which product type do you mean\?',         # clarify instead of an AI call with no product intent
+    'best gift for a gamer': r'^Happy to help — which product type or SKU',      # clarify instead of an AI call with no product intent
+    'may 100W charger ba kayo': r'^Meron — 4 na 100W chargers sa current pricelist:',   # Taglish reply to a Taglish question
+    'pang laptop na charger': r'^38 na chargers \(Hindi ko ma-confirm ang compatibility sa laptop',  # local list (>=45W first) + caveat + AI offer, not the AI gate
+    'meron ba kayong hdmi cable': r'^Meron — \d+ na HDMI cables sa current pricelist:',  # HDMI cables directly (no section chooser)
+    'hello': r'^Hi! I’m VERO, your UGREEN Product & Sales Assistant',            # small talk (was "No products match")
+    'help': r'^Yes, I can help!',                                                # small talk (was 2 random products)
+    'asdfqwer': r'^Which product type do you mean\?',                            # clarify (was "No products match")
+    'new arrivals': r'^Which product type do you mean\?',                        # clarify (was "No products match")
+    'docking station': r'^35 docking stations:',                                 # docking-station category only (strict)
+    'earbuds': r'^32 earbuds:',                                                  # wireless earbuds only (not every audio product)
+    'mouse': r'^22 mice:',                                                       # same 22, labelled
+    'usb c to usb c cable': r'^65 USB-C to USB-C charging cables:',              # pair in the name (was a 184-item section chooser)
+    'wireless charger': r'^11 wireless chargers:',                               # same 11, labelled
+    'gan charger 100w': r'^4 100W GaN chargers:',                                # same 4
+}
 P2R2_CHANGED = {
     'black usb c hub': r'^2 black USB-C hubs',                                         # same 2 SKUs, now with a heading
     'may 100W charger ba kayo': r'^Yes — 4 100W chargers in the current pricelist',     # p2r1: "No products match"
@@ -54,15 +83,16 @@ def run(url, errs, nets):
         b.close(); return out, ver, cfg
 le, ln, re_, rn = [], [], [], []
 lo, lv, lc = run(LOCAL, le, ln); ro, rv, rc = run(LIVE, re_, rn)
-same = [(re.search(P2R2_CHANGED[q], a) is not None) if q in P2R2_CHANGED else (a == b) for q, a, b in zip(Q, lo, ro)]
+CHANGED = dict(P2R2_CHANGED); CHANGED.update(P2R3A_CHANGED)
+same = [(re.search(CHANGED[q], a) is not None) if q in CHANGED else (a == b) for q, a, b in zip(Q, lo, ro)]
 for i, (q, ok) in enumerate(zip(Q, same)):
-    tag = ' [p2r2 intended change]' if q in P2R2_CHANGED else ''
+    tag = ' [p2r3a intended change]' if q in P2R3A_CHANGED else (' [p2r2 intended change]' if q in P2R2_CHANGED else '')
     print(('PASS' if ok else 'FAIL') + f' - R{i+1:02d} {q[:60]!r}{tag}' + ('' if ok else f'\n   local: {lo[i][:200]}\n   live : {ro[i][:200]}'))
 checks = [('C1 all answers non-empty', all(lo) and all(ro)),
           ('C2 no page errors (local + live)', not le and not re_), ('C3 no AI/Worker/OpenAI requests (local + live)', not ln and not rn),
-          ('C4 local loads vero-nlu.js + vero-engine.js ?v=p2r2.1, vero.js ?v=p2r2; live loads Phase 2 assets (?v=p2r1/p2r2/p2r2.1); no p1/p3 tags anywhere', 'vero-nlu.js?v=p2r2.1' in lv and 'vero-engine.js?v=p2r2.1' in lv and 'vero.js?v=p2r2' in lv and re.search(r'vero-engine\.js\?v=p2r[12]', rv) is not None and not re.search(r'\?v=p[13]\b', lv + ' ' + rv)),
+          ('C4 local loads the Local Brain ?v=p2r3a in order (lexicon, nlu p2r2.1, facts, plan, compose, engine, vero.js); live loads p2r2.1 assets; no p1/p3 tags', all(x in lv for x in ['vero-lexicon.js?v=p2r3a', 'vero-nlu.js?v=p2r2.1', 'vero-facts.js?v=p2r3a', 'vero-plan.js?v=p2r3a', 'vero-compose.js?v=p2r3a', 'vero-engine.js?v=p2r3a', 'vero.js?v=p2r3a']) and [lv.find(x) for x in ['vero-lexicon', 'vero-nlu', 'vero-facts', 'vero-plan', 'vero-compose', 'vero-engine', 'vero.js']] == sorted(lv.find(x) for x in ['vero-lexicon', 'vero-nlu', 'vero-facts', 'vero-plan', 'vero-compose', 'vero-engine', 'vero.js']) and re.search(r'vero-engine\.js\?v=p2r', rv) is not None and not re.search(r'\?v=p[13]\b', lv + ' ' + rv)),
           ('C5 config = live Phase 2 baseline: enabled, aiEnabled=true, webEnabled=true, live endpoint (local and live identical)', '"enabled":true' in lc and '"aiEnabled":true' in lc and '"webEnabled":true' in lc and '"aiEndpoint":"https://ugreen-vero.raffyortega-rojo.workers.dev"' in lc and lc == rc)]
 for n, ok in checks: print(('PASS' if ok else 'FAIL') + ' - ' + n + ('' if ok else f'  -> {lv} | {rv} | {lc} | {le[:2]} {re_[:2]} {ln[:2]} {rn[:2]}'))
 p = sum(same) + sum(ok for _, ok in checks); n = len(same) + len(checks)
-print(f'\nPhase 1 browser regression: {p}/{n} ({sum(same)}/{len(Q)} answers OK: {len(Q)-len(P2R2_CHANGED)} identical-required + {len(P2R2_CHANGED)} p2r2 intended changes; {sum(ok for _, ok in checks)}/{len(checks)} checks)')
+print(f'\nPhase 1 browser regression: {p}/{n} ({sum(same)}/{len(Q)} answers OK: {len(Q)-len(CHANGED)} identical-required + {len(CHANGED)} reviewed intended changes ({len(P2R3A_CHANGED)} p2r3a); {sum(ok for _, ok in checks)}/{len(checks)} checks)')
 srv.shutdown(); sys.exit(0 if p == n else 1)

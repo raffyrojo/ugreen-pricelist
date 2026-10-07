@@ -1,4 +1,4 @@
-/* VERO — AI Product & Sales Assistant (Phase 1: local/free lookup only).
+/* VERO — AI Product & Sales Assistant (Phase 1 local lookup; Phase 2 AI; p2r3a Local Brain: follow-up context, small talk, "Using: …" echo).
    - No network calls of any kind. All answers come from VeroEngine over ALL_PRODUCTS.
    - Prices are read from the live product objects at render time (never stored in chat).
    - Dealer mode: ALL_PRODUCTS is already the dealer's own SKUs with Special DP; VERO follows
@@ -13,7 +13,12 @@
   var GREETING='Hi! I\u2019m VERO. I can help you find, compare, and understand UGREEN products.';
   var PAGE=6, MAX_CMP=4;
 
-  var S={ open:false, msgs:[], modeKey:null, cmp:[], built:false, aiHist:[] };
+  var S={ open:false, msgs:[], modeKey:null, cmp:[], built:false, aiHist:[], ctx:null };
+  /* p2r3a: conversation context for follow-ups (memory only — item codes + the user's own constraints; no prices, no text).
+     Cleared on mode change (public / dealer A / dealer B), page reload and after 15 minutes idle. */
+  var CTX_IDLE_MS=15*60*1000;
+  function convCtx(){ if(S.ctx && (Date.now()-(S.ctx.at||0)>CTX_IDLE_MS || S.ctx.mode!==modeKey())) S.ctx=null; return S.ctx; }
+  function keepCtx(c){ if(!c) return; c.at=Date.now(); c.mode=modeKey(); S.ctx=c; }
 
   /* ---------- Phase 2: VERO AI (off unless config.vero.aiEnabled && aiEndpoint) ---------- */
   var AI_KEY='vero_ai_session';
@@ -284,9 +289,11 @@
   }
 
   /* ---------- message rendering ---------- */
+  function chipsHtml(m,r){ return '<div class="vero-chips">'+r.chips.map(function(c,i){ return '<button type="button" class="vero-chip" data-act="chip" data-idx="'+m.idx+'" data-chip="'+i+'">'+e(c.label)+(c.count?' <span>'+c.count+'</span>':'')+'</button>'; }).join('')+'</div>'; }
   function botHtml(m){
     var r=m.res, out='', av='default';
     if(r.type==='clarify'||r.type==='none') av='thinking';
+    if(r.smalltalk) av='happy';
     if(r.type==='lookup'){
       var p=byCode(r.codes[0]);
       if(!p){ out='<p class="vero-note">That product is no longer in this pricelist.</p>'; }
@@ -310,6 +317,8 @@
     } else if(r.type==='text'){
       out='<p class="vero-note">'+e(r.note)+'</p>';
     }
+    if(r.chips&&r.chips.length&&r.type!=='clarify') out+=chipsHtml(m,r);                     /* p2r3a: facet / suggestion chips on any answer */
+    if(r.echo) out='<p class="vero-echo">'+e(r.echo)+'</p>'+out;                           /* p2r3a: context transparency ("Using: …") */
     if(r.stockNote){ out+='<p class="vero-fine">'+e(r.stockNote)+'</p>'; }   /* p2r1/p2r2: no inventory data -> never imply stock */
     if(m.offer){ out+='<button type="button" class="vero-chip vero-askai" data-act="askai" data-idx="'+m.idx+'">\u2726 Ask VERO AI</button>'; }
     if(r.needsAI && !aiForUser() && r.type!=='compare'){
@@ -351,7 +360,7 @@
   /* ---------- conversation ---------- */
   function syncMode(){
     var k=modeKey();
-    if(S.modeKey!==k){ S.modeKey=k; S.msgs=[]; S.cmp=[]; }
+    if(S.modeKey!==k){ S.modeKey=k; S.msgs=[]; S.cmp=[]; S.ctx=null; }
   }
   function pushBot(res){ var m={role:'bot',res:res,idx:S.msgs.length,shown:(res&&(res.rank||res.local))?Math.min(Math.max(PAGE,(res.codes||[]).length),12):PAGE}; S.msgs.push(m); return m; }
   function ask(text,ctx,label){
@@ -362,10 +371,12 @@
     var all=pool();
     if(!all.length) res={type:'text',note:'The pricelist is still loading \u2014 try again in a moment.',codes:[],chips:[]};
     else{
-      try{ res=window.VeroEngine.answer(all,text,Object.assign({},ctx||{},{dealer:!!dealer()})); }   /* dealer flag: price labels only (Special DP); data stays local */
+      try{ res=window.VeroEngine.answer(all,text,Object.assign({},ctx||{},{dealer:!!dealer(),conv:convCtx()})); }   /* dealer flag: price labels only (Special DP); data stays local; conv = follow-up context */
       catch(err){ try{ console.warn('[VERO]',err); }catch(_){}; res={type:'text',note:'Sorry \u2014 I couldn\u2019t process that. Try an item code, model, or product type.',codes:[],chips:[]}; }
     }
     res.query=text; res.ctx=ctx||{};
+    if(res.ctxOut) keepCtx(res.ctxOut);
+    else if(ctx && ctx.compareCodes && ctx.compareCodes.length){ var cc=convCtx()||{ turn:0, focus:[], results:[] }; cc.comparison=ctx.compareCodes.slice(0,4); cc.lastPlan={ intent:'compare' }; keepCtx(cc); }
     var bm=pushBot(res);
     if(!(ctx&&ctx.compareCodes)) aiAfterLocal(bm,text);
     renderLog(); scrollEnd();
@@ -390,6 +401,7 @@
     place(); renderLog(); renderDisc();
     d.hidden=false; requestAnimationFrame(function(){ d.classList.add('open'); });
     S.open=true; document.body.classList.add('vero-open');
+    if(window.VeroCompose && window.VeroCompose.warm) setTimeout(function(){ try{ window.VeroCompose.warm(pool()); }catch(_){} },80);   /* p2r3a: build the facts index on first open */
     if(f){ f.setAttribute('aria-expanded','true'); }
     setTimeout(function(){ var i=$('vero-input'); if(i) try{ i.focus({preventScroll:true}); }catch(_){ i.focus(); } scrollEnd(); },60);
   }
@@ -431,7 +443,8 @@
     if(act==='chip'){
       var mm=S.msgs[+b.getAttribute('data-idx')]; if(!mm) return;
       var chip=mm.res.chips[+b.getAttribute('data-chip')]; if(!chip) return;
-      if(chip.sheet) ask(mm.res.query,{sheet:chip.sheet},mm.res.query+' \u00B7 '+chip.sheet);
+      if(chip.ask) ask(chip.ask);
+      else if(chip.sheet) ask(mm.res.query,{sheet:chip.sheet},mm.res.query+' \u00B7 '+chip.sheet);
       else if(chip.append) ask(mm.res.query+chip.append,mm.res.ctx||{});
       return;
     }

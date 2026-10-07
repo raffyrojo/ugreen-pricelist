@@ -25,7 +25,7 @@
   function LEX(){ return root.VeroLexicon||LEX0; }
   function FACTS(){ return root.VeroFacts||F0; }
   function NLU(){ return root.VeroNLU||NL0; }
-  var VERSION='qp1';
+  var VERSION='p2r3a';
   var HOOK={ byCode:null, today:null };   /* per-call helpers (product lookup, 'today'); never stored on the returned plan */
   var ROUTES={ LOCAL:'LOCAL', AI:'AI_CATALOG', WEB:'WEB', CLARIFY:'CLARIFY', COACH:'COACH_FUTURE' };
 
@@ -40,7 +40,9 @@
     s=s.replace(/₱/g,' ₱ ').replace(/\bphp\b/g,' ₱ ');
     s=s.replace(/(\d),(\d{3})(?!\d)/g,'$1$2').replace(/(\d),(\d{3})(?!\d)/g,'$1$2');
     s=s.replace(/\b(?:type|tipo)[\s-]?c\b|\busb[\s-]?c\b|\busbc\b|\btypec\b/g,'usb-c').replace(/\busb[\s-]?a\b/g,'usb-a');
-    s=s.replace(/\bbuild[\s-]?in\b|\bbuilt\s+in\b/g,'built-in').replace(/\bmag\s?safe\b/g,'magsafe').replace(/\bqi\s?2\b/g,'qi2');
+    s=s.replace(/\bbuild[\s-]?in\b|\bbuilt\s+in\b/g,'built-in')
+     .replace(/\b(?:kotse|sasakyan|oto)\b/g,'car')
+     .replace(/\b(?:may |with )?(?:cable|kable) na naka-?kabit\b|\bnaka-?kabit na (?:cable|kable)\b|\b(?:may )?sariling (?:cable|kable)\b|\b(?:naka-?attach na|attached) (?:cable|kable)\b|\bintegrated cable\b/g,' built-in cable ').replace(/\bmag\s?safe\b/g,'magsafe').replace(/\bqi\s?2\b/g,'qi2');
     s=s.replace(/\bhdmi\s*(2\.1|2\.0|1\.4)\b/g,'hdmi $1').replace(/\bdisplay\s?port\b/g,'displayport').replace(/\bpower\s?banks?\b/g,function(m){ return /s$/.test(m)?'power banks':'power bank'; });
     s=s.replace(/\b(8k|4k)\s*[x×*]\s*(4k|2k)\b/g,'$1');
     s=s.replace(/[?!]+/g,' ').replace(/,(?!\d)/g,' , ').replace(/\s+/g,' ');
@@ -48,8 +50,8 @@
   }
   /* "Nk" thousands (engine p2r2.1 rule): in a capacity context a 5k–60k value is mAh unless an explicit price cue is attached */
   var K_PRICE_BEFORE=/(?:₱|budget(?:\s+(?:of|is|ko|ng))?|under|below|less than|lower than|cheaper than|up to|max(?:imum)?|hanggang|wala pang|within|not more than|price|presyo|srp|dp|magkano|worth|cost|costs)\s*$/;
-  function expandK(s,trace){
-    var capCtx=/power bank|\bmah\b|\bcapacity\b|\bbattery\b/.test(s);
+  function expandK(s,trace,capHint){
+    var capCtx=capHint || /power bank|\bmah\b|\bcapacity\b|\bbattery\b/.test(s);
     return s.replace(/(\d+(?:\.\d+)?)\s?k\b(\s?mah\b)?/g,function(all,n,mah,off,str){
       var v=Math.round(parseFloat(n)*1000);
       if(mah){ trace.push('k:'+all.trim()+'→'+v+'mAh'); return v+'mah'; }
@@ -77,6 +79,9 @@
     c.phrases.sort(function(a,b){ return b.ph.length-a.ph.length; });
     L.aliases.forEach(function(a){ var ns=String(a.to).split('.')[0]; if(ns==='connector'||ns==='flag') return;
       c.aliases.push({ term:a.term, to:a.to, rel:a.relation, strict:!!a.strict, fallback:!!a.familyFallback, re:phraseRe(a.term) }); });
+    var haveT={}, gen={}; c.aliases.forEach(function(a){ haveT[a.term.toLowerCase()]=1; }); (L.genericLabels||[]).forEach(function(w){ gen[w]=1; });
+    L.taxonomy.families.forEach(function(f){ [f.label,f.plural].join(' / ').split(/\s*\/\s*|\s+and\s+/).forEach(function(t){ t=String(t||'').toLowerCase().trim(); if(!t||gen[t]||haveT[t]) return; haveT[t]=1;
+      c.aliases.push({ term:t, to:f.id, rel:'same', strict:false, fallback:false, re:phraseRe(t), derived:true }); }); });
     c.aliases.sort(function(a,b){ return b.term.length-a.term.length; });
     Object.keys(L.connectors).forEach(function(k){ L.connectors[k].forEach(function(w){ c.connectors.push({ k:k, w:w, re:new RegExp('(^|[^a-z0-9.])('+esc(w)+')(?=$|[^a-z0-9])','g') }); }); });
     c.connectors.sort(function(a,b){ return b.w.length-a.w.length; });
@@ -93,7 +98,24 @@
     c.devBrand.sort(function(a,b){ return b.w.length-a.w.length; });
     c.external=(L.external||[]).map(phraseRe);
     Object.keys(L.colors).forEach(function(k){ L.colors[k].forEach(function(w){ c.colors.push({ k:k, re:new RegExp('\\b'+esc(w)+'\\b') }); }); });
+    c.small=[]; Object.keys(L.smalltalk||{}).forEach(function(k){ L.smalltalk[k].forEach(function(w){ c.small.push({ k:k, w:w, re:new RegExp('(^| )'+esc(w)+'(?=[ ]|$)','g') }); }); });
+    c.small.sort(function(a,b){ return b.w.length-a.w.length; });
+    c.smallFill={}; (L.smalltalkFiller||[]).forEach(function(w){ c.smallFill[w]=1; });
+    c.followRe=new RegExp('^ (?:'+(L.followUpCues||[]).slice().sort(function(a,b){ return b.length-a.length; }).map(esc).join('|')+')(?= )');
+    c.topicRe=new RegExp(' (?:'+(L.topicSwitchCues||[]).map(esc).join('|')+')(?= |:)');
+    c.standards=[]; Object.keys(L.standards||{}).forEach(function(k){ L.standards[k].terms.forEach(function(w){ c.standards.push({ k:k, re:new RegExp('(^|[^a-z0-9])'+esc(w)+'(?![a-z0-9])') }); }); });
     c.displayRe=new RegExp('\\b(\\d|two|three|four|dual|triple|dalawang|dalawa|tatlong)\\s*(?:'+(L.displayWords||['monitor']).map(esc).join('|')+')\\b');
+    /* every word the lexicon already explains (used to tell a product NAME / unknown qualifier from ordinary words) */
+    var V={}; function addW(t){ String(t||'').toLowerCase().split(/[^a-z0-9.-]+/).forEach(function(w){ if(w) V[w]=1; }); }
+    Object.keys(L.language).forEach(function(g){ L.language[g].forEach(addW); }); L.aliases.forEach(function(a){ addW(a.term); });
+    L.taxonomy.families.forEach(function(f){ addW(f.label); addW(f.plural); (f.subtypes||[]).forEach(function(x){ addW(x.label); }); (f.nameCues||[]).forEach(addW); });
+    [L.connectors,L.colors,L.attributes||{},L.metrics||{},L.smalltalk||{},L.forms||{}].forEach(function(o){ Object.keys(o).forEach(function(k){ addW(k); (o[k]||[]).forEach(addW); }); });
+    Object.keys(L.useCases||{}).forEach(function(k){ addW(k); ((L.useCases[k]||{}).terms||[]).forEach(addW); });
+    Object.keys((L.devices||{}).classes||{}).forEach(function(k){ L.devices.classes[k].forEach(addW); }); Object.keys((L.devices||{}).brands||{}).forEach(function(k){ L.devices.brands[k].forEach(addW); });
+    [L.smalltalkFiller,L.followUpCues,L.topicSwitchCues,L.inventoryWords,L.external,L.taglishMarkers,L.nameGeneric,L.genericLabels,Object.keys(L.nameQualifiers||{}),((L.historyDir||{}).up||[]),((L.historyDir||{}).down||[])].forEach(function(a){ (a||[]).forEach(addW); });
+    FU_KNOWN.forEach(addW); NOUN_STOP.forEach(addW); EXTRA_STOP.forEach(addW);
+    c.vocab=V; c.nameGeneric={}; (L.nameGeneric||[]).forEach(function(w){ c.nameGeneric[w]=1; });
+    c.inv=new RegExp('(^|[^a-z0-9])('+(L.inventoryWords||[]).slice().sort(function(a,b){ return b.length-a.length; }).map(esc).join('|')+')(?=$|[^a-z0-9])');
     c.L=L; C=c; C_FOR=L; return c;
   }
 
@@ -126,6 +148,40 @@
     });
     multi=uniq(multi).sort(function(a,b){ return b.length-a.length; });
     AIX={ key:key, idx:{ codes:codes, models:models, multi:multi } }; return AIX.idx;
+  }
+  /* ---------- fix-pack 2 #1: product-NAME / line-name anchors, built from the live products (no SKU lists; new SKUs join automatically) ---------- */
+  var NIX={ key:null, idx:null };
+  function nameToks(txt){ return normalize(txt).replace(/[()\[\]{}“”"'’,;:|/+&*]/g,' ').split(/[^a-z0-9.-]+/).map(function(w){ return w.replace(/^[.-]+|[.-]+$/g,''); }).filter(Boolean); }
+  function nameIndex(products,key){
+    if(NIX.key===key && NIX.idx) return NIX.idx;
+    var post={}, toks={}, df={};
+    products.forEach(function(p){ if(!p) return; var code=String(p.item_code), tk=nameToks(p.product_name); toks[code]=tk;
+      var seen={}; tk.forEach(function(w,i){ (post[w]=post[w]||[]).push([code,i]); if(!seen[w]){ seen[w]=1; df[w]=(df[w]||0)+1; } }); });
+    NIX={ key:key, idx:{ post:post, toks:toks, df:df } }; return NIX.idx;
+  }
+  /* a word that can identify products by NAME: not explained by the lexicon, not generic, not a spec, rare enough in names */
+  function nameWord(w,c,ni){ return !!(ni.df[w] && ni.df[w]<=40 && /[a-z]/.test(w) && (w.length>=4 || (/\d/.test(w) && w.length>=3) || (w.length===3 && ni.df[w]<=5)) && !c.vocab[w] && !c.nameGeneric[w] && !SPEC_TOKEN.test(w)); }
+  /* longest contiguous query window that appears contiguously in product names and holds >= 1 name word */
+  function findNames(t,c,ni,trace){
+    var q=[], out=[], used={};
+    nameToks(t).forEach(function(w){ if(/-/.test(w) && !ni.df[w]) w.split('-').forEach(function(x){ if(x) q.push(x); }); else q.push(w); });   /* "open-ear" → open ear */
+    /* join split brand words ("fit buds" -> fitbuds, "max 5s" -> max5s) */
+    for(var i=0;i+1<q.length;i++){ var j=q[i]+q[i+1]; if(ni.df[j] && !ni.df[q[i]+' '] && nameWord(j,c,ni) && !(nameWord(q[i],c,ni)&&nameWord(q[i+1],c,ni))){ q.splice(i,2,j); } }
+    for(var a=0;a<q.length;a++){
+      if(used[a] || !nameWord(q[a],c,ni)) continue;
+      var best=null;
+      for(var lo=a;lo>=Math.max(0,a-3);lo--){ for(var hi=a;hi<Math.min(q.length,a+4);hi++){
+        if(hi-lo+1<= (best?best.hi-best.lo+1:0)) continue;
+        var win=q.slice(lo,hi+1); if(win.some(function(w,ix){ return used[lo+ix]; })) continue;
+        if(win.some(function(w){ return !ni.df[w]; })) continue;
+        var codes=[]; (ni.post[win[0]]||[]).forEach(function(pp){ var tk=ni.toks[pp[0]]; for(var k=1;k<win.length;k++){ if(tk[pp[1]+k]!==win[k]) return; } if(codes.indexOf(pp[0])<0) codes.push(pp[0]); });
+        if(codes.length){ /* edge words that are only vocabulary add nothing: keep them only when they narrow the match */ best={ lo:lo, hi:hi, codes:codes, text:win.join(' ') }; }
+      } }
+      if(!best) continue;
+      for(var u=best.lo;u<=best.hi;u++) used[u]=1;
+      out.push(best); trace.push('name:"'+best.text+'"→'+best.codes.length);
+    }
+    return out;
   }
   var SPEC_TOKEN=/^\d+(?:\.\d+)?(?:w|watts?|mah|m|cm|mm|k|in1|ports?|p|hz|gb|tb|g|gbps|mbps)$|^cat\d{1,2}[a-z]?$|^hdmi\d|^usb\d|^pd\d|^qi\d|^gen\d|^ddr\d|^wifi\d|^\d+k\d+(?:hz)?$/;
   function findAnchors(s,ai,trace){
@@ -162,10 +218,21 @@
   /* 'dp' = DisplayPort only next to video / connector words; otherwise the dealer-price field */
   function dpIsConnector(s){ return /\b(hdmi|usb-c|vga|dvi|mini|displayport)\b[^.]{0,14}\bdp\b|\bdp\b[^.]{0,14}\b(hdmi|vga|dvi|cable|adapter|converter|ports?|monitor|alt)\b|\bdp\s?1\.\d/.test(s); }
 
-  function extract(q,c,trace){
-    var raw=String(q==null?'':q), s0=normalize(raw), s=expandK(s0,trace);
+  function extract(q,c,trace,o){
+    o=o||{};
+    var raw=String(q==null?'':q), s0=normalize(raw), s=expandK(s0,trace,o.capHint);
     var X={ raw:raw, norm:s.trim(), filters:[], match:[], connectors:[], pair:null, ports:[], unsupported:[], devices:{ classes:[], named:[] } };
-    X.G=scanGroups(s,c);
+    /* p2r3a fix 6: a leading "ok / okay / sige" (and a topic-switch cue) is a discourse marker, not a judgement word */
+    var sG=s.replace(/^\s*(?:o\s+)?(?:ok(?:ay)?|sige|cge|alright|ah|oh)(?:\s+po)?\s*,?\s+(?!(?:ba|na ba|lang ba|kaya|ito|yan|yun|yung|ang|sa)\b)/,' ');
+    if(c.topicRe.test(' '+sG.trim()+' ')) sG=(' '+sG.trim()+' ').replace(c.topicRe,' ').replace(/^\s*[,:]\s*/,' ');
+    X.G=scanGroups(sG,c);
+    /* p2r3a fix 1: inventory wording (VERO has no live inventory) — caveat + "listed" wording only, never a filter */
+    var invHit=c.inv.exec(s); c.inv.lastIndex=0;
+    var invOpt=/\bmeron pa(?:ng| ba| bang)?\s+(?:iba|ibang|mas|other|cheaper|mura|murang)\b/.test(s);   /* "meron pa bang mas mura?" asks for more options, not stock */
+    if(invHit && /^meron pa/.test(invHit[2]) && invOpt) invHit=null;
+    if(invHit && /^availab/.test(invHit[2]) && /\b(colou?rs?|kulay|variants?|versions?)\b/.test(s) && !/\b(stocks?|on hand|natitira|remaining|sold out|ubos)\b/.test(s)) invHit=null;
+    X.inventory=!!invHit || (!!X.G.stock && !invOpt) || /\b(?:how many|any|ilan|ilang)\b[^.]{0,30}\bleft\b|\bleft in stock\b/.test(s);
+    X.invQty=X.inventory && /\b(ilan|ilang|how many|natitira|natira|remaining|left|quantity|qty|units?|pcs)\b/.test(s);
     var dpConn=dpIsConnector(s);
     X.dpConn=dpConn;
     /* ---- video resolution / refresh / HDMI version (same grammar as p2r2.1, so evidence parity holds) ---- */
@@ -178,6 +245,11 @@
       X.match.push({ k:'res', v:RES_RANK[r], q:hasQ, label:RES_LABEL[RES_RANK[r]] }); return ' '; });
     if(!refreshDone) t=t.replace(/\b(\d{2,3})\s?hz\b/g,function(all,hz){ X.match.push({ k:'refresh', r:null, hz:+hz, q:hasQ, label:hz+'Hz' }); return ' '; });
     t=t.replace(/\bhdmi (2\.1|2\.0|1\.4)\b/g,function(all,v){ X.match.push({ k:'hdmiver', v:parseFloat(v), label:'HDMI '+v }); return ' hdmi '; });
+    /* p2r3a fix 3 + fix-pack 2 #4: a number tied to inch / " / -inch is a SIZE (product-name fact), never a price or a bare number.
+       Quotes are stripped by normalize(), so read the raw text. "2.5 hdd" (no unit) keeps the drive-size shorthand. */
+    var rl=' '+raw.toLowerCase()+' ', szm=rl.match(/[^\d.](\d{1,2}(?:\.\d{1,2})?)(?:\s*(?:-\s*)?(?:inch(?:es)?\b|''|"|“|”|″|')|in\b)/)||rl.match(/[^\d.](2\.5|3\.5)(?=\s*(?:hdd|ssd|sata|hard\s?drive|drive|enclosure|disk)\b)/);
+    if(szm && +szm[1]>0 && +szm[1]<=40){ var szv=String(+szm[1]); X.match.push({ k:'size', v:szv, label:szv+'"' });
+      t=t.replace(new RegExp('(^|[^\\d.])'+szm[1].replace('.','\\.')+'\\s*(?:-\\s*)?(?:inch(?:es)?|in)?(?![\\d.])'),'$1 '); trace.push('size:'+szv+'"'); }
     /* ---- speeds ---- */
     if(/\b(lan|ethernet|rj45|network|gigabit)\b/.test(t)){
       if(/\bgigabit\b/.test(t)&&!/\b(2\.5|5|10)\s?g/.test(t)) X.match.push({ k:'eth', v:1, label:'Gigabit' });
@@ -239,6 +311,12 @@
     /* ---- top N ---- */
     var tn=t.match(/\btop\s*(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\b|\b(\d{1,2})\s+(?:cheapest|pinakamura|most expensive|longest)\b/);
     if(tn){ var NW2={two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10}; X.topN=Math.max(1,Math.min(10,NW2[tn[1]]||parseInt(tn[1]||tn[2],10))); }
+    /* cable standards (Cat6 …) — a name / feature fact, never an anchor */
+    X.standards=[]; c.standards.forEach(function(x){ if(x.re.test(t) && X.standards.indexOf(x.k)<0) X.standards.push(x.k); });
+    if(X.standards.indexOf('cat6a')>=0) X.standards=X.standards.filter(function(k){ return k!=='cat6'; });
+    /* a bare number with no unit (follow-up "how about 100?") */
+    var bn=t.replace(/(?:under|below|less than|up to|hanggang|budget|within|above|over|more than|at least|top|₱)\s*\d[\d.]*/g,' ').match(/(?:^|\s)(\d{1,4}(?:\.\d+)?)(?=\s|$)/);
+    X.bareNumber=bn?+bn[1]:null;
     X.t=t;
     return X;
   }
@@ -263,10 +341,11 @@
     return T;
   }
 
-  /* ======================= 4. plan builder ======================= */
+  /* ---------- plan-builder helpers ---------- */
   function pickAttr(X,c){
     var hits=allHits(c.attrs,X.t).filter(function(h){ return !(h.x.k==='dp' && X.dpConn); });
     if(X.dpConn) hits=hits.filter(function(h){ return h.x.k!=='dp'; });
+    if(hits.some(function(h){ return h.x.k==='dp_volume'; })) hits=hits.filter(function(h){ return h.x.k!=='dp'; });   /* "dp vol" is one field, not DP + DP Vol */
     hits.sort(function(a,b){ var r={ sku:1, price:2 }; return (r[a.x.k]||0)-(r[b.x.k]||0) || a.at-b.at; });
     return hits.map(function(h){ return h.x.k; });
   }
@@ -291,23 +370,119 @@
     return { attr:k, dir:dir };
   }
 
+  /* ======================= p2r3a: small talk ======================= */
+  var ST_ORDER=['nameWhy','identity','help','howAreYou','thanks','bye','greeting'];
+  function smalltalkOf(X,c){
+    var t=' '+X.norm.replace(/[^a-z0-9'’ ]+/g,' ').replace(/\s+/g,' ').trim()+' ', kinds={}, work=t, first=null;
+    c.small.forEach(function(x){ x.re.lastIndex=0; var m=x.re.exec(work); if(!m) return;
+      if(first===null || m.index<first.at) first={ k:x.k, at:m.index };
+      kinds[x.k]=1; work=work.replace(x.re,' '); });
+    var left=work.trim().split(/\s+/).filter(function(w){ return w && !c.smallFill[w]; });
+    var ks=ST_ORDER.filter(function(k){ return kinds[k]; });
+    if(!ks.length) return null;
+    return { kind:ks[0], kinds:ks, whole:!left.length, greetingFirst:!!(first && first.k==='greeting' && first.at<=1) };
+  }
+  /* ======================= p2r3a: follow-up / topic switch ======================= */
+  var FU_KNOWN=('same but pero mas yung ung the one a an what how about with only instead naman ba ano is it na ng ang sa e eh and then tapos ok okay sige '+
+    'kung paano if bout po lang din rin nga please pls also too more less higher lower cheaper mura murang mahal for of in').split(' ');
+  /* a token the user wrote like a product NAME (Capitalised mid-sentence, CamelCase, letters+digits) that nothing explains */
+  function nameLikeUnknown(X,c){ var rawW=String(X.raw||'').split(/[^A-Za-z0-9.-]+/).filter(Boolean);
+    return rawW.filter(function(r,ix){ var w=r.toLowerCase(); if(w.length<3 || c.vocab[w] || c.nameGeneric[w] || /^\d+(?:\.\d+)?$/.test(w) || SPEC_TOKEN.test(w)) return false;
+      return /[A-Z]/.test(r.slice(1)) || (ix>0 && /^[A-Z]/.test(r)) || (/\d/.test(r)&&/[a-z]/i.test(r)); }).map(function(r){ return r.toLowerCase(); }); }
+  function followUpOf(X,c,ctx,G,resolved,subject){
+    var lp=ctx&&ctx.lastPlan; if(!lp) return null;
+    var t=X.t.replace(/\s+/g,' ').trim();
+    if(c.topicRe.test(' '+t+' ')) return { follow:false, why:'topic cue' };
+    if(resolved.length) return { follow:false, why:'new anchor' };
+    if(G.history||G.coach) return { follow:false, why:'new intent' };
+    if(subject.length) return { follow:false, why:'reference' };
+    var hit=(X.typeHits||[])[0];
+    var newFam=hit?hit.a.to.split('.')[0]:((X.standards.length && (c.L.standards[X.standards[0]]||{}).family)||null);
+    if(newFam && lp.type && newFam!==lp.type.family) return { follow:false, why:'new family' };
+    if(newFam && !lp.type) return { follow:false, why:'new family' };
+    var cue=c.followRe.test(' '+t+' ');
+    var noun=/\b(cables?|adapters?|adaptors?|converters?|hubs?|docks?|chargers?|power banks?|splitters?|switch(?:es|er)?|extenders?|enclosures?|readers?)\b/.test(t);
+    if((hit || X.standards.length || noun || X.pair) && !cue) return { follow:false, why:'complete question' };
+    var known={}; FU_KNOWN.forEach(function(w){ known[w]=1; }); Object.keys(c.smallFill).forEach(function(w){ known[w]=1; });
+    (c.L.language.filler||[]).concat(c.L.language.comparative||[],c.L.language.rankMin||[],c.L.language.rankMax||[],c.L.language.reference||[]).forEach(function(p){ p.split(' ').forEach(function(w){ known[w]=1; }); });
+    Object.keys(c.L.colors).forEach(function(k){ c.L.colors[k].forEach(function(w){ known[w]=1; }); });
+    Object.keys(c.L.attributes||{}).forEach(function(k){ c.L.attributes[k].forEach(function(p){ p.split(' ').forEach(function(w){ known[w]=1; }); }); });
+    Object.keys(c.L.connectors).forEach(function(k){ c.L.connectors[k].forEach(function(p){ p.split(' ').forEach(function(w){ known[w]=1; }); }); });
+    ['gan','pd','magsafe','qi2','built-in','built','retractable','cable','charger','wireless','fast','black','white','second','first','third','una','pangalawa','pangatlo','ikalawa','hdmi','usb-c','usb-a','lightning','meters','meter','metro','long','capacity','wattage','price','budget','under','below','above','at','least','up','to','pataas','pababa','hanggang','or','and','₱'].forEach(function(w){ known[w]=1; });
+    if(hit) hit.a.term.split(' ').forEach(function(w){ known[w]=1; });
+    var toks=t.split(' ').filter(Boolean), unknown=toks.filter(function(w){ return !known[w] && !/\d/.test(w) && w.length>1; });
+    var slots=!!(X.filters.length||X.match.length||X.connectors.length||X.ports.length||X.standards.length||hit||X.bareNumber||G.comparative||G.rankMin||G.rankMax||
+      /\b(cheaper|mura|mas mura|second|first|third|una|pangalawa|pangatlo)\b/.test(t)||pickAttrWords(X,c).length||subject.length);
+    var short=toks.length<=7 && unknown.length<=1;
+    /* fix-pack 2 #1D: a product-like word we cannot resolve (Capitalised / CamelCase / letters+digits in the raw text) is a NEW product,
+       never a follow-up on the old results ("e yung <NewName> magkano?") */
+    var rawW=String(X.raw||'').split(/[^A-Za-z0-9.-]+/).filter(Boolean), likeName=unknown.filter(function(w){ return rawW.some(function(r,ix){ return r.toLowerCase()===w && (/[A-Z]/.test(r.slice(1)) || (ix>0 && /^[A-Z]/.test(r)) || (/\d/.test(r)&&/[a-z]/i.test(r))); }); });
+    if(likeName.length) return { follow:false, why:'unknown name', name:likeName.join(' ') };
+    if((cue||short) && slots) return { follow:true, cue:cue, unknown:unknown };
+    return { follow:false, why:'not a follow-up' };
+  }
+  function pickAttrWords(X,c){ return allHits(c.attrs,X.t).map(function(h){ return h.x.k; }).filter(function(k){ return !(k==='dp' && X.dpConn); }); }
+  function clone(o){ return o==null?o:JSON.parse(JSON.stringify(o)); }
+  function mergeFollowUp(plan,lp,X,trace){
+    var inh=[];
+    if(!plan.type && lp.type){ plan.type=clone(lp.type); plan.type.via='context'; inh.push('type'); }
+    else if(plan.type && lp.type && plan.type.family===lp.type.family && !plan.type.subtype && lp.type.subtype){ plan.type=clone(lp.type); plan.type.via='context'; inh.push('type'); }
+    if(!plan.form && lp.form && !(plan.type && plan.type.via==='lexicon')){ plan.form=lp.form; inh.push('form'); }
+    if(!plan.connectors.length && !plan.pair && lp.connectors && lp.connectors.length){ plan.connectors=lp.connectors.slice(); plan.pair=clone(lp.pair); inh.push('connectors'); }
+    (lp.filters||[]).forEach(function(f){ if(!plan.filters.some(function(g){ return g.attr===f.attr; })){ plan.filters.push(clone(f)); inh.push(f.attr); } });
+    (lp.match||[]).forEach(function(m){ var same=plan.match.some(function(n){ return n.k===m.k && (m.k!=='flag' || n.v===m.v); });
+      if(!same){ plan.match.push(clone(m)); inh.push(m.k==='flag'?('flag:'+m.v):m.k); } });
+    (lp.ports||[]).forEach(function(p){ if(!plan.ports.some(function(q){ return q.kind===p.kind; })){ plan.ports.push(clone(p)); inh.push('port:'+p.kind); } });
+    if(!plan.standards.length && lp.standards && lp.standards.length){ plan.standards=lp.standards.slice(); inh.push('standard'); }
+    if(!plan.formStrict && lp.formStrict) plan.formStrict=lp.formStrict;
+    if(!plan.useCase && lp.useCase){ plan.useCase=clone(lp.useCase); inh.push('useCase'); }
+    plan.inherited=inh; trace.push('follow-up: inherited '+(inh.join(',')||'nothing'));
+    return inh;
+  }
+
+  /* ======================= 4. plan builder ======================= */
   function build(query,opts){
     opts=opts||{}; var t0=Date.now();
     var c=compile(), trace=[], products=(opts.products||[]).filter(function(p){ return p && !p.disabled; });
     var FA=FACTS(), idx=opts.facts||FA.build(products,{ version:opts.version });
-    var ai=anchorIndex(products,idx.key);
-    var X=extract(query,c,trace), G=X.G, ctx=opts.ctx||null;
+    var ai=anchorIndex(products,idx.key), ctx=opts.ctx||null, lp=ctx&&ctx.lastPlan;
+    var X=extract(query,c,trace,{ capHint:!!(lp && lp.type && lp.type.family==='power_bank') }), G=X.G;
     var plan={ v:1, engine:VERSION, q:X.raw, norm:X.norm, intent:null, anchors:[], refs:[], type:null, form:null, connectors:[], pair:X.pair,
-      filters:[], match:X.match, ports:X.ports, attribute:null, sort:null, limit:null, metric:null, history:null, priceField:'srp', useCase:null,
-      flags:{ stock:!!G.stock, judgement:!!G.judgement, coach:!!G.coach, compat:!!G.compat, external:X.external, devices:X.devices, explicitAlt:!!G.alternative },
-      ambiguity:[], unsupported:X.unsupported.slice(), route:null, result:null, confidence:'low', trace:trace, ms:0 };
-    if(!X.norm){ plan.intent='help'; plan.route={ route:ROUTES.CLARIFY, rule:'R0 empty', candidates:[] }; return finish(plan,t0); }
+      filters:[], match:X.match, ports:X.ports, standards:X.standards.slice(), attribute:null, sort:null, limit:null, metric:null, history:null, priceField:'srp', useCase:null,
+      flags:{ stock:!!X.inventory, invQty:!!X.invQty, judgement:!!G.judgement, coach:!!G.coach, compat:!!G.compat, external:X.external, devices:X.devices, explicitAlt:!!G.alternative },
+      followUp:false, topicSwitch:null, inherited:[], echo:null, greeting:false, smalltalk:null, lang:langOf(X,c),
+      ambiguity:[], unsupported:X.unsupported.slice(), route:null, result:null, subject:[], confidence:'low', trace:trace, ms:0 };
+    if(!X.norm){ plan.intent='help'; plan.result={ executor:'none', codes:[], mentioned:[], related:[], unknown:0, evidence:{}, notes:[], caveats:[] }; plan.route={ route:ROUTES.CLARIFY, rule:'R0 empty', candidates:[] }; return finish(plan,t0); }
+
+    /* ---- small talk: answered locally only when the whole message is small talk ---- */
+    var st=smalltalkOf(X,c);
+    if(st && st.whole){
+      plan.intent='smalltalk'; plan.smalltalk=st.kind; plan.confidence='high';
+      plan.result={ executor:'none', codes:[], mentioned:[], related:[], unknown:0, evidence:{}, notes:[], caveats:[] };
+      plan.route={ route:ROUTES.LOCAL, rule:'R0 small talk', candidates:[] }; return finish(plan,t0);
+    }
+    if(st && st.greetingFirst) plan.greeting=true;
 
     /* ---- anchors + context references ---- */
     plan.anchors=findAnchors(' '+X.t+' ',ai,trace);
+    /* fix-pack 2 #1: product-name anchors. With a product TYPE in the question the name is a filter inside that type;
+       without one, a narrow name (<= 8 SKUs) is an anchor like a SKU/model, a broad one ("hitune") is a filter. */
+    var tNm=X.t; X.devices.named.forEach(function(d){ tNm=tNm.replace(new RegExp('(^|[^a-z0-9])'+esc(d.label)+'(?=$|[^a-z0-9])','g'),'$1 '); });   /* a named device ("macbook air m4") is never a product name */
+    var NI=nameIndex(products,idx.key), names=findNames(tNm,c,NI,trace), typeWord=!!resolveType({ t:X.t, ports:[] },c,[]) || X.connectors.length>0 || /\b(cables?|adapters?|adaptors?|converters?|hubs?|docks?|chargers?|splitters?|switch(?:es|er)?|extenders?|enclosures?|readers?)\b/.test(X.t);
+    names=names.filter(function(n){ return !plan.anchors.some(function(a){ return a.codes.length && n.codes.every(function(x){ return a.codes.indexOf(x)>=0; }); }); });
+    names.forEach(function(n){
+      var words=n.text.split(' ');
+      plan.anchors=plan.anchors.filter(function(a){ return a.codes.length || words.indexOf(a.raw)<0 && n.text.replace(/ /g,'').indexOf(a.raw.replace(/ /g,''))<0; });
+      if(X.bareNumber!=null && words.indexOf(String(X.bareNumber))>=0){ X.bareNumber=null; }
+      if(!typeWord && n.codes.length<=8 && !plan.anchors.some(function(a){ return a.codes.length; })) plan.anchors.push({ raw:n.text, via:'name', codes:n.codes.slice() });
+      else { var core=words.filter(function(w){ return nameWord(w,c,NI); }).join(' ')||n.text, withQ=new RegExp('\\b(?:with|may|na may)\\s+(?:\\S+\\s+)?'+esc(core.split(' ')[0])+'\\b').test(X.t);
+        X.match.push({ k:'namephrase', v:n.text, codes:n.codes.slice(), label:(withQ?'for ':'')+core, withLabel:withQ }); }
+    });
+    plan.names=names.map(function(n){ return { text:n.text, n:n.codes.length }; });
     var resolved=plan.anchors.filter(function(a){ return a.codes.length; });
-    var refWords=(c.L.language.reference||[]).filter(function(w){ return w!=='yung' && w!=='these' && w!=='those' && w!=='them' && phraseRe(w).test(X.t); });
-    var ordinal=X.t.match(/\b(first one|yung una|una|pangalawa|second one|second|ikalawa|third one|pangatlo)\b/);
+    /* references are matched as exact words (no Tagalog -ng suffix: "yung" is an article, not "yun") */
+    var refWords=(c.L.language.reference||[]).filter(function(w){ return w!=='yung' && w!=='these' && w!=='those' && w!=='them' && w!=='that' && new RegExp('(^|[^a-z0-9])'+esc(w)+'(?![a-z0-9])').test(X.t); });
+    var ordinal=X.t.match(/\b(first one|yung una|una|pangalawa|second one|second|ikalawa|third one|pangatlo|third)\b/);
     var allRef=!resolved.length && /\b(alin|which one|which)\b/.test(X.t) && (G.comparative || G.judgement);
     if(!resolved.length){
       if(ordinal) plan.refs.push({ kind:'ordinal', index:/first|una/.test(ordinal[1])?0:(/third|pangatlo/.test(ordinal[1])?2:1) });
@@ -319,6 +494,7 @@
       if(r.kind==='ordinal') r.codes=ctx.results&&ctx.results[r.index]?[ctx.results[r.index]]:[];
       else if(r.kind==='all') r.codes=(ctx.comparison&&ctx.comparison.length>=2)?ctx.comparison.slice():((ctx.results&&ctx.results.length>=2&&ctx.results.length<=4)?ctx.results.slice():[]);
       else r.codes=(ctx.focus&&ctx.focus.length)?ctx.focus.slice():((ctx.results&&ctx.results.length===1)?ctx.results.slice():[]);
+      r.codes=r.codes.filter(function(x){ return !!idx.byCode[x] && !idx.byCode[x].disabled; });
       if(r.codes.length) trace.push('context:'+r.kind+'→'+r.codes.join(','));
     });
     var refCodes=[]; plan.refs.forEach(function(r){ (r.codes||[]).forEach(function(x){ refCodes.push(x); }); });
@@ -326,81 +502,217 @@
 
     /* ---- type ---- */
     plan.type=resolveType(X,c,trace);
-    var FAM=familyIds(c);
+    /* fix-pack 2 #2: a phone holder "sa kotse / pang kotse / for car" is a car mount (holder context only) */
+    if(plan.type && plan.type.family==='holder' && plan.type.subtype!=='car_mount' && plan.type.subtype!=='laptop_stand' && /\bcar\b/.test(X.t)){ plan.type=Object.assign({},plan.type,{ id:'holder.car_mount', subtype:'car_mount', term:'car holder' }); trace.push('holder + car → car mount'); }
+    if(plan.type && plan.type.family==='charger' && !plan.type.subtype && /\bcar\b/.test(X.t)){ plan.type=Object.assign({},plan.type,{ id:'charger.car', subtype:'car', term:'car charger' }); trace.push('charger + car → car charger'); }
+    if(!plan.type && plan.standards.length){ var sf=(c.L.standards[plan.standards[0]]||{}).family; if(sf){ plan.type={ id:sf, family:sf, subtype:null, via:'standard', term:plan.standards[0]+' cable', confidence:'high' }; trace.push('type:'+plan.standards[0]+'→'+sf); if(/\bcables?\b/.test(X.t)) plan.formStrict='cable'; } }
     if(!plan.type && subject.length){ var fams=uniq(subject.map(function(x){ var f=idx.byCode[x]; return f?f.type.family:null; }).filter(Boolean)); if(fams.length===1) plan.type={ id:fams[0], family:fams[0], subtype:null, via:resolved.length?'anchor':'context', confidence:'high' }; }
-    /* forms (cable / adapter ...) when no family term was named */
     if(!plan.type || plan.type.family==='video_cable'){ ['cable','adapter','extender','splitter','switch','enclosure'].some(function(k){ if(new RegExp('\\b'+(k==='adapter'?'(?:adapter|adaptor|converter)':k)+'s?\\b').test(X.t)){ plan.form=k; return true; } return false; }); }
-    /* use cases */
     var UC=c.L.useCases||{};
     if(X.useCases.length) plan.useCase={ id:X.useCases[0], families:(UC[X.useCases[0]]||{}).families||[], minVideoOut:(UC[X.useCases[0]]||{}).minVideoOut||null };
     else if(X.devices.classes.length>=2 && !X.devices.named.length) plan.useCase={ id:'multi_device', families:(UC.multi_device||{}).families||[] };
     else if(X.useCaseRaw){ plan.unsupported.push({ attr:'useCase', value:X.useCaseRaw, note:'unknown use case — no family mapping' }); trace.push('useCase:'+X.useCaseRaw+' (unknown)'); }
+    if(plan.type){ X.match=X.match.filter(function(m){ if(m.k!=='namephrase' || plan.deviceNamed) return true; var hit=m.codes.some(function(x){ var F=idx.byCode[x]; return F && inType(F,{ family:plan.type.family }); }); if(!hit) trace.push('name "'+m.v+'" not in '+plan.type.family+' names → ignored'); return hit; }); plan.match=X.match; }
+    if(plan.type||plan.form){ Object.keys(c.L.nameQualifiers||{}).forEach(function(w){ if(new RegExp('\\b'+w+'\\b').test(X.t) && !(w==='magnetic' && X.match.some(function(m){ return m.v==='magsafe'; }))) X.match.push({ k:'nameword', v:w, soft:!!c.L.nameQualifiers[w].soft, label:w }); }); plan.match=X.match; }
     if(plan.useCase && plan.useCase.minVideoOut && !X.filters.some(function(f){ return f.attr==='videoOut'; })) X.filters.push({ attr:'videoOut', op:'ge', value:plan.useCase.minVideoOut, raw:'use case' });
 
-    /* ---- connectors / ports (port families: words after the type are ports it must have) ---- */
     var portFam={ hub_dock:1, av_switch:1, usb_switch:1, network_switch:1 };
     var typeAt=(X.typeHits&&X.typeHits[0])?X.typeHits[0].at:-1;
     X.connectors.forEach(function(k){
       if(plan.type && portFam[plan.type.family] && typeAt>=0 && k.at>typeAt) plan.ports.push({ kind:k.k==='tf'?'sd':k.k, op:'has', raw:k.k });
       else if(plan.connectors.indexOf(k.k)<0) plan.connectors.push(k.k);
     });
+    if(plan.type && plan.type.family==='lan_cable') plan.connectors=plan.connectors.filter(function(k){ return k!=='rj45'; });
     plan.ports=dedupePorts(plan.ports);
-    if(plan.connectors.length===1 && plan.connectors[0]==='rj45' && !plan.type && /\blan\b/.test(X.t) && !plan.form){ /* bare "2.5g lan" -> no type word; result family decides */ }
     plan.filters=X.filters.slice();
     plan.priceField=priceFieldOf(X);
     plan.filters.forEach(function(f){ if(f.attr==='price') f.field=plan.priceField; });
 
+    /* ---- p2r3a: follow-up (plan mutation) vs topic switch ---- */
+    var fu=followUpOf(X,c,ctx,G,resolved,subject);
+    if(fu){ if(fu.follow){ plan.followUp=true; mergeFollowUp(plan,lp,X,trace); } else if(lp){ plan.topicSwitch=fu.why; trace.push('topic switch: '+fu.why); } }
+
     /* ---- intent (ordered rules; the anchor never consumes the intent) ---- */
     var attrs=pickAttr(X,c), rank=rankFrom(G,X,attrs), metric=metricOf(X,c,G);
-    var hasType=!!(plan.type||plan.form||plan.useCase), hasSpec=!!(plan.filters.length||plan.match.length||plan.connectors.length||plan.ports.length);
+    var hasType=!!(plan.type||plan.form||plan.useCase), hasSpec=!!(plan.filters.length||plan.match.length||plan.connectors.length||plan.ports.length||plan.standards.length);
     var specificDevice=X.devices.named.length>0;
     var histWords=!!G.history || (/\b(price|presyo)\b/.test(X.t) && c.hist.up.concat(c.hist.down).some(function(re){ re.lastIndex=0; return re.test(X.t); }));
+    var cheaperWord=/\b(cheaper|mas mura|mas murang|mura pa|lower price)\b/.test(X.t) || (G.comparative||[]).some(function(w){ return /mura|cheaper/.test(w); });
+    var sameBut=/\b(same|pareho|parehong|ganun din|ganyan din)\b/.test(X.t);
+    var specAttr=attrs.filter(function(a){ return a!=='sku' && a!=='price' && a!=='srp' && a!=='dp' && a!=='dp_volume' && a!=='moq' && a!=='description' && a!=='colors'; });
     var I=null;
     if(G.coach) I='coach';
     else if(histWords && !G.compat) I='price_history';
-    else if(G.alternative || ((G.comparative||[]).some(function(w){ return /mura|cheaper|mahal/.test(w); }) && subject.length && resolved.length===1 && !plan.refs.length && !G.compare && !G.judgement)) I='alternative';
+    else if(G.alternative || (cheaperWord && subject.length && resolved.length===1 && !plan.refs.length && !G.compare && !G.judgement)) I='alternative';
     else if(G.compat || X.external) I='compat';
     else if(G.judgement || (X.devices.classes.length>=2 && !hasSpec)) I='recommend';
-    else if(subject.length>=2 && (G.compare||G.comparative||metric) ) I='compare';
+    else if((resolved.length>=2 || refCodes.length>=2) && (G.compare||G.comparative||metric)) I='compare';
+    else if(subject.length>=2 && resolved.length===1 && G.compare) I='compare';
     else if(plan.refs.some(function(r){ return r.kind==='all'; }) && (G.comparative||metric)) I='compare';
     else if(subject.length && attrs.filter(function(a){ return a!=='sku'; }).length) I='attribute';
     else if(!subject.length && attrs.indexOf('sku')>=0 && (hasType||hasSpec)) I='attribute';
+    else if(!subject.length && specAttr.length && (hasType||hasSpec)) I='attribute';
     else if(rank && !subject.length) I='rank';
     else if(G.count) I='count';
-    else if(G.existence || /^\s*(?:may|meron|mayroon)\b/.test(X.t) || G.stock) I='exist';
+    else if(G.existence || /^\s*(?:(?:hi|hello|hey|good (?:morning|afternoon|evening))[\s,!.]*)?(?:may|meron|mayroon)\b/.test(X.t) || G.stock) I='exist';
     else if(G.compare && subject.length<2) I='compare';
+    else if(subject.length && !X.filters.length && !X.match.length && !X.ports.length && !X.standards.length) I='lookup';
     else if(hasType||hasSpec) I='list';
     else if(subject.length) I='lookup';
     else I='clarify';
     if(I==='list' && !plan.type && !plan.form && plan.useCase && !subject.length) I='recommend';
     if(specificDevice && !subject.length && (I==='list'||I==='exist'||I==='recommend')){ I='compat'; trace.push('named device → device-fit question'); }
+
+    /* ---- p2r3a: follow-up intent rules ---- */
+    if(plan.followUp){
+      var focus=(ctx.focus||[]).filter(function(x){ return !!idx.byCode[x]; }), last=(ctx.results||[]).filter(function(x){ return !!idx.byCode[x]; });
+      var nonSkuAttr=attrs.filter(function(a){ return a!=='sku'; });
+      if(cheaperWord && (ctx.comparison||[]).length>=2 && ctx.lastPlan.intent==='compare'){
+        subject=ctx.comparison.filter(function(x){ return !!idx.byCode[x]; }); I='compare'; metric={ attr:'srp', dir:'min' }; plan.refs.push({ kind:'all', codes:subject.slice() });
+      } else if(nonSkuAttr.length && !subject.length){
+        subject=focus.length?focus.slice():last.slice(0,12); I='attribute'; plan.attrFromContext=focus.length?'focus':'results';
+        trace.push('follow-up attribute → '+plan.attrFromContext);
+      } else if((cheaperWord || (sameBut && hasSpec)) && !subject.length && focus.length && !plan.refs.length && (ctx.lastPlan.intent==='lookup'||ctx.lastPlan.intent==='attribute'||ctx.lastPlan.intent==='alternative'||ctx.lastPlan.intent==='compat'||ctx.lastPlan.intent==='recommend')){
+        subject=[focus[0]]; I='alternative'; plan.subjectVia='focus';
+      } else if(cheaperWord && !subject.length && !plan.refs.some(function(r){ return r.kind==='all'; })){
+        I='rank'; rank={ by:'price', dir:'asc' }; plan.cheaperList=true; plan.limit=null;
+      } else if(X.bareNumber && !X.filters.length){
+        plan.ambiguity.push({ slot:'number', reason:'number with no unit', value:X.bareNumber });
+      } else if((I==='list'||I==='clarify') && ctx.lastPlan.intent==='attribute' && ctx.lastPlan.attribute && ATTR_VAL[ctx.lastPlan.attribute] && !ctx.lastPlan.subjectBased && !subject.length){
+        I='attribute'; specAttr=[ctx.lastPlan.attribute]; trace.push('follow-up keeps attribute '+ctx.lastPlan.attribute);
+      } else if((I==='list'||I==='clarify'||I==='exist') && ['list','exist','count','rank'].indexOf(ctx.lastPlan.intent)>=0 && !subject.length){
+        I=ctx.lastPlan.intent==='exist'?'exist':ctx.lastPlan.intent;
+        if(I==='rank' && !rank && ctx.lastPlan.sort){ plan.sort=clone(ctx.lastPlan.sort); plan.limit=ctx.lastPlan.limit; }
+      }
+    } else if(X.bareNumber && !hasType && !hasSpec && !subject.length && I==='clarify'){
+      plan.ambiguity.push({ slot:'number', reason:'number with no unit', value:X.bareNumber });
+    }
+    /* fix-pack 2 #6: a named product + a named device + a fit/compatibility verb is a compatibility question (never a plain card) */
+    if(subject.length && X.devices.named.length && I!=='compare' && I!=='price_history' && I!=='coach' && /\b(pwede|puwede|compatible|compat|gagana|work|works|kaya|support|supports|fit|fits|bagay)\b/.test(X.t)){ I='compat'; trace.push('named product + named device → compat'); }
+    /* fix-pack 2 #1/#2: "<device-line> tracker / finder": products NAMED for that device line are a catalogue fact → name filter, stays LOCAL */
+    var existQ=!!G.existence || /^\s*(?:(?:hi|hello)[\s,!.]*)?(?:may|meron|mayroon)\b/.test(X.t);
+    if(I==='compat' && existQ && !subject.length && plan.type && !G.compat && !X.external && X.devices.named.length){   /* existence questions only ("may <device> <product> kayo?"); a "<device> <product type>" search stays a compat question */
+      var NW=((c.L.devices||{}).nameWords)||{}, words=[]; X.devices.named.forEach(function(d){ d.label.split(' ').forEach(function(w){ (NW[w]||[]).forEach(function(x){ if(words.indexOf(x)<0) words.push(x); }); }); });
+      var dcodes=words.length?products.filter(function(p){ var F=idx.byCode[String(p.item_code)]; return F && inType(F,plan.type) && words.some(function(w){ return new RegExp('\\b'+esc(w)+'\\b').test(F.units[0].text); }); }).map(function(p){ return String(p.item_code); }):[];
+      if(dcodes.length){ plan.match.push({ k:'namephrase', v:words[0], codes:dcodes, label:'for '+X.devices.named[0].label }); plan.deviceNamed=true; I='exist'; trace.push('device line named in products → name filter'); }
+    }
+    /* fix-pack 2 #3: a qualifier next to the product type that is neither parsed nor found in product names is reported, never dropped */
+    if((plan.type||plan.form) && !subject.length && ((X.typeHits && X.typeHits.length) || plan.form) && ['list','exist','rank','count'].indexOf(I)>=0){
+      var tt=(X.typeHits && X.typeHits.length)?X.typeHits[0].a.term:plan.form, tre=new RegExp('(^|\\s)'+esc(tt)+'s?(?=\\s|$)'), tm=tre.exec(' '+X.t+' '), qual=[];
+      if(tm){ var pre=(' '+X.t+' ').slice(0,tm.index).trim().split(/\s+/).slice(-2), post=(' '+X.t+' ').slice(tm.index+tm[0].length).trim().split(/\s+/);
+        var postQ=[]; if(/^(?:with|may|na|w\/)$/.test(post[0]||'')){ postQ=post.slice(1,3); if(postQ[0]==='may'||postQ[0]==='with') postQ=postQ.slice(1); }
+        pre.concat(postQ).forEach(function(w){ w=String(w||'').replace(/[^a-z0-9-]/g,''); if(!w || w.length<3 || /\d/.test(w)) return;
+          var inName=function(x){ return plan.match.some(function(m){ return m.k==='namephrase' && m.v.split(' ').indexOf(x)>=0; }); };
+          var known=function(x){ var y=x.replace(/(?:ng|g)$/,''); return !x || x.length<3 || c.vocab[x] || c.nameGeneric[x] || inName(x) || (y!==x && (c.vocab[y] || c.vocab[x.replace(/ng$/,'n')])); };   /* Tagalog -ng / -g ligature: kayong → kayo, ibang → iba */ if(known(w) || w.split('-').every(known) || w.split('-').some(function(x){ return x.length>=3 && inName(x); })) return; if(qual.indexOf(w)<0) qual.push(w); }); }
+      if(qual.length){ plan.unconfirmed=qual; trace.push('qualifier not confirmed: '+qual.join(',')); }
+    }
+    /* p2r3a fix 1: an inventory question is never answered with a SKU count ("ilan pa natitira" ≠ number of SKUs) */
+    if(plan.flags.stock && I==='count'){ I=subject.length?'lookup':'exist'; trace.push('inventory: count → listed'); }
+    /* p2r3a fix 5: existence with no product noun we know — name the noun in a zero result, or clarify when there is none */
+    if(I==='exist' && !subject.length && !plan.type && !plan.form && !plan.useCase && !hasSpec && !plan.anchors.length){
+      var nn=nounOf(X,c);
+      if(nn && nn.split(' ').length<=3){ plan.unknownNoun=nn; trace.push('unknown noun: '+nn); }
+      else plan.ambiguity.push({ slot:'type', reason:'existence question with no product noun' });
+    }
+    /* p2r3a fix 2: "with cable" on a power bank / charger without built-in or retractable = unclear hard constraint → clarify */
+    if(plan.type && (plan.type.family==='power_bank'||plan.type.family==='charger') && !plan.pair && !subject.length &&
+       /\b(?:with|may|meron|w\/)\s+(?:[a-z0-9-]+\s+)?(?:cables?|kable)\b/.test(X.t) && !plan.match.some(function(m){ return m.k==='flag' && (m.v==='builtin'||m.v==='retractable'); }))
+      plan.ambiguity.push({ slot:'cable', reason:'cable wording without built-in / retractable' });
     plan.intent=I;
-    if(I==='attribute') plan.attribute=(subject.length?attrs.filter(function(a){ return a!=='sku'; })[0]:'sku')||attrs[0];
-    if(I==='rank'){ plan.sort=[{ by:rank.by==='price'?plan.priceField:rank.by, dir:rank.dir }]; plan.limit=X.topN||1; }
+    if(I==='attribute'){ plan.attribute=(subject.length?attrs.filter(function(a){ return a!=='sku'; })[0]:(specAttr[0]||'sku'))||attrs[0]; plan.attributes=uniq(attrs.filter(function(a){ return a!=='sku'; })); }
+    if(I==='rank' && !plan.sort && rank){ plan.sort=[{ by:rank.by==='price'?plan.priceField:rank.by, dir:rank.dir }]; if(!plan.cheaperList) plan.limit=X.topN||1; }
     if(I==='compare' || I==='alternative') plan.metric=metric;
-    if(I==='alternative'){ plan.alternative={ direction:/mura|cheaper|price|presyo|mahal/.test(X.t)?'cheaper':'similar',
-      keep:(/same wattage/.test(X.t)?['watts']:[]).concat(/same capacity/.test(X.t)?['mah']:[]) }; }
+    if(I==='alternative'){
+      var keep=(/same wattage|parehong wattage/.test(X.t)?['watts']:[]).concat(/same capacity|parehong capacity/.test(X.t)?['mah']:[]).concat(/same length|parehong haba/.test(X.t)?['lengthM']:[]);
+      var direction=(cheaperWord||/\b(price|presyo|mahal|budget)\b/.test(X.t))?'cheaper':'similar';
+      plan.alternative={ direction:direction, keep:keep, base:subject[0]||null,
+        executable:!!subject.length && (direction==='cheaper' || keep.length>0 || plan.filters.length>0 || plan.match.length>0) };
+    }
     if(I==='price_history') plan.history=histPlan(X,c,G);
     if(I==='coach') plan.coach={ want:(G.coach||[])[0]||null };
 
-    /* ---- execute locally (shadow candidate set; facts only) ---- */
+    /* ---- execute locally (facts only) ---- */
     plan.result=execute(plan,products,idx,subject,X,c);
     if(!plan.type && plan.result && plan.result.codes.length){ var rf=uniq(plan.result.codes.map(function(x){ return idx.byCode[x]?idx.byCode[x].type.family:null; })); if(rf.length===1) plan.type={ id:rf[0], family:rf[0], subtype:null, via:'result', confidence:'medium' }; }
     plan.subject=subject;
 
     /* ---- ambiguity ---- */
-    if(plan.refs.length && !refCodes.length && !resolved.length && !hasType && !hasSpec) plan.ambiguity.push({ slot:'target', reason:'reference with no conversation context' });
+    if(plan.refs.length && !refCodes.length && !resolved.length && !hasType && !hasSpec && !plan.followUp) plan.ambiguity.push({ slot:'target', reason:'reference with no conversation context' });
     if(I==='compare' && subject.length<2) plan.ambiguity.push({ slot:'target', reason:'compare needs two products' });
     if(I==='recommend' && !hasType && !subject.length) plan.ambiguity.push({ slot:'type', reason:'no product type, anchor or context' });
-    if(I==='list' && !plan.type && plan.form && !plan.connectors.length && !plan.filters.length && !plan.match.length && !plan.pair) plan.ambiguity.push({ slot:'type', reason:'form only ('+plan.form+') — which connector / product?' });
-    if(I==='rank' && !hasType && !hasSpec) plan.ambiguity.push({ slot:'type', reason:'superlative with no product type' });
+    if(I==='list' && !plan.type && plan.form && !plan.connectors.length && !plan.filters.length && !plan.match.length && !plan.pair && !plan.standards.length) plan.ambiguity.push({ slot:'type', reason:'form only ('+plan.form+') — which connector / product?' });
+    if(I==='rank' && !hasType && !hasSpec && !plan.followUp) plan.ambiguity.push({ slot:'type', reason:'superlative with no product type' });
+    if(I==='lookup' && plan.refs.length && !subject.length) plan.ambiguity.push({ slot:'target', reason:'reference not in the last results' });
+    if(I==='attribute' && plan.attrFromContext && !subject.length) plan.ambiguity.push({ slot:'target', reason:'no product in context' });
     if(plan.anchors.some(function(a){ return !a.codes.length; }) && !resolved.length) plan.ambiguity.push({ slot:'anchor', reason:'code/model not in the pricelist' });
+    var nlu=(fu && fu.why==='unknown name')?fu.name:nameLikeUnknown(X,c).filter(function(w){ return !(plan.names||[]).some(function(n){ return n.text.split(' ').indexOf(w)>=0; }) && !plan.anchors.some(function(a){ return a.codes.length && a.raw===w; }); }).join(' ');
+    if(nlu && !resolved.length && !plan.type && !plan.form && !hasSpec && I!=='smalltalk' && I!=='price_history'){ plan.ambiguity=plan.ambiguity.filter(function(a){ return a.slot!=='number' && a.slot!=='anchor'; }); plan.ambiguity.unshift({ slot:'name', reason:'product name not found', value:nlu }); }
     var seenAmb={}; plan.ambiguity=plan.ambiguity.filter(function(a){ var k=a.slot+'|'+a.reason; if(seenAmb[k]) return false; seenAmb[k]=1; return true; });
 
+    plan.echo=echoOf(plan,ctx,idx,c);
     plan.route=route(plan,X,idx,subject,refCodes);
     plan.confidence=(resolved.length||(plan.type&&plan.type.via==='lexicon'))&&!plan.ambiguity.length?'high':((plan.type||subject.length)?'medium':'low');
     return finish(plan,t0);
   }
+  /* context transparency: one short line naming what was carried over */
+  function fmtNum(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+  function filterLabel(f){
+    var op=f.op==='ge'?'≥':(f.op==='le'?'≤':(f.op==='gt'?'>':''));
+    if(f.attr==='watts') return op+f.value+'W';
+    if(f.attr==='mah') return op+fmtNum(f.value)+'mAh';
+    if(f.attr==='lengthM') return f.op==='between'?(f.value[0]+'–'+f.value[1]+'m'):(op+f.value+'m');
+    if(f.attr==='price') return f.op==='between'?('₱'+fmtNum(f.value[0])+'–₱'+fmtNum(f.value[1])):((f.op==='le'||f.op==='lt'?'under ':'over ')+'₱'+fmtNum(f.value));
+    if(f.attr==='ports') return op+f.value+' ports';
+    if(f.attr==='videoOut') return op+f.value+' displays';
+    return f.attr+' '+op+f.value;
+  }
+  function matchLabel(m,L){ if(m.k==='flag') return ((L.flags[m.v]||{}).label)||m.v; if(m.k==='color') return m.v; return m.label||m.k; }
+  var CONN_LABEL=new Proxy({ usb_c:'USB-C', usb_a:'USB-A', lightning:'Lightning', hdmi:'HDMI', dp:'DisplayPort', vga:'VGA', dvi:'DVI', rj45:'LAN', micro_usb:'Micro USB', aux35:'3.5mm', thunderbolt:'Thunderbolt', usb4:'USB4' },
+    { get:function(o,k){ if(typeof k!=='string') return undefined; var L=LEX()&&LEX().connectorLabels; return (L&&L[k])||o[k]||k.replace(/_/g,' ').replace(/\b\w/g,function(x){ return x.toUpperCase(); }); } });   /* fix-pack 2 #5: never a raw key / undefined */
+  function typeLabel(T,L){
+    if(!T) return null; if(T.term) return T.term;
+    var f=L.taxonomy.families.filter(function(x){ return x.id===T.family; })[0]; if(!f) return T.family;
+    if(T.subtype){ var s=(f.subtypes||[]).filter(function(x){ return x.id===T.subtype; })[0]; if(s) return s.label; }
+    return f.label;
+  }
+  function niceCase(t){ return String(t||'').replace(/\b(hdmi|usb|lan|nas|dp|vga|dvi|gan|pd|sd|tf)\b/g,function(w){ return w.toUpperCase(); }).replace(/\busb-c\b/gi,'USB-C').replace(/\busb-a\b/gi,'USB-A'); }
+  function slotLabels(plan,L){
+    var out=[], tl=null;
+    if(plan.type){ tl=niceCase(typeLabel(plan.type,L)); out.push(tl); } else if(plan.form) out.push(plan.form);
+    plan.standards.forEach(function(s){ out.push(s.replace(/^cat/,'Cat')); });
+    if(plan.pair) out.push((CONN_LABEL[plan.pair.from]||plan.pair.from)+' to '+(CONN_LABEL[plan.pair.to]||plan.pair.to));
+    else plan.connectors.forEach(function(k){ var lab=CONN_LABEL[k]||k; if(tl && tl.toLowerCase().indexOf(lab.toLowerCase())>=0) return; out.push(lab); });
+    plan.filters.filter(function(f){ return f.attr!=='price'; }).concat(plan.filters.filter(function(f){ return f.attr==='price'; })).forEach(function(f){ out.push(filterLabel(f)); });
+    plan.match.forEach(function(m){ out.push(matchLabel(m,L)); });
+    plan.ports.forEach(function(p){ out.push((p.op==='ge'?p.value+'+ ':'')+(CONN_LABEL[p.kind]||p.kind)+' port'); });
+    return out.filter(Boolean);
+  }
+  function echoOf(plan,ctx,idx,c){
+    var r=plan.refs.filter(function(x){ return x.codes&&x.codes.length; })[0];
+    if(!r && plan.followUp && plan.inherited.length && plan.intent!=='attribute' && plan.intent!=='alternative') return slotLabels(plan,c.L).join(' · ');
+    if(r){ if(r.kind==='all') return 'your comparison ('+r.codes.join(' vs ')+')'; if(r.kind==='ordinal') return 'result #'+(r.index+1)+' — SKU '+r.codes[0]; return 'SKU '+r.codes.join(', '); }
+    if(plan.subjectVia==='focus' || plan.attrFromContext==='focus') return 'SKU '+plan.subject.join(', ');
+    if(plan.attrFromContext==='results') return 'your last results';
+    return null;
+  }
+  function langOf(X,c){
+    var toks=String(X.raw||X.norm).toLowerCase().replace(/[^a-z'’ ]+/g,' ').split(/\s+/).filter(Boolean), M={}; (c.L.taglishMarkers||[]).forEach(function(w){ M[w]=1; });
+    var n=toks.filter(function(w){ return M[w]; }).length;
+    var strong=toks.some(function(w){ return /^(ba|po|meron|mayroon|alin|natin|naman|wala|magkano|ilan|ilang|ano|anong|yung|pang|paano|bakit|salamat|kailangan|gusto|kayo|tayo|natitira)$/.test(w); });
+    return (strong || n>=2)?'tl':'en';
+  }
+  /* the leftover noun of an existence question ("may <thing> kayo?" → thing); null when nothing product-like is left */
+  var EXTRA_STOP=('i me my mine we us our you your he she it its they them their this that these those what which who whom whose when where why how is am are was were be been being do does did doing have has had having '+
+    'can could will would shall should may might must need needs want wants please pls thanks a an the and or but if then so of at by for with about into from in on off out over under up down again also too very just only '+
+    'ko mo niya namin natin nila ako ikaw siya kami tayo kayo sila ito iyan iyon dito diyan doon dun yun yan sana kasi pero tapos lang din rin naman nga po ho ba pa na ng ang mga si ni sa kay para pang pag kung '+
+    'customer client clients customers buyer gusto kailangan need hanap hanapin meron wala bili bibili benta order quote '+
+    'hdd ssd sata drive disk external internal monitor monitors screen office home school small large big users user people persons '+
+    'lahat all any some every each other others iba ibang good nice best better okay ok legit genuine authentic sample stocks item items unit units piece').split(' ');
+  var NOUN_STOP=('may meron mayroon ba kayo tayo ka po ng na sa pa rin din nga lang naman ho kami ako you we do does have has any there is are a an the us our your natin namin ninyo inyo '+
+    'ganito ganyan yung ung ang mga si ni right now currently pricelist ugreen stock stocks available on hand inventory still sold out remaining natitira natira ubos ilan pa').split(' ');
+  function nounOf(X,c){ var stop={}; NOUN_STOP.forEach(function(w){ stop[w]=1; }); Object.keys(c.smallFill).forEach(function(w){ stop[w]=1; });
+    var w=X.t.replace(/[^a-z0-9 -]+/g,' ').split(/\s+/).filter(function(x){ return x && !stop[x] && x.length>1 && !/^\d+$/.test(x); });
+    return w.length?w.join(' '):null; }
   function finish(plan,t0){ plan.ms=Date.now()-t0; return plan; }
   function dedupePorts(ps){ var s={}, o=[]; ps.forEach(function(p){ var k=p.kind+'|'+p.op+'|'+(p.value||''); if(!s[k]){ s[k]=1; o.push(p); } }); return o; }
   function histPlan(X,c,G){
@@ -451,6 +763,9 @@
     if(pair.from!==pair.to) return pos(pair.from,0)>=0 && pos(pair.to,0)>=0 && / to /.test(n);
     var a=pos(pair.from,0); if(a<0) return false; var to=n.indexOf(' to ',a); return to>=0 && pos(pair.to,to)>=0;
   }
+  /* drive size in the product NAME: true = this size, false = another size, null = no size stated (excluded from confirmed matches) */
+  function sizeOk(p,v){ var n=' '+String(p&&p.product_name||'')+' ', x=+v, re=/[^\d.](\d{1,2}(?:\.\d{1,2})?)\s*(?:-\s*)?(?:inch(?:es)?\b|in\b|''|"|“|”|″|'|’’)(?:\s*[-–~]\s*(\d{1,2}(?:\.\d{1,2})?)\s*(?:inch(?:es)?\b|in\b|''|"|“|”|″|'|’’)?)?/gi, m, seen=false;
+    while((m=re.exec(n))){ seen=true; var a1=+m[1], b1=m[2]!=null?+m[2]:null; if(b1!=null ? (x>=a1-1e-6 && x<=b1+1e-6) : Math.abs(a1-x)<0.051) return true; } return seen?false:null; }
   function FNORM(w){ return NLU()?NLU().normText(w):String(w).toLowerCase(); }
   function inType(F,T){
     if(!T) return true;
@@ -473,7 +788,9 @@
     if(I==='price_history') return histExec(plan,products,idx,subject,R);
     var anyProduct=subject.length||plan.type||plan.form||plan.useCase||plan.filters.length||plan.match.length||plan.connectors.length||plan.ports.length;
     if(I==='coach'||I==='help'||I==='clarify'||!anyProduct){ R.executor='none'; R.codes=subject.slice(); return R; }
-    if(I==='alternative'){ R.executor='pending(p2r3b)'; R.codes=subject.slice(); R.notes.push('alternatives executor not built in this step'); return R; }
+    if(I==='alternative'){
+      if(plan.alternative && plan.alternative.executable) return sameButExec(plan,products,idx,subject,X,c,R,byCode);
+      R.executor='pending(p2r3b)'; R.codes=subject.slice(); R.notes.push('alternatives scorer is p2r3b'); return R; }
     if(I==='attribute' && plan.attribute==='colors' && subject.length){
       var mdl=uniq(subject.map(function(x){ return idx.byCode[x]?idx.byCode[x].model.toLowerCase():''; }).filter(Boolean));
       R.executor='variants'; R.codes=products.filter(function(p){ return mdl.indexOf(String(p.model||'').toLowerCase().trim())>=0; }).map(function(p){ return String(p.item_code); }); return R; }
@@ -488,6 +805,7 @@
         if(T && !inType(F,T)) return false;
         if(fams && fams.length && fams.indexOf(F.type.family)<0) return false;
         if(plan.form && !(T && T.family!=='video_cable') && !formOk(F,plan.form)) return false;
+        if(plan.formStrict && !formOk(F,plan.formStrict)) return false;
         return true; });
       if(T && T.subtype && T.fallback && !pool.length){ var T2={ family:T.family }; pool=products.filter(function(p){ var F=idx.byCode[String(p.item_code)]; return F && inType(F,T2); }); R.notes.push('subtype fallback to family'); }
       /* car items only when "car" is asked (engine rule), unless they are the only matches */
@@ -497,17 +815,21 @@
     pool.forEach(function(p){
       var code=String(p.item_code), F=idx.byCode[code]; if(!F) return;
       var worst=3, ev=[], unknown=false, fail=false;
-      function take(r){ if(!r||!r.ok){ if(r&&r.unknown) unknown=true; fail=true; return; } worst=Math.min(worst,TIER[r.tier]||3); if(r.ev) ev.push(r.ev); }
+      function take(r){ if(!r||!r.ok){ if(r&&r.unknown) unknown=true; fail=true; return; } worst=Math.min(worst,TIER[r.tier]||3); if(r.ev && r.tier==='medium') ev.push(r.ev); }
       if(!fromSubject){
-        /* named connectors must be in the product name for cables / adapters (p2r2.1 rule); otherwise name or features */
-        plan.connectors.forEach(function(k){ if(fail) return; var named=F.attrs.connectors.named.indexOf(k)>=0;
-          if(named) return take({ ok:true, tier:'strong' }); if((plan.form||(plan.type&&/cable/.test(plan.type.family)))) return take({ ok:false });
-          take(F.attrs.connectors.value.indexOf(k)>=0?{ ok:true, tier:'medium' }:{ ok:false }); });
+        /* a connector named in the question must be in the product NAME (p2r2.1 rule, now on every path): a USB-C power port
+           in the features does not make a USB-A hub a "USB-C hub". Port inventories use plan.ports instead. */
+        plan.connectors.forEach(function(k){ if(fail) return; take(F.attrs.connectors.named.indexOf(k)>=0?{ ok:true, tier:'strong' }:{ ok:false }); });
         if(!fail && plan.pair) take({ ok:pairOk(F,plan.pair), tier:'strong' });
       }
       plan.filters.forEach(function(f){ if(!fail) take(numCheck(F,f,p)); });
       plan.ports.forEach(function(pp){ if(!fail) take(portCheck(F,pp)); });
-      plan.match.forEach(function(a){ if(fail) return; var m=FACTS().match(F,a); if(!m) return take({ ok:false }); take({ ok:true, tier:m.t, ev:m.ev }); });
+      plan.match.forEach(function(a){ if(fail) return;
+        if(a.k==='nameword') return take(new RegExp('\\b'+a.v).test(F.units[0].text)?{ ok:true, tier:'strong' }:{ ok:false });
+        if(a.k==='namephrase') return take(a.codes.indexOf(code)>=0?{ ok:true, tier:'strong' }:{ ok:false });
+        if(a.k==='size'){ var sz=sizeOk(p,a.v); if(sz===null) unknown=true; return take(sz?{ ok:true, tier:'strong' }:{ ok:false, unknown:sz===null }); }
+        var m=FACTS().match(F,a); if(!m) return take({ ok:false }); take({ ok:true, tier:m.t, ev:m.ev }); });
+      (plan.standards||[]).forEach(function(sd){ if(!fail) take(standardCheck(F,sd,c)); });
       if(fail){ if(unknown) R.unknown++; return; }
       if(worst===1) weak.push(code); else { conf.push({ code:code, tier:worst===3?'strong':'medium' }); if(ev.length) R.evidence[code]=ev[0]; }
     });
@@ -521,12 +843,88 @@
     R.codes=conf.map(function(x){ return x.code; }); R.mentioned=weak; R.medium=conf.filter(function(x){ return x.tier==='medium'; }).length;
     if(fromSubject && !R.codes.length && !plan.filters.length && !plan.match.length) R.codes=subject.slice();
     R.executor=fromSubject?'subject':'filter';
+    /* soft name qualifier ("travel charger") with no match: drop it, say so, keep the rest */
+    if(!fromSubject && !R.codes.length && !R.mentioned.length && !plan._softRun && plan.match.some(function(m){ return m.soft; })){
+      var sp={}; for(var k0 in plan) sp[k0]=plan[k0]; sp.match=plan.match.filter(function(m){ return !m.soft; }); sp._softRun=true;
+      var dropped=plan.match.filter(function(m){ return m.soft; }).map(function(m){ return m.v; });
+      var sr=execute(sp,products,idx,subject,X,c); if(sr.codes.length){ sr.droppedQualifiers=dropped; return sr; }
+    }
+    /* laptop use (ordering hint only, architecture §10): power products >= 45W first */
+    if(!fromSubject && plan.flags.devices.classes.indexOf('laptop')>=0 && plan.type && (plan.type.family==='charger'||plan.type.family==='power_bank') && !plan.sort){
+      var lw=function(x){ var a=idx.byCode[x].attrs.watts.value||0; return (a>=45?1000:0)+a; };
+      R.codes=R.codes.slice().sort(function(a,b){ return lw(b)-lw(a) || (a<b?-1:1); }); R.ordered='laptop';
+    }
+    /* zero results: the values that DO exist for the faceted spec under every other constraint (not nearest-match scoring) */
+    if(!fromSubject && !R.codes.length && !R.mentioned.length && !plan._facetRun){
+      var fa=plan.filters.filter(function(f){ return f.attr==='watts'||f.attr==='mah'||f.attr==='lengthM'; })[0];
+      if(fa){ var rp={}; for(var k in plan) rp[k]=plan[k]; rp.filters=plan.filters.filter(function(f){ return f!==fa; }); rp.intent='list'; rp._facetRun=true; rp.sort=null;
+        var fr=execute(rp,products,idx,[],X,c); R.facet={ attr:fa.attr, codes:fr.codes.slice() }; }
+    }
+    if(plan.intent==='attribute' && plan.attribute && ATTR_VAL[plan.attribute]){
+      R.values={}; R.codes.forEach(function(code){ var v=ATTR_VAL[plan.attribute](idx.byCode[code],byCode[code]); if(v) R.values[code]=v; });
+      R.executor=fromSubject?'subject-attribute':'filter-attribute';
+    }
     if(plan.intent==='rank' && plan.sort){
       var S=plan.sort[0], vals={}, keep=[];
       R.codes.forEach(function(code){ var v=rankVal(S.by,idx.byCode[code],byCode[code]); if(v==null) R.unknown++; else { vals[code]=v; keep.push(code); } });
       keep.sort(function(a,b){ return (S.dir==='asc'?vals[a]-vals[b]:vals[b]-vals[a]) || (a<b?-1:a>b?1:0); });
-      R.codes=keep; R.top=keep.slice(0,plan.limit||1); R.executor='rank';
+      R.codes=keep; R.top=plan.limit?keep.slice(0,plan.limit):keep.slice(); R.executor='rank';
     }
+    return R;
+  }
+  /* ---------- p2r3a helpers: standards, attribute values, "same but …" ---------- */
+  function standardCheck(F,sd,c){
+    var terms=((c.L.standards||{})[sd]||{}).terms||[]; if(!terms.length) return { ok:false };
+    var re=new RegExp('(^|[^a-z0-9])(?:'+terms.map(esc).join('|')+')(?![a-z0-9])');
+    if(re.test(F.units[0].text)) return { ok:true, tier:'strong' };
+    /* the product name states a different standard (e.g. a Cat8 cable whose features say "backward compatible with Cat6A"): the name decides */
+    if(/(^|[^a-z0-9])cat\s?(5e|6a|6|7|8)(?![a-z0-9])/.test(F.units[0].text)) return { ok:false };
+    for(var i=1;i<F.units.length-1;i++) if(re.test(F.units[i].text)) return { ok:true, tier:'medium', ev:F.units[i].text };
+    return { ok:false };
+  }
+  function speedOf(F){
+    var best=null;
+    for(var i=0;i<F.units.length-1;i++){ var u=F.units[i], m, re=/(\d+(?:\.\d+)?)\s?(gbps|mbps)\b/g;
+      while((m=re.exec(u.text))){ var v=+m[1]*(m[2]==='gbps'?1000:1);
+        var pref=/speed|transfer|rate|data/.test(u.text)?1:0;
+        if(!best || pref>best.pref || (pref===best.pref && v>best.mbps)) best={ mbps:v, label:m[1]+(m[2]==='gbps'?'Gbps':'Mbps'), tier:u.tier, src:i===0?'name':'features', text:u.text, pref:pref }; } }
+    return best?{ value:best.label, tier:best.tier, src:best.src, text:best.text }:null;
+  }
+  var ATTR_VAL={
+    speed:function(F){ return speedOf(F); },
+    nasBays:function(F){ return F.attrs.nas&&F.attrs.nas.bays!=null?{ value:F.attrs.nas.bays+' bays', tier:'medium', src:'features', text:F.attrs.nas.evidence[0].text }:null; },
+    nasCpu:function(F){ return F.attrs.nas&&F.attrs.nas.cpu?{ value:F.attrs.nas.cpu, tier:'medium', src:'features' }:null; },
+    nasRam:function(F){ return F.attrs.nas&&F.attrs.nas.ram?{ value:F.attrs.nas.ram, tier:'medium', src:'features' }:null; }
+  };
+  function keyVal(k,F){
+    if(k==='ports'){ var pv=F.attrs.ports.value; return pv&&pv.total!=null?pv.total:null; }
+    if(k==='nasBays') return F.attrs.nas&&F.attrs.nas.bays!=null?F.attrs.nas.bays:null;
+    var A=F.attrs[k]; return A&&A.value!=null&&typeof A.value==='number'?A.value:null;
+  }
+  function sameButExec(plan,products,idx,subject,X,c,R,byCode){
+    var base=subject[0], B=idx.byCode[base], bp=byCode[base]; R.executor='same-but'; R.base=base;
+    if(!B||!bp){ R.codes=[]; return R; }
+    var pf=plan.priceField||'srp', bprice=Number(bp[pf])||0;
+    var keys=uniq((plan.alternative.keep||[]).concat(((c.L.keySpecs||{})[B.type.family])||[]));
+    var keep=[]; keys.forEach(function(k){ var v=keyVal(k,B); if(v!=null) keep.push({ k:k, v:v }); });
+    R.keep=keep; R.keepUnknown=keys.filter(function(k){ return keyVal(k,B)==null; });
+    var cableFam=/cable/.test(B.type.family), bconn=B.attrs.connectors.named.slice().sort().join('|'), out=[];
+    products.forEach(function(p){
+      var code=String(p.item_code); if(code===base) return; var F=idx.byCode[code]; if(!F || F.disabled) return;
+      if(F.type.family!==B.type.family) return; if(B.type.subtype && F.type.subtype!==B.type.subtype) return;
+      if(cableFam && F.attrs.connectors.named.slice().sort().join('|')!==bconn) return;
+      for(var i=0;i<keep.length;i++){ var v=keyVal(keep[i].k,F); if(v==null){ R.unknown++; return; } if(Math.abs(v-keep[i].v)>1e-6) return; }
+      var worst=3, ev=null, ok=true;
+      plan.filters.forEach(function(f){ if(!ok) return; var r=numCheck(F,f,p); if(!r||!r.ok){ ok=false; return; } worst=Math.min(worst,TIER[r.tier]||3); });
+      plan.match.forEach(function(a){ if(!ok) return; if(a.k==='namephrase'){ if(a.codes.indexOf(code)<0) ok=false; return; } if(a.k==='size'){ if(!sizeOk(p,a.v)) ok=false; return; } var m=FACTS().match(F,a); if(!m){ ok=false; return; } worst=Math.min(worst,TIER[m.t]); if(m.ev&&!ev) ev=m.ev; });
+      plan.ports.forEach(function(pp){ if(!ok) return; var r=portCheck(F,pp); if(!r.ok){ ok=false; return; } worst=Math.min(worst,TIER[r.tier]||3); });
+      if(!ok || worst===1) return;
+      var price=Number(p[pf]); if(!(price>0)) return;
+      if(plan.alternative.direction==='cheaper' && !(bprice>0 && price<bprice)) return;
+      out.push({ code:code, price:price }); if(ev) R.evidence[code]=ev;
+    });
+    out.sort(function(a,b){ return plan.alternative.direction==='cheaper' ? (a.price-b.price || (a.code<b.code?-1:1)) : (Math.abs(a.price-bprice)-Math.abs(b.price-bprice) || (a.code<b.code?-1:1)); });
+    R.codes=out.map(function(o){ return o.code; });
     return R;
   }
   function rankVal(by,F,p){
@@ -571,15 +969,22 @@
       if(plan.type) fam=[plan.type.family]; else if(subject.length) fam=uniq(subject.map(function(x){ return idx.byCode[x]&&idx.byCode[x].type.family; }).filter(Boolean));
       else if(plan.useCase) fam=plan.useCase.families;
       var pool=(R.codes||[]).filter(function(x){ var F=idx.byCode[x]; return F && (!fam||!fam.length||fam.indexOf(F.type.family)>=0); });
+      /* use-case ordering hint only (architecture §10): laptop power needs >= 45W first, then higher wattage */
+      if(plan.flags.devices.classes.indexOf('laptop')>=0 && !plan.sort){ var wv=function(x){ var a=idx.byCode[x].attrs.watts.value||0; return (a>=45?1000:0)+a; };
+        pool=pool.slice().sort(function(a,b){ return wv(b)-wv(a) || (a<b?-1:1); }); }
       if(!subject.length || list.length<2) pool.forEach(function(x){ if(list.indexOf(x)<0) list.push(x); });
-      if(subject.length===1 && list.length<2 && fam && fam.length && I!=='compat'){        /* one anchored SKU for a judgement: add same-family items nearest in SRP */
-        var ap=null;
-        var sib=(idx.families[fam[0]]||[]).filter(function(x){ return x!==subject[0] && idx.byCode[x] && !idx.byCode[x].disabled; });
-        var srp=function(x){ return Number((HOOK.byCode[x]||{}).srp)||0; }; ap=srp(subject[0]);
-        sib.sort(function(x,y){ return Math.abs(srp(x)-ap)-Math.abs(srp(y)-ap) || (x<y?-1:1); }); sib.slice(0,7).forEach(function(x){ list.push(x); });
+      if(list.length===1 && fam && fam.length){        /* one product (anchor or single result): add same-family items nearest in SRP — the Worker needs >= 2 candidates; the product stays #1 */
+        var ap=null, one=list[0], f1=idx.byCode[one]?idx.byCode[one].type.family:fam[0];
+        var sib=(idx.families[f1]||[]).filter(function(x){ return x!==one && idx.byCode[x] && !idx.byCode[x].disabled && HOOK.byCode[x]; });
+        var srp=function(x){ return Number((HOOK.byCode[x]||{}).srp)||0; }; ap=srp(one);
+        out.padded=true;
+        var sub1=idx.byCode[one]?idx.byCode[one].type.subtype:null, ss=function(x){ return sub1 && idx.byCode[x].type.subtype===sub1?0:1; };
+        sib.sort(function(x,y){ return ss(x)-ss(y) || Math.abs(srp(x)-ap)-Math.abs(srp(y)-ap) || (x<y?-1:1); }); sib.slice(0,7).forEach(function(x){ list.push(x); });
       }
       var perModel={}, final=[];
-      list.forEach(function(x){ if(final.length>=8) return; var F=idx.byCode[x]; if(!F) return; var m=(F.model||x).toLowerCase(); if((perModel[m]||0)>=2 && subject.indexOf(x)<0) return; perModel[m]=(perModel[m]||0)+1; final.push(x); });
+      /* a compatibility question about named product(s) is about THAT product: pad only to the Worker minimum of 2 */
+      var cap=(I==='compat' && subject.length)?Math.max(2,subject.length):8;
+      list.forEach(function(x){ if(final.length>=cap) return; var F=idx.byCode[x]; if(!F) return; var m=(F.model||x).toLowerCase(); if((perModel[m]||0)>=2 && subject.indexOf(x)<0) return; perModel[m]=(perModel[m]||0)+1; final.push(x); });
       out.purity=fam&&fam.length?{ families:fam, pure:final.filter(function(x){ return fam.indexOf(idx.byCode[x].type.family)>=0; }).length, of:final.length }:null;
       return final;
     }
@@ -587,14 +992,15 @@
     if(I==='help') return set(ROUTES.CLARIFY,'R0 empty');
     if(I==='coach') return set(ROUTES.COACH,'R1 coach');
     if(I==='price_history') return set(ROUTES.LOCAL,'R2 history');
-    var specific=plan.flags.devices.named.length>0;
+    var specific=plan.flags.devices.named.length>0 && !plan.deviceNamed;   /* products NAMED for the device line = catalogue fact */
     if(I==='compat' || (specific && !subject.length && (I==='recommend'||I==='list'||I==='exist'||I==='lookup'))){
       if(!hasProduct) return set(ROUTES.CLARIFY,'R3 compat without product');
       out.candidates=cands();
-      if(subject.length || out.candidates.length>=1) return set(ROUTES.WEB,'R3 compat/device/external → WEB');
+      if(out.candidates.length>=2) return set(ROUTES.WEB,'R3 compat/device/external → WEB');
+      if(subject.length) return set(ROUTES.LOCAL,'R3 compat, single product (no second candidate) → local card + caveat');
       return set(ROUTES.CLARIFY,'R3 compat, no candidate');
     }
-    if(plan.ambiguity.some(function(a){ return a.slot==='target'||a.slot==='type'; }) && I!=='recommend') return set(ROUTES.CLARIFY,'R4 ambiguity');
+    if(plan.ambiguity.some(function(a){ return a.slot==='target'||a.slot==='type'||a.slot==='number'||a.slot==='cable'||a.slot==='name'; }) && I!=='recommend') return set(ROUTES.CLARIFY,'R4 ambiguity');
     if(['lookup','exist','count','list','rank','compare','attribute','alternative'].indexOf(I)>=0){
       if(I==='lookup' && !subject.length) return set(ROUTES.CLARIFY,'R4 unresolved anchor');
       return set(ROUTES.LOCAL,'R5 local intent');
@@ -616,16 +1022,26 @@
   }
 
   /* next-turn conversation context: item codes + a pruned plan only (no prices, no text) */
+  /* next-turn conversation context: item codes + the user's own constraints (pruned plan). Never catalog prices, AI text or user text. */
   function nextContext(plan,prev){
-    prev=prev||{}; var ctx={ turn:(prev.turn||0)+1, focus:[], results:[], comparison:prev.comparison||[], lastPlan:null };
+    prev=prev||{};
+    if(plan.intent==='smalltalk' || plan.intent==='help') return prev;          /* small talk never changes the context */
+    var ctx={ turn:(prev.turn||0)+1, focus:[], results:[], comparison:(prev.comparison||[]).slice(), lastPlan:null };
     var subj=plan.subject||[], res=(plan.result&&plan.result.codes)||[];
-    if(plan.intent==='compare' && subj.length>=2){ ctx.comparison=subj.slice(0,4); ctx.focus=[]; }
-    else if(subj.length){ ctx.focus=subj.slice(); }
+    if(plan.intent==='compare' && subj.length>=2){ ctx.comparison=subj.slice(0,4); }
+    else if(subj.length && plan.intent!=='attribute'){ ctx.focus=subj.slice(0,6); }
+    else if(subj.length && plan.attrFromContext!=='results'){ ctx.focus=subj.slice(0,6); }
     else if(res.length===1){ ctx.focus=res.slice(); }
-    ctx.results=(plan.result&&plan.result.top&&plan.intent!=='rank'?plan.result.top:res).slice(0,12);
-    if(plan.intent==='rank') ctx.results=res.slice(0,12);
-    if(subj.length && plan.intent!=='compare') ctx.comparison=prev.comparison&&plan.refs&&plan.refs.length?prev.comparison:[];
-    ctx.lastPlan={ intent:plan.intent, type:plan.type?plan.type.id:null, filters:plan.filters.map(function(f){ return { attr:f.attr, op:f.op, value:f.attr==='price'?undefined:f.value }; }) };
+    if(plan.intent==='alternative' && plan.alternative && plan.alternative.executable){ ctx.focus=subj.slice(0,1); ctx.results=res.slice(0,12); }
+    else ctx.results=((plan.intent==='rank')?res:((plan.result&&plan.result.top)||res)).slice(0,12);
+    if(plan.attrFromContext==='results') ctx.results=subj.slice(0,12);
+    if(plan.intent==='price_history' || plan.intent==='coach'){ ctx.focus=subj.slice(0,6); ctx.results=[]; }
+    if(plan.topicSwitch && plan.topicSwitch!=='reference' && plan.intent!=='compare') ctx.comparison=[];
+    var T=plan.type?{ id:plan.type.id, family:plan.type.family, subtype:plan.type.subtype||null, term:plan.type.term||null, strict:!!plan.type.strict, fallback:!!plan.type.fallback }:null;
+    ctx.lastPlan={ intent:plan.intent, attribute:plan.attribute||null, formStrict:plan.formStrict||null, subjectBased:!!(plan.subject&&plan.subject.length), type:T, form:plan.form, connectors:(plan.connectors||[]).slice(), pair:plan.pair?{ from:plan.pair.from, to:plan.pair.to }:null,
+      filters:(plan.filters||[]).map(function(f){ return { attr:f.attr, op:f.op, value:f.value, unit:f.unit||null, field:f.field||null }; }),
+      match:(plan.match||[]).map(function(m){ return JSON.parse(JSON.stringify(m)); }), ports:(plan.ports||[]).map(function(x){ return { kind:x.kind, op:x.op, value:x.value }; }),
+      standards:(plan.standards||[]).slice(), useCase:plan.useCase?JSON.parse(JSON.stringify(plan.useCase)):null, sort:plan.sort?JSON.parse(JSON.stringify(plan.sort)):null, limit:plan.limit };
     return ctx;
   }
 

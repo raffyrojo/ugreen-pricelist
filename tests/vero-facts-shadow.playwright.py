@@ -1,5 +1,5 @@
 """VERO Local Brain shadow check (Foundation Step 1). Run: python3 tests/vero-facts-shadow.playwright.py <repo root>
-Shadow check: load the LOCAL build (index.html unchanged), then inject vero-lexicon.js + vero-facts.js by hand.
+Shadow check: load the LOCAL build, then (re-)inject vero-lexicon.js + vero-facts.js by hand. Since p2r3a index.html loads them itself.
 Measures in-browser facts build time and confirms VERO answers are identical before/after injection. Worker/OpenAI blocked."""
 import sys, re, json, threading, http.server, socketserver, functools
 from playwright.sync_api import sync_playwright
@@ -30,5 +30,6 @@ print('VeroLexicon/VeroFacts before injection:', present)
 print('browser facts build ms (5 cold runs):', t['runs'], 'memo ms:', t['memo'], 'stats:', {k: t['stats'][k] for k in ('total', 'classified', 'other', 'conflicting')})
 print(f'answers identical before/after facts build: {same}/{len(pre)}')
 print('page errors:', errs, '| worker/openai requests:', len(reqs))
-ok = same == len(pre) and not errs and not reqs and present == ['undefined', 'undefined'] and not any('lexicon' in s or 'facts' in s for s in loaded)
+# p2r3a: index.html now loads vero-lexicon.js + vero-facts.js itself (Local Brain switch-over); re-injecting them must not change any answer
+ok = same == len(pre) and not errs and not reqs and present == ['object', 'object'] and any('lexicon' in s for s in loaded) and any('facts' in s for s in loaded)
 print('SHADOW CHECK:', 'PASS' if ok else 'FAIL')

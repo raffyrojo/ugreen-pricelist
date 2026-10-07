@@ -34,7 +34,7 @@ chk('Q02 build never mutates products (no new own properties, JSON identical)', 
 chk('Q03 empty question -> CLARIFY help, no candidates', (()=>{ const p=B('   '); return p.route.route==='CLARIFY' && !p.route.candidates.length; })());
 const SRC=fs.readFileSync(path.join(ROOT,'js','vero-plan.js'),'utf8');
 chk('Q04 no network / storage APIs in vero-plan.js', !/\bfetch\s*\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB/.test(SRC));
-chk('Q05 lexicon f2 still passes the protected-rule check', F.assertLexiconSafe(LEX)===true && LEX.version==='f2');
+chk('Q05 lexicon (f2+) still passes the protected-rule check', F.assertLexiconSafe(LEX)===true && /^f[2-9]/.test(LEX.version));
 
 /* ---------- architecture §5.2 examples ---------- */
 const e1=B('cheapest 20k power bank with built in cable under 2k');
@@ -98,7 +98,10 @@ chk('Q37 judgement on ONE anchored SKU -> AI with the anchor first, rest same fa
 chk('Q38 compat with an anchored SKU and a named device -> WEB, anchor = candidate #1', (()=>{ const p=B('compatible ba ang '+CODE+' sa macbook air m4?'); return p.route.route==='WEB' && p.route.candidates[0]===CODE; })());
 chk('Q39 price history is LOCAL even with a device / judgement word', B('nagtaas ba presyo ng chargers this month').route.route==='LOCAL');
 chk('Q40 coach words -> COACH_FUTURE (never AI), even with an anchor', ['ano magandang upsell sa '+CODE,'hero sku for power banks?','ano pwede i-bundle sa '+CODE].every(q=>B(q).route.route==='COACH_FUTURE'));
-chk('Q41 alternative intent recognised with direction, executor pending (no alternatives logic in this step)', (()=>{ const p=B('may mas mura ba sa '+CODE+'?'); return p.intent==='alternative' && p.alternative.direction==='cheaper' && /pending/.test(p.result.executor) && p.route.route==='LOCAL'; })());
+chk('Q41 p2r3a "may mas mura ba sa X?" = cheaper options: same family/subtype, same key spec, lower SRP, cheapest first (deterministic filter, not the p2r3b scorer)', (()=>{ const p=B('may mas mura ba sa '+CODE+'?'); const base=byCode[CODE], bw=IDX.byCode[CODE].attrs.watts.value;
+  const c=p.result.codes; return p.intent==='alternative' && p.alternative.direction==='cheaper' && p.result.executor==='same-but' && p.route.route==='LOCAL' && c.length>0 &&
+    c.every(x=>fam(x)==='charger' && sub(x)===sub(CODE) && IDX.byCode[x].attrs.watts.value===bw && Number(byCode[x].srp)<Number(base.srp)) && c.every((x,i)=>i===0||Number(byCode[c[i-1]].srp)<=Number(byCode[x].srp)); })());
+chk('Q41b a plain "alternative" with no direction or constraint stays pending (p2r3b scorer)', /pending/.test(B('alternative sa SKU '+CODE).result.executor));
 
 /* ---------- taxonomy (hub / dock, car) — expectations derived from the facts index ---------- */
 const hubs=PUB.filter(p=>fam(p.item_code)==='hub_dock'), docks=hubs.filter(p=>sub(p.item_code)==='dock');

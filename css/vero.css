@@ -90,6 +90,7 @@ body.vero-on main{ padding-bottom:calc(var(--vero-fab) + var(--vero-gap) + 24px)
 .vero-ans{ margin:.1rem 0 .5rem; padding:.5rem .65rem; background:#ecfdf3; border:1px solid #bbe6c9; border-radius:8px; color:#0b3d1f; }
 .vero-ans b{ color:var(--vero-g); }
 .vero-fine{ margin:.4rem 0 0; font-size:.68rem; color:var(--text-muted,#475569); }
+.vero-echo{ margin:0 0 .3rem; font-size:.68rem; color:var(--text-muted,#475569); letter-spacing:.01em; }   /* p2r3a: "Using: …" context line */
 .vero-soon{ font-style:italic; }
 
 /* product cards */
