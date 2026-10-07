@@ -119,5 +119,30 @@ const nv=one('nvme enclosure 10gbps pinakamura');
 const nvWant=PUB.filter(p=>fam(p.item_code)==='enclosure' && /\bnvme\b/i.test(p.product_name) && /10\s?gbps/i.test(p.product_name)).sort((a,b)=>a.srp-b.srp).map(p=>String(p.item_code));
 chk('I2 "nvme enclosure 10gbps pinakamura" → cheapest real 10Gbps NVMe enclosure first (derived '+nvWant[0]+'), no PCIe card', nv.r.codes[0]===nvWant[0] && !nv.r.codes.some(c=>pcie.includes(c)), txt(nv));
 
+/* ================= J PCIe naming variants (final browser review, 2026-10-07) =================
+   Names write "PCI-E3.0X4" and "PCIe Gen 4"; users type pcie / pci-e / pci express. Expected set = every SKU in the
+   "PCIe Expansion Card" category (derived from data, never listed). */
+const pcieCat=PUB.filter(p=>p.category==='PCIe Expansion Card').map(p=>String(p.item_code));
+const noneNote=x=>/don.t have|we do not have|\bwala\b|not in (?:the|this) (?:current )?pricelist/i.test(x.r.note||'');
+const J1=['pcie expansion card','pcie card','m.2 to pcie','may pcie card ba?','nvme to pcie adapter','pci-e expansion card','pci express expansion card','pcie adapter'].map(one);
+chk('J1 every PCIe spelling / phrasing returns exactly the PCIe Expansion Card SKUs (derived '+pcieCat.length+'), LOCAL, no false "we don\'t have"',
+  pcieCat.length>=2 && J1.every(x=>sortedEq(x.r.codes,pcieCat) && local(x) && !noneNote(x)), J1.filter(x=>!(sortedEq(x.r.codes,pcieCat)&&local(x)&&!noneNote(x))).map(txt).join(' || '));
+const J2a=one('m.2 to pcie'), J2b=one('pcie to m.2');
+chk('J2 "X to Y" is a direction, not a name phrase: "m.2 to pcie" and "pcie to m.2" return the same set', sortedEq(J2a.r.codes,J2b.r.codes) && sortedEq(J2a.r.codes,pcieCat), txt(J2a)+' || '+txt(J2b));
+const J3=one('pcie card'), J3m=PUB.filter(p=>pcieCat.includes(String(p.item_code))).map(p=>p.model), fitM=new Set(fit.map(c=>byCode[c].model)), J3f=one('fitbuds');
+chk('J3 a name match spanning several models never says "Model X has N SKUs"; a single-model name match still does',
+  new Set(J3m).size>1 && !/^Model /.test(J3.r.note||'') && (fitM.size!==1 || /^Model /.test(J3f.r.note||'')), txt(J3)+' || '+txt(J3f));
+const J4=one('may stock ba ng pcie card?');
+chk('J4 stock wording on PCIe cards: listed + live-inventory caveat, no count, no false "wala"', sortedEq(J4.r.codes,pcieCat) && !!J4.r.stockNote && !noneNote(J4) && !/\b\d+\s*(?:units|pcs|left)\b/i.test(J4.r.note||''), txt(J4));
+const J5=['hdmi to vga adapter','usb-c to hdmi adapter','65W charger','m.2 enclosure'].map(one);
+chk('J5 no collateral: adapter / charger / enclosure queries never pick up a PCIe Expansion Card', J5.every(x=>x.r.codes.length && !x.r.codes.some(c=>pcieCat.includes(c))), J5.map(txt).join(' || '));
+/* J6 generic, not SKU-specific: synthetic SKUs with fresh codes, each spelling, join the same answers with no code change */
+const SYN=[['J6SYN01','PCI Express x1 to 4-Port USB 3.0 Card','JSYN1'],['J6SYN02','PCI-E x1 to 2.5G LAN Card','JSYN2'],['J6SYN03','PCIe Gen3 Riser Card','JSYN3']]
+  .map(([c,n,m])=>Object.assign({},PUB.find(p=>p.category==='PCIe Expansion Card'),{ item_code:c, model:m, product_name:n, upc:'', material_number:'' }));
+const POOL6=PUB.concat(SYN), want6=pcieCat.concat(SYN.map(p=>p.item_code));
+const J6=['pcie card','pci-e card','pci express card'].map(q=>({ q, r:E.answer(POOL6,q,{}) }));
+chk('J6 normalization is generic: synthetic SKUs spelled "PCI Express" / "PCI-E" / "PCIe" all match every spelling (derived '+want6.length+')',
+  J6.every(x=>sortedEq(x.r.codes,want6)), J6.map(x=>x.q+' => '+(x.r.codes||[]).join(',')).join(' || '));
+
 console.log(`\nVERO p2r3a fix pack 2: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

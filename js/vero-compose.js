@@ -22,6 +22,8 @@
   function fill(t,o){ return String(t||'').replace(/\{(\w+)\}/g,function(m,k){ return o&&o[k]!=null?o[k]:''; }); }
   function T(lang,key,o){ var R=LEX().replies, s=(R[lang]&&R[lang][key])||R.en[key]||''; return fill(s,o); }
   function fmtNum(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+  /* the one model shared by ALL codes, else null (a name anchor such as "pcie" can span several models) */
+  function oneModel(codes,byCode){ var m=null; for(var i=0;i<codes.length;i++){ var p=byCode[codes[i]], x=p&&p.model?String(p.model).toUpperCase():''; if(!x||(m!==null&&x!==m)) return null; m=x; } return m; }
   function uniq(a){ var o=[], s={}; (a||[]).forEach(function(x){ if(!s[x]){ s[x]=1; o.push(x); } }); return o; }
   var CONN0={ usb_c:'USB-C', usb_a:'USB-A', lightning:'Lightning', hdmi:'HDMI', dp:'DisplayPort', vga:'VGA', dvi:'DVI', rj45:'LAN', micro_usb:'Micro USB', aux35:'3.5mm', thunderbolt:'Thunderbolt', usb4:'USB4', sd:'SD', tf:'microSD', m2:'M.2' };
   /* fix-pack 2 #5: one label table (lexicon.connectorLabels) with a readable fallback — a user never sees "undefined" */
@@ -190,7 +192,7 @@
         if(A==='sku' && codes.length===1){ var p0=byCode[codes[0]]; res.note='SKU '+codes[0]+' — '+String(p0&&p0.product_name||'').replace(/\s+/g,' ').trim()+':'; }
         else if(A==='sku') res.note=codes.length+' '+label(plan,true)+(lang==='tl'?' — nasa bawat card ang item code:':' — item codes on each card:');
         else if(codes.length>1 && plan.attrFromContext==='results') res.note=(lang==='tl'?'Heto ang '+A.toUpperCase()+' ng huling results:':A.toUpperCase().replace('DP_VOLUME','DP Vol')+' for your last results:');
-        else if(codes.length>1){ var ra2=plan.anchors.filter(function(a){ return a.codes.length; }), m0=byCode[codes[0]]; res.note=(ra2.length===1&&m0&&m0.model?'Model '+String(m0.model).toUpperCase()+' has '+codes.length+' SKUs:':(ra2.length>1?codes.length+' SKUs for '+ra2.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':':'')); }
+        else if(codes.length>1){ var ra2=plan.anchors.filter(function(a){ return a.codes.length; }), m0=oneModel(codes,byCode); res.note=(ra2.length===1&&m0?'Model '+m0+' has '+codes.length+' SKUs:':(ra2.length>=1?codes.length+' SKUs for '+ra2.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':':'')); }
         return done(); }
       if(A==='description'){ var pd=byCode[codes[0]]; res.type='lookup'; res.codes=codes.slice(0,1);
         res.note=codes[0]+' — '+String((pd&&(pd.description||pd.short_desc))||(lang==='tl'?'walang description sa pricelist':'no description in the pricelist')).replace(/\s+/g,' ').trim().slice(0,320); return done(); }
@@ -211,12 +213,13 @@
     if((I==='lookup'||I==='exist'||I==='compat'||I==='recommend') && plan.subject.length){
       codes2=plan.subject.slice(); res.type=codes2.length===1?'lookup':'list'; res.codes=codes2;
       if(plan.flags.stock && (I==='exist'||I==='lookup')){ var ra0=plan.anchors.filter(function(a){ return a.codes.length; }), p0=byCode[codes2[0]];
-        var xl=(ra0.length===1 && (ra0[0].via==='model'||ra0[0].via==='name') && p0 && p0.model)?String(p0.model).toUpperCase():(codes2.length===1?(p0&&p0.model?String(p0.model).toUpperCase()+' ('+codes2[0]+')':codes2[0]):codes2.join(', '));
-        if(ra0.length===1 && (ra0[0].via==='model'||ra0[0].via==='name') && codes2.length>1) xl+=lang==='tl'?' ('+codes2.length+' SKU)':' ('+codes2.length+' SKUs)';
+        var one0=ra0.length===1 && (ra0[0].via==='model'||ra0[0].via==='name') && oneModel(codes2,byCode);
+        var xl=one0?one0:(codes2.length===1?(p0&&p0.model?String(p0.model).toUpperCase()+' ('+codes2[0]+')':codes2[0]):codes2.join(', '));
+        if(one0 && codes2.length>1) xl+=lang==='tl'?' ('+codes2.length+' SKU)':' ('+codes2.length+' SKUs)';
         res.note=T(lang,'invListed',{ x:xl }); res.type='list'; }                     /* 'list' so the drawer shows this sentence above the card (a 'lookup' card has no note line) */
       else if(I==='exist') res.note=(lang==='tl'?'Oo — ':'Yes — ')+T(lang,'listed').replace(/^./,function(x){ return x.toLowerCase(); });
-      else if(codes2.length>1){ var ra=plan.anchors.filter(function(a){ return a.codes.length; }), mm=byCode[codes2[0]];
-        res.note=(ra.length===1 && mm && mm.model)?('Model '+String(mm.model).toUpperCase()+' has '+codes2.length+' SKUs:'):(ra.length>1?(lang==='tl'?codes2.length+' na SKU para sa '+ra.map(function(a){ return a.raw.toUpperCase(); }).join(' at ')+':':codes2.length+' SKUs for '+ra.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':'):''); }
+      else if(codes2.length>1){ var ra=plan.anchors.filter(function(a){ return a.codes.length; }), mm=oneModel(codes2,byCode);
+        res.note=(ra.length===1 && mm)?('Model '+mm+' has '+codes2.length+' SKUs:'):(ra.length>=1?(lang==='tl'?codes2.length+' na SKU para sa '+ra.map(function(a){ return a.raw.toUpperCase(); }).join(' at ')+':':codes2.length+' SKUs for '+ra.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':'):''); }
       if(I==='compat'||I==='recommend'){ var d2=plan.flags.devices; if(d2.named.length||d2.classes.length) res.note=(res.note?res.note+' ':'')+T(lang,'compat',{ device:devLabel((d2.named[0]&&d2.named[0].label)||d2.classes[0]) })+'.'; }
       if(rt==='AI_CATALOG'||rt==='WEB'){ res.needsAI=true; res.aiReason='recommendation/compatibility'; }
       return done();

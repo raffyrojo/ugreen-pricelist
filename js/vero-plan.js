@@ -40,6 +40,7 @@
     s=s.replace(/₱/g,' ₱ ').replace(/\bphp\b/g,' ₱ ');
     s=s.replace(/(\d),(\d{3})(?!\d)/g,'$1$2').replace(/(\d),(\d{3})(?!\d)/g,'$1$2');
     s=s.replace(/\b(?:type|tipo)[\s-]?c\b|\busb[\s-]?c\b|\busbc\b|\btypec\b/g,'usb-c').replace(/\busb[\s-]?a\b/g,'usb-a');
+    s=s.replace(/\bpci[\s-]?express\b|\bpci[\s-]?e(?![a-z])/g,'pcie ');   /* PCIe = PCI-E = PCI Express (names write "PCI-E3.0X4" and "PCIe Gen 4"); same text path for names and queries */
     s=s.replace(/\bbuild[\s-]?in\b|\bbuilt\s+in\b/g,'built-in')
      .replace(/\b(?:kotse|sasakyan|oto)\b/g,'car')
      .replace(/\b(?:may |with )?(?:cable|kable) na naka-?kabit\b|\bnaka-?kabit na (?:cable|kable)\b|\b(?:may )?sariling (?:cable|kable)\b|\b(?:naka-?attach na|attached) (?:cable|kable)\b|\bintegrated cable\b/g,' built-in cable ').replace(/\bmag\s?safe\b/g,'magsafe').replace(/\bqi\s?2\b/g,'qi2');
@@ -173,6 +174,7 @@
       for(var lo=a;lo>=Math.max(0,a-3);lo--){ for(var hi=a;hi<Math.min(q.length,a+4);hi++){
         if(hi-lo+1<= (best?best.hi-best.lo+1:0)) continue;
         var win=q.slice(lo,hi+1); if(win.some(function(w,ix){ return used[lo+ix]; })) continue;
+        if(win.length>1 && win.indexOf('to')>=0) continue;   /* "X to Y" is a direction; names write it both ways ("M.2 to PCI-E" / "PCIe … to M.2"), so "to" never glues a name phrase */
         if(win.some(function(w){ return !ni.df[w]; })) continue;
         var codes=[]; (ni.post[win[0]]||[]).forEach(function(pp){ var tk=ni.toks[pp[0]]; for(var k=1;k<win.length;k++){ if(tk[pp[1]+k]!==win[k]) return; } if(codes.indexOf(pp[0])<0) codes.push(pp[0]); });
         if(codes.length){ /* edge words that are only vocabulary add nothing: keep them only when they narrow the match */ best={ lo:lo, hi:hi, codes:codes, text:win.join(' ') }; }
@@ -776,7 +778,7 @@
   function formOk(F,form){
     var t=F.type;
     if(form==='cable') return !!t.forms.cable && !/\bcar charger\b/.test(F.units[0].text);
-    if(form==='adapter') return (!!t.forms.adapter || /adapter|converter/i.test(F.category)) && t.family!=='hub_dock';
+    if(form==='adapter') return (!!t.forms.adapter || /adapter|converter|expansion card/i.test(F.category)) && t.family!=='hub_dock';   /* expansion cards are sold as "M.2 / PCIe adapters" */
     return !!t.forms[form];
   }
   function execute(plan,products,idx,subject,X,c){

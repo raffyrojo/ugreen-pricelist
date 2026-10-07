@@ -24,8 +24,8 @@ ALLOWED = {'data/products.json', 'index.html', 'css/vero.css', 'js/vero.js', 'js
            'tests/vero-p2r3a-fixes.test.js', 'tests/vero-p2r3a-fixes2.test.js',
            # v2-1 accountable parse: SHADOW ONLY (not referenced by index.html; G-check below)
            'js/vero-parse.js', 'js/vero-ontology.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js', 'tests/vero-v2-devsets.json', 'tests/vero-v2-browser.playwright.py'}
-VER = {'css/vero.css': 'p2r3a', 'js/vero-lexicon.js': 'p2r3a', 'js/vero-nlu.js': 'p2r2.1', 'js/vero-facts.js': 'p2r3a', 'js/vero-plan.js': 'p2r3a',
-       'js/vero-compose.js': 'p2r3a', 'js/vero-engine.js': 'p2r3a', 'js/vero.js': 'p2r3a'}
+VER = {'css/vero.css': 'p2r3a', 'js/vero-lexicon.js': 'p2r3a', 'js/vero-nlu.js': 'p2r2.1', 'js/vero-facts.js': 'p2r3a', 'js/vero-plan.js': 'p2r3a.1',
+       'js/vero-compose.js': 'p2r3a.1', 'js/vero-engine.js': 'p2r3a', 'js/vero.js': 'p2r3a'}
 ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']
 VJS = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']
 
