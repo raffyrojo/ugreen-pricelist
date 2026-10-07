@@ -1,0 +1,6075 @@
+{
+ "schema": "vero-sales-benchmark/1",
+ "source": "VERO Sales Question Stress Test 2026-10-06 (Deliverables/VERO-Phase2/VERO-Sales-Question-Stress-Test-2026-10-06.md)",
+ "baselineMetrics": {
+  "questions": 144,
+  "pass": 63,
+  "passPct": 43.8,
+  "passOrPartial": 89,
+  "passOrPartialPct": 61.8,
+  "routeAccuracyExclCoach": {
+   "ok": 112,
+   "of": 139,
+   "pct": 80.6
+  },
+  "aiCalls": 32,
+  "wastedAiCalls": 17,
+  "routeRule": "LOCAL ok = LOCAL or LOCAL+offer; AI ok = CATALOG or WEB; WEB ok = WEB; CLARIFY ok = no AI call; COACH excluded",
+  "wastedRule": "AI call sent (CATALOG/WEB) and rating = WRONG ROUTE"
+ },
+ "heldOut": {
+  "file": "tests/vero-sales-heldout.json",
+  "status": "reserved — empty until real pilot questions are supplied; never mixed into core metrics"
+ },
+ "deriveLanguage": {
+  "where": "AND of: {field,in} | {any:[...]} | {nameRe} | {nameNotRe} | {textRe,fields} | {num,op,v} (wattsName, wattsAny = name else highest feature-line W, mahName, lengthM, srp, dp) | {colorRe} | {codeOrModel}",
+  "check": "lookup | first | top | set | count | contains | empty"
+ },
+ "questions": [
+  {
+   "id": "L01",
+   "set": "core",
+   "question": "ano SKU ng 300W charger?",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "field",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 300
+    },
+    "field": "sku"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "any": [
+       {
+        "field": "sheet_display",
+        "in": [
+         "Mobile: Charger"
+        ]
+       },
+       {
+        "field": "category",
+        "in": [
+         "Car Charger"
+        ]
+       }
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 300
+     }
+    ],
+    "check": "contains"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Returns 90872B (300W) with prices.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "L02",
+   "set": "core",
+   "question": "magkano SRP ng 90872B?",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "field",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "90872B",
+    "field": "srp"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "90872B"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "SRP ₱6,839 with card.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "L03",
+   "set": "core",
+   "question": "ano DP ng X755?",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "field",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "X755",
+    "field": "dp"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "X755"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Model X755 resolved to 25870, DP ₱1,484.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "L04",
+   "set": "core",
+   "question": "ano MOQ nito?",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": "L03",
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "field",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "@context",
+    "field": "moq"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference"
+   ],
+   "priority": "P1",
+   "notes": "Follow-up 'ano MOQ nito?' — no conversation context; 'No products match'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Carry last-answered SKU(s) as context for pronoun follow-ups (nito/ito/yan/this/that)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "L05",
+   "set": "core",
+   "question": "ano description ng SKU 20503?",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "description",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "20503",
+    "field": "description"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "20503"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "Shows the card but not the description text; user must click View details.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "When 'description/specs/features' is asked, print the description/key features inline."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "L06",
+   "set": "core",
+   "question": "may ibang color ito?",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": "L05",
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "variants",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "@context",
+    "want": "other colors of same model"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference"
+   ],
+   "priority": "P1",
+   "notes": "'may ibang color ito?' — no context; parser leaks words ('ibang and color and ito').",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Context follow-up + 'other colors' = same model, different color list."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "L07",
+   "set": "core",
+   "question": "price ng CD244",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "field",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "CD244",
+    "field": "price"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "CD244"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "SRP/DP/DP Vol/MOQ line for CD244.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "L08",
+   "set": "core",
+   "question": "dp vol ng 25286",
+   "language": "taglish",
+   "category": "Lookup",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "field",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "25286",
+    "field": "dp_volume"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "25286"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "DP Vol ₱4,327 (min. 5 units).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E01",
+   "set": "core",
+   "question": "may 8K HDMI tayo?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "video_cable|video_adapter|hub_dock|av_switch",
+   "expectedConstraints": {
+    "res": "8K",
+    "port": "hdmi"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "13 8K HDMI products; description-only listed as not confirmed.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E02",
+   "set": "core",
+   "question": "may 240W type c cable?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 240
+    },
+    "connector": "usb_c",
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\b(?:usb[\\s-]?c|type[\\s-]?c)\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     },
+     {
+      "num": "wattsAny",
+      "op": "==",
+      "v": 240
+     }
+    ],
+    "check": "set",
+    "note": "wattage from the name, else a feature line (medium evidence)"
+   },
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "12 240W USB-C cables.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E03",
+   "set": "core",
+   "question": "meron 2.5G LAN adapter?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "network_adapter.ethernet",
+   "expectedConstraints": {
+    "eth": {
+     "min": 2.5
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "Correct 'No'. Minor: 'with meron' word leak in sentence.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Strip Taglish fillers from the echoed phrase."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E04",
+   "set": "core",
+   "question": "may Qi2 charger?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "flag": "qi2"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "any": [
+       {
+        "field": "sheet_display",
+        "in": [
+         "Mobile: Charger"
+        ]
+       },
+       {
+        "field": "category",
+        "in": [
+         "Car Charger"
+        ]
+       }
+      ]
+     },
+     {
+      "textRe": "\\bqi\\s?2",
+      "fields": [
+       "product_name",
+       "features"
+      ]
+     }
+    ],
+    "check": "set",
+    "note": "confirmed = name or feature evidence only (p2r2.1 rule)"
+   },
+   "expectedSafetyBehavior": [
+    "qi_not_qi2",
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "6 Qi2 chargers with evidence lines.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E05",
+   "set": "core",
+   "question": "may power bank na retractable cable?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "flag": "retractable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "textRe": "\\bretractable\\b",
+      "fields": [
+       "product_name",
+       "features"
+      ]
+     }
+    ],
+    "check": "set"
+   },
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "2 power banks with retractable cable.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E06",
+   "set": "core",
+   "question": "may white 65W charger?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    },
+    "color": "white"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "Mobile: Charger"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 65
+     },
+     {
+      "colorRe": "\\bwhite\\b"
+     }
+    ],
+    "check": "empty"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Correct: no white 65W charger in the pricelist (verified).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E07",
+   "set": "core",
+   "question": "meron ba tayong magsafe power bank?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "flag": "magsafe"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "textRe": "mag\\s?safe",
+      "fields": [
+       "product_name",
+       "features"
+      ]
+     }
+    ],
+    "check": "empty",
+    "note": "0 confirmed MagSafe power banks; magnetic-wireless items may be shown only as not confirmed"
+   },
+   "expectedSafetyBehavior": [
+    "magsafe_not_magnetic"
+   ],
+   "priority": "P0",
+   "notes": "Says 'No MagSafe power bank' — but 18 'Magnetic Wireless' power banks are listed. Salespeople say MagSafe for magnetic. False 'No' = lost sale.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P0",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Synonym: magsafe ⇄ magnetic (wireless) for power banks/chargers; never answer a hard 'No' when close matches exist — show them labelled 'magnetic (MagSafe-style), compatibility not confirmed'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "E08",
+   "set": "core",
+   "question": "may usb c to hdmi adapter tayo?",
+   "language": "taglish",
+   "category": "Existence",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "video_adapter",
+   "expectedConstraints": {
+    "from": "usb_c",
+    "to": "hdmi",
+    "form": "adapter"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "3 USB-C→HDMI adapters (converter category). Hubs with HDMI not counted — acceptable reading.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Optionally add 'also 15 hubs with HDMI'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "C01",
+   "set": "core",
+   "question": "ilang 65W charger natin?",
+   "language": "taglish",
+   "category": "Count",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "count",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    }
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "Mobile: Charger"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 65
+     }
+    ],
+    "check": "count"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "6 65W chargers — verified against data.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "C02",
+   "set": "core",
+   "question": "ilan ang 20,000mAh power bank?",
+   "language": "taglish",
+   "category": "Count",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "count",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "mah": {
+     "eq": 20000
+    }
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "num": "mahName",
+      "op": "==",
+      "v": 20000
+     }
+    ],
+    "check": "count"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "13 20,000mAh power banks.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "C03",
+   "set": "core",
+   "question": "how many HDMI 2.1 cables?",
+   "language": "en",
+   "category": "Count",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "count",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "hdmiVersion": {
+     "min": 2.1
+    },
+    "form": "cable"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "11 HDMI 2.1 cables.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "C04",
+   "set": "core",
+   "question": "ilang 100W charger below 2k?",
+   "language": "taglish",
+   "category": "Count",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "count",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 100
+    },
+    "srp": {
+     "max": 2000
+    }
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "Mobile: Charger"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 100
+     },
+     {
+      "num": "srp",
+      "op": "<=",
+      "v": 2000
+     }
+    ],
+    "check": "count",
+    "note": "car chargers excluded unless asked (current rule)"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "0 (exact 100W wall chargers under ₱2,000) — correct under current rules; car chargers ≥100W under ₱2k exist but car is excluded unless asked.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Optionally mention '2 car chargers ≥100W under ₱2,000 exist'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "C05",
+   "set": "core",
+   "question": "ilan lahat ng NAS natin?",
+   "language": "taglish",
+   "category": "Count",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "count",
+   "expectedType": "nas",
+   "expectedConstraints": {},
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "NAS Storage"
+      ]
+     }
+    ],
+    "check": "count"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P3",
+   "notes": "Correct 6 NAS, but heading 'NASs with lahat' (word leak, bad plural).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P3",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Add 'lahat/all' to fillers; plural 'NAS units'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "R01",
+   "set": "core",
+   "question": "cheapest 65W charger",
+   "language": "en",
+   "category": "Ranking",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    },
+    "rank": "srp:min"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "Mobile: Charger"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 65
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "srp",
+      "asc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "95169B ₱999 is the correct cheapest 65W charger (verified). Heading says 'Cheapest charger' without '65W'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Echo the filter in the heading ('Cheapest 65W charger')."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "R02",
+   "set": "core",
+   "question": "pinakamurang power bank",
+   "language": "taglish",
+   "category": "Ranking",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "rank": "srp:min"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "srp",
+      "asc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "25742 ₱959.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "R03",
+   "set": "core",
+   "question": "most expensive docking station",
+   "language": "en",
+   "category": "Ranking",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "hub_dock.dock",
+   "expectedConstraints": {
+    "rank": "srp:max"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Docking Station"
+      ]
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "srp",
+      "desc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "90325 ₱11,999 (treated as hub/dock).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "R04",
+   "set": "core",
+   "question": "top 5 cheapest 20,000mAh power banks",
+   "language": "en",
+   "category": "Ranking",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "mah": {
+     "eq": 20000
+    },
+    "rank": "srp:min",
+    "n": 5
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "num": "mahName",
+      "op": "==",
+      "v": 20000
+     }
+    ],
+    "check": "top",
+    "order": [
+     [
+      "srp",
+      "asc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ],
+    "take": 5
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Top 5 cheapest 20,000mAh correct; starts 95424B ₱1,339.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "R05",
+   "set": "core",
+   "question": "cheapest 100W charger with at least 3 ports",
+   "language": "en",
+   "category": "Ranking",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 100
+    },
+    "ports": {
+     "min": 3
+    },
+    "rank": "srp:min"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "25873 ₱2,049 cheapest 100W with 3+ ports.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "R06",
+   "set": "core",
+   "question": "pinakamahal na hub",
+   "language": "taglish",
+   "category": "Ranking",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "rank": "srp:max"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "Transmission: Docking and Hub"
+      ]
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "srp",
+      "desc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ],
+    "note": "bare \"hub\" = shared hub_dock family (approved adjustment)"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'pinakamahal na hub' → ₱3,999 10-in-1 hub, while R03 'docking station' → ₱11,999 CM555. Converters/docks named 'USB-C to …' are not treated as hubs. Inconsistent and misleading for a PM.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Unify hub/dock/converter into one product type in the type registry (Docking and Hub section)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "R07",
+   "set": "core",
+   "question": "lowest DP na 65W charger",
+   "language": "taglish",
+   "category": "Ranking",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    },
+    "rank": "dp:min"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "Mobile: Charger"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 65
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "dp",
+      "asc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Cheapest by DP: 95169B ₱749.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H01",
+   "set": "core",
+   "question": "alin pinakamalaking tinaas presyo this month?",
+   "language": "taglish",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": null,
+   "expectedConstraints": {
+    "dir": "up",
+    "period": "thisMonth",
+    "kind": "rank"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": "P1",
+   "notes": "Taglish 'pinakamalaking tinaas presyo this month' not recognised → 'No products match'. English works (H08/smoke).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Add Taglish history verbs: tinaas/tumaas/nagtaas/bumaba/binaba/pinakamalaking."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H02",
+   "set": "core",
+   "question": "what was the previous SRP of 20503?",
+   "language": "en",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "20503",
+    "kind": "previous",
+    "field": "srp"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": null,
+   "notes": "₱79 → ₱89 effective 2026-10-01.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H03",
+   "set": "core",
+   "question": "may bumaba bang presyo this month?",
+   "language": "taglish",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": null,
+   "expectedConstraints": {
+    "dir": "down",
+    "period": "thisMonth",
+    "kind": "exist"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": null,
+   "notes": "Correct: no SRP decreases effective in Oct 2026.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H04",
+   "set": "core",
+   "question": "top 5 price increases",
+   "language": "en",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": null,
+   "expectedConstraints": {
+    "dir": "up",
+    "kind": "rank",
+    "n": 5
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": null,
+   "notes": "Top 5 by peso since history start; 11259 +₱4,240 first; history-start note shown.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H05",
+   "set": "core",
+   "question": "which category had the most price changes?",
+   "language": "en",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": null,
+   "expectedConstraints": {
+    "kind": "aggregate"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": null,
+   "notes": "Power Bank 43 SKUs, then Bluetooth Earphone 31, USB-C cable 26; with section.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H06",
+   "set": "core",
+   "question": "magkano tinaas ng 90872B?",
+   "language": "taglish",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "90872B",
+    "dir": "up",
+    "kind": "amount"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": "P1",
+   "notes": "'magkano tinaas ng 90872B?' returns current prices, not the increase (+₱800 on 2026-10-01; +₱40 on 2026-09-18).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Map 'magkano tinaas/how much did it increase' + SKU to the SKU history lookup."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H07",
+   "set": "core",
+   "question": "nagtaas ba presyo ng power banks?",
+   "language": "taglish",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "dir": "up",
+    "kind": "exist"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": "P1",
+   "notes": "'nagtaas ba presyo ng power banks?' → plain list of 47 power banks; history intent missed.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Same Taglish history verbs; category history answer."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "H08",
+   "set": "core",
+   "question": "price increase ng chargers this month",
+   "language": "taglish",
+   "category": "History",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "history",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "dir": "up",
+    "period": "thisMonth",
+    "kind": "list"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "history_effective_only"
+   ],
+   "priority": null,
+   "notes": "24 charger SKUs with SRP increase in Oct 2026.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S01",
+   "set": "core",
+   "question": "100W charger with 3 ports",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 100
+    },
+    "ports": {
+     "eq": 3
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "Generic search returns all 4 100W chargers incl. 4- and 5-port; p2r1 rule says 'with 3 ports' = exactly 3 (ranking path honours it, list path doesn't).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Apply port-count constraint in the list/existence path too."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S02",
+   "set": "core",
+   "question": "240W cable 2 meters",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 240
+    },
+    "lengthM": {
+     "eq": 2
+    },
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\bcables?\\b"
+     },
+     {
+      "num": "wattsAny",
+      "op": "==",
+      "v": 240
+     },
+     {
+      "num": "lengthM",
+      "op": "==",
+      "v": 2
+     }
+    ],
+    "check": "set"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "4 2m 240W cables, all correct.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S03",
+   "set": "core",
+   "question": "HDMI cable 5m and above",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "connector": "hdmi",
+    "lengthM": {
+     "min": 5
+    },
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\bhdmi\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     },
+     {
+      "num": "lengthM",
+      "op": ">=",
+      "v": 5
+     }
+    ],
+    "check": "set"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "14 HDMI cables ≥5m (incl. DP→HDMI).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S04",
+   "set": "core",
+   "question": "10Gbps hub under 2k",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "dataGbps": {
+     "min": 10
+    },
+    "srp": {
+     "max": 2000
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": "P2",
+   "notes": "Top hit 80856 qualifies via a Thunderbolt pass-through '40Gbps' line, but its data ports are USB 3.0 (5Gbps). A salesperson could sell it as a '10Gbps hub'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "For hub speed, use data-port speed (USB 3.2 Gen2/10G) and ignore pass-through/video bandwidth lines."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S05",
+   "set": "core",
+   "question": "power bank 20,000mAh with built-in cable",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "mah": {
+     "eq": 20000
+    },
+    "flag": "builtin"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "8 20,000mAh with built-in cable.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S06",
+   "set": "core",
+   "question": "gray USB-C hub",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "color": "gray",
+    "connector": "usb_c"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "40 gray USB-C hubs.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S07",
+   "set": "core",
+   "question": "GaN 65W charger",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    },
+    "flag": "gan"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "6 GaN 65W chargers.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "S08",
+   "set": "core",
+   "question": "hub with sd card reader",
+   "language": "en",
+   "category": "Spec",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "ports": {
+     "has": [
+      "sd"
+     ]
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "24 results mixing hubs and standalone card readers (generic search).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Treat 'hub with X' as type=hub + feature X."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "M01",
+   "set": "core",
+   "question": "need ko 100W charger with 3 ports below ₱2,000",
+   "language": "en",
+   "category": "Multi",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 100
+    },
+    "ports": {
+     "eq": 3
+    },
+    "srp": {
+     "max": 2000
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "Same need as C04 + port constraint; returns generic 'No products match' + Ask AI chip instead of a clear '0 — none under ₱2,000; cheapest is 25873 ₱2,049'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Route 'need ko …' phrasing through the intent layer; on zero results show the nearest match (closest price)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "M02",
+   "set": "core",
+   "question": "power bank at least 20,000mAh under ₱2,500",
+   "language": "en",
+   "category": "Multi",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "mah": {
+     "min": 20000
+    },
+    "srp": {
+     "max": 2500
+    }
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "num": "mahName",
+      "op": ">=",
+      "v": 20000
+     },
+     {
+      "num": "srp",
+      "op": "<=",
+      "v": 2500
+     }
+    ],
+    "check": "set"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "6 power banks ≥20,000mAh under ₱2,500 — verified exact.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "M03",
+   "set": "core",
+   "question": "USB-C cable at least 100W and longer than 2m",
+   "language": "en",
+   "category": "Multi",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "connector": "usb_c",
+    "watts": {
+     "min": 100
+    },
+    "lengthM": {
+     "gt": 2
+    },
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\b(?:usb[\\s-]?c|type[\\s-]?c)\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     },
+     {
+      "num": "wattsAny",
+      "op": ">=",
+      "v": 100
+     },
+     {
+      "num": "lengthM",
+      "op": ">",
+      "v": 2
+     }
+    ],
+    "check": "set",
+    "note": "\"longer than 2m\" = strictly > 2m"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P3",
+   "notes": "'longer than 2m' treated as ≥2m (2m cables included).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P3",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Strict > for 'longer than'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "M04",
+   "set": "core",
+   "question": "HDMI 2.1 cable 3m below ₱1,000",
+   "language": "en",
+   "category": "Multi",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "hdmiVersion": {
+     "min": 2.1
+    },
+    "lengthM": {
+     "eq": 3
+    },
+    "srp": {
+     "max": 1000
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "2 HDMI 2.1 3m cables under ₱1,000.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "M05",
+   "set": "core",
+   "question": "black 65W GaN charger below 1500",
+   "language": "en",
+   "category": "Multi",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "color": "black",
+    "watts": {
+     "eq": 65
+    },
+    "flag": "gan",
+    "srp": {
+     "max": 1500
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "10334 ₱1,099.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "P01",
+   "set": "core",
+   "question": "compare X755 and X772",
+   "language": "en",
+   "category": "Compare",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": [
+     "X755",
+     "X772"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Side-by-side compare table (local).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "P02",
+   "set": "core",
+   "question": "alin mas mataas wattage?",
+   "language": "taglish",
+   "category": "Compare",
+   "contextFrom": "P01",
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare_followup",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": "@context",
+    "dim": "watts"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference",
+    "no_ai_without_intent"
+   ],
+   "priority": "P1",
+   "notes": "Follow-up 'alin mas mataas wattage?' has no context → sent to AI with random hubs as candidates (paid call, useless).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Comparison follow-ups use the last compared SKUs; answer locally from wattage."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "P03",
+   "set": "core",
+   "question": "alin mas mura?",
+   "language": "taglish",
+   "category": "Compare",
+   "contextFrom": "P01",
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare_followup",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": "@context",
+    "dim": "srp"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference",
+    "no_ai_without_intent"
+   ],
+   "priority": "P1",
+   "notes": "'alin mas mura?' follow-up → AI with random candidates.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same: local price comparison of last SKUs."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "P04",
+   "set": "core",
+   "question": "alin mas maraming ports?",
+   "language": "taglish",
+   "category": "Compare",
+   "contextFrom": "P01",
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare_followup",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": "@context",
+    "dim": "ports"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference",
+    "no_ai_without_intent"
+   ],
+   "priority": "P1",
+   "notes": "'alin mas maraming ports?' follow-up → AI with random candidates.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same: local port-count comparison."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "P05",
+   "set": "core",
+   "question": "ano difference ng 80401 at 45430?",
+   "language": "taglish",
+   "category": "Compare",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": [
+     "80401",
+     "45430"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Compare table 80401 vs 45430 (local).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "P06",
+   "set": "core",
+   "question": "25286 vs 95424B which one has bigger capacity?",
+   "language": "en",
+   "category": "Compare",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": [
+     "25286",
+     "95424B"
+    ],
+    "dim": "mah"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "Capacity comparison of 2 SKUs (a catalog fact) is sent to AI catalog (cost). Compare table also shown.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Answer 'which is bigger/cheaper/more ports/higher W' locally with a one-line verdict above the table."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "P07",
+   "set": "core",
+   "question": "X755 or X772 alin mas ok pang laptop?",
+   "language": "taglish",
+   "category": "Compare",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": [
+     "X755",
+     "X772"
+    ],
+    "useCase": "laptop"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "named_sku_in_candidates"
+   ],
+   "priority": null,
+   "notes": "Use-case judgement → AI catalog with the right 2 candidates. Minor: local text says 'Model X755 has 2 SKUs' (wrong — two models).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Fix the two-model heading."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "A01",
+   "set": "core",
+   "question": "alternative sa SKU 90872B",
+   "language": "taglish",
+   "category": "Alternative",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "alternative",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "90872B"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'alternative sa SKU 90872B' → just the same SKU card. No alternative logic.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Local ALTERNATIVES: same type, similar spec (±W/mAh/ports), sorted by price; label 'cheaper/similar'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "A02",
+   "set": "core",
+   "question": "ano cheaper alternative sa X772?",
+   "language": "taglish",
+   "category": "Alternative",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "alternative",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "X772",
+    "srp": "lower"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'cheaper alternative sa X772' → same SKU only.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Same as A01 with price < reference."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "A03",
+   "set": "core",
+   "question": "same wattage pero mas mura sa 95405B",
+   "language": "taglish",
+   "category": "Alternative",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "alternative",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "95405B",
+    "watts": "same",
+    "srp": "lower"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'same wattage pero mas mura' → same SKU only.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Same as A01 (same W, lower SRP)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "A04",
+   "set": "core",
+   "question": "same capacity as 25286 pero may built-in cable",
+   "language": "taglish",
+   "category": "Alternative",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "alternative",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "ref": "25286",
+    "mah": "same",
+    "flag": "builtin"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'same capacity pero may built-in cable' → same SKU only.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "A01 + attribute constraint."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "A05",
+   "set": "core",
+   "question": "closest replacement sa 10334",
+   "language": "taglish",
+   "category": "Alternative",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "alternative",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "10334"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'closest replacement sa 10334' → same SKU only.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "A01 (closest spec, any price)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "G01",
+   "set": "core",
+   "question": "need one charger for laptop and phone",
+   "language": "en",
+   "category": "Charger",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "devices": [
+     "laptop",
+     "phone"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P2",
+   "notes": "AI route correct with good charger candidates, but the local preview above it shows phone holders (known backlog).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Suppress the local preview when the local result type ≠ asked type; show 'Asking VERO AI…' only."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "G02",
+   "set": "core",
+   "question": "65W enough ba for laptop?",
+   "language": "taglish",
+   "category": "Charger",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    },
+    "devices": [
+     "laptop"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P1",
+   "notes": "'65W enough ba for laptop?' → 'No products match', no AI. Very common sales question.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Route 'enough ba / kaya ba / sapat' + device to AI (catalog); add charger candidates."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "G03",
+   "set": "core",
+   "question": "customer needs laptop + phone + tablet charging sabay",
+   "language": "en",
+   "category": "Charger",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "devices": [
+     "laptop",
+     "phone",
+     "tablet"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P2",
+   "notes": "AI route with good charger candidates; local preview shows selfie stick / trackers.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same as G01."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "G04",
+   "set": "core",
+   "question": "ano highest wattage charger?",
+   "language": "taglish",
+   "category": "Charger",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "rank": "watts:max"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "300W 90872B; 5 unrated noted. Minor 'Highest-wattage ano charger' word leak.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Strip 'ano'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "G05",
+   "set": "core",
+   "question": "may travel charger tayo?",
+   "language": "taglish",
+   "category": "Charger",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "useCase": "travel"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "1 travel adapter (85779) — matches catalog naming.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "G06",
+   "set": "core",
+   "question": "may charger with retractable cable?",
+   "language": "taglish",
+   "category": "Charger",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "flag": "retractable"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "3 retractable-cable chargers, all car chargers — stated.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "B01",
+   "set": "core",
+   "question": "biggest capacity power bank",
+   "language": "en",
+   "category": "PowerBank",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "rank": "mah:max"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "mahName",
+      "desc"
+     ],
+     [
+      "srp",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "25286 48,000mAh.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "B02",
+   "set": "core",
+   "question": "cheapest 20k power bank",
+   "language": "en",
+   "category": "PowerBank",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "mah": {
+     "eq": 20000
+    },
+    "rank": "srp:min"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "num": "mahName",
+      "op": "==",
+      "v": 20000
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "srp",
+      "asc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ],
+    "note": "\"20k\" = 20,000mAh in a power-bank context"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P0",
+   "notes": "'cheapest 20k power bank' ignores '20k' and answers 25742 10,000mAh ₱959. Correct answer: 95424B 20,000mAh ₱1,339 (R04). A rep could quote the wrong product/price.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "UNSAFE",
+    "priority": "P0",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Normalise '20k'/'10k' → mAh in the ranking path (works in list path 'powerbank 20k mah')."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "B03",
+   "set": "core",
+   "question": "may 100W power bank?",
+   "language": "taglish",
+   "category": "PowerBank",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 100
+    }
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 100
+     }
+    ],
+    "check": "set"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "2 100W power banks.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "B04",
+   "set": "core",
+   "question": "built-in cable power bank",
+   "language": "en",
+   "category": "PowerBank",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "flag": "builtin"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "21 built-in cable power banks with evidence tiers.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "B05",
+   "set": "core",
+   "question": "magandang pang laptop na power bank",
+   "language": "taglish",
+   "category": "PowerBank",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "devices": [
+     "laptop"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P2",
+   "notes": "Routes to AI (right) but candidates include 10,000mAh 20W banks unsuitable for laptops; local preview 'No products match'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Candidate pre-filter by use case (laptop → ≥45W/≥20,000mAh)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "B06",
+   "set": "core",
+   "question": "travel power bank suggestion, pwede sa eroplano",
+   "language": "taglish",
+   "category": "PowerBank",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "judgement",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "useCase": "air travel"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P2",
+   "notes": "Airline rules need WEB; sent to AI catalog.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Add travel/airline/flight/eroplano to web triggers."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "V01",
+   "set": "core",
+   "question": "longest HDMI cable",
+   "language": "en",
+   "category": "Video",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "connector": "hdmi",
+    "rank": "lengthM:max",
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\bhdmi\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "lengthM",
+      "desc"
+     ],
+     [
+      "srp",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "10114 30M.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "V02",
+   "set": "core",
+   "question": "HDMI 2.1 3m",
+   "language": "en",
+   "category": "Video",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "hdmiVersion": {
+     "min": 2.1
+    },
+    "lengthM": {
+     "eq": 3
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "2 HDMI 2.1 3m.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "V03",
+   "set": "core",
+   "question": "may 4K@120Hz?",
+   "language": "taglish",
+   "category": "Video",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refresh": "4K@120Hz"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "14 4K@120Hz products with evidence lines.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "V04",
+   "set": "core",
+   "question": "4K@60Hz adapter",
+   "language": "en",
+   "category": "Video",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "video_adapter",
+   "expectedConstraints": {
+    "refresh": "4K@60Hz",
+    "form": "adapter"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "13 4K@60Hz adapters (8K adapter included per approved rule).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "V05",
+   "set": "core",
+   "question": "customer needs dual monitor sa laptop",
+   "language": "taglish",
+   "category": "Video",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": null,
+   "expectedConstraints": {
+    "useCase": "dual monitor",
+    "devices": [
+     "laptop"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P1",
+   "notes": "'dual monitor sa laptop' → local shows a Wi-Fi adapter; AI candidates are Wi-Fi adapters/random cables. AI cannot answer well from these.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "'dual monitor/2 monitors/extended display' → candidates = hubs/docks with ≥2 video outputs."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "V06",
+   "set": "core",
+   "question": "MacBook Air dual display, ano pwede?",
+   "language": "taglish",
+   "category": "Video",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "device": "MacBook Air",
+    "useCase": "dual display"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P1",
+   "notes": "MacBook Air dual display (needs external spec verification) → catalog, candidates random (earbuds, car charger in preview).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Device + dual display → WEB with dual-video hubs as candidates."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "V07",
+   "set": "core",
+   "question": "displayport to hdmi cable",
+   "language": "en",
+   "category": "Video",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "from": "dp",
+    "to": "hdmi",
+    "form": "cable"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "61 results; top are correct DP→HDMI cables but list is broad (generic search).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Connector-pair intent (A to B) in the list path."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "D01",
+   "set": "core",
+   "question": "hub with HDMI + Ethernet",
+   "language": "en",
+   "category": "Hub",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "ports": {
+     "has": [
+      "hdmi",
+      "rj45"
+     ]
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "14 hubs with HDMI + RJ45.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "D02",
+   "set": "core",
+   "question": "10Gbps hub",
+   "language": "en",
+   "category": "Hub",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "dataGbps": {
+     "min": 10
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "19 10Gbps hubs (see S04 evidence caveat).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "D03",
+   "set": "core",
+   "question": "dock for 2 monitors",
+   "language": "en",
+   "category": "Hub",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock.dock",
+   "expectedConstraints": {
+    "displays": {
+     "min": 2
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'dock for 2 monitors' → 'matches 54 products across 3 sections, which one?' Not actionable.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "POOR SALES UX",
+    "priority": "P1",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Local attribute: video-output count (2xHDMI, HDMI+DP…) → list dual-display hubs; note Mac single-display limitation → AI/web."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "D04",
+   "set": "core",
+   "question": "dock no need DisplayLink",
+   "language": "en",
+   "category": "Hub",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock.dock",
+   "expectedConstraints": {
+    "displaylink": false
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'dock no need DisplayLink' → unrelated items (USB switch selectors).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Negation-aware filter or route to AI; catalog has no DisplayLink field."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "D05",
+   "set": "core",
+   "question": "does the CM555 dock support Mac?",
+   "language": "en",
+   "category": "Hub",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": "hub_dock.dock",
+   "expectedConstraints": {
+    "ref": "CM555",
+    "device": "Mac"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P1",
+   "notes": "'does the CM555 dock support Mac?' → catalog (not web) and the asked SKU 90325 is NOT among the AI candidates.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Always include the named SKU first in candidates; device-compat wording → WEB."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "D06",
+   "set": "core",
+   "question": "docking with 100W PD",
+   "language": "en",
+   "category": "Hub",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock.dock",
+   "expectedConstraints": {
+    "pdWatts": {
+     "min": 100
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": "P2",
+   "notes": "'30 PD 100W products with docking' — only 4 confirmed, heading garbled; unclear how many really support 100W PD.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "POOR SALES UX",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Count only confirmed PD-wattage evidence; heading 'hubs with 100W PD pass-through'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "D07",
+   "set": "core",
+   "question": "hub with 3 HDMI ports",
+   "language": "en",
+   "category": "Hub",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "ports": {
+     "hdmi": {
+      "min": 3
+     }
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "No hub with 3 HDMI exists (verified), but VERO lists 8 hubs with 1–2 HDMI as '8 products found'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Port-count by port type (HDMI ×N); say 'none with 3 HDMI; max is 2'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "X01",
+   "set": "core",
+   "question": "compatible ba ang 25870 sa iPhone 17?",
+   "language": "taglish",
+   "category": "Compat",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "25870",
+    "device": "iPhone 17"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P1",
+   "notes": "Correct WEB route, but candidates omit the asked SKU 25870 (random cables/hubs).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P1",
+    "actualRoute": "WEB",
+    "aiCandidates": null,
+    "recommendedFix": "Named SKU must be candidate #1 (extends PS5 backlog item)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "WEB",
+    "engineRoute": "web",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "X02",
+   "set": "core",
+   "question": "will 95405B work with MacBook Air M4?",
+   "language": "en",
+   "category": "Compat",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "95405B",
+    "device": "MacBook Air M4"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P1",
+   "notes": "Correct WEB route; candidates omit 95405B.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P1",
+    "actualRoute": "WEB",
+    "aiCandidates": null,
+    "recommendedFix": "Same as X01."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "WEB",
+    "engineRoute": "web",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "X03",
+   "set": "core",
+   "question": "compatible with PS5 ba yung 80401?",
+   "language": "taglish",
+   "category": "Compat",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "80401",
+    "device": "PS5"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P1",
+   "notes": "PS5 compatibility → catalog (not web); 80401 not in candidates.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same as X01 + 'compatible with <device>' → WEB."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "X04",
+   "set": "core",
+   "question": "will 15495 support Nintendo Switch?",
+   "language": "en",
+   "category": "Compat",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "15495",
+    "device": "Nintendo Switch"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P1",
+   "notes": "Nintendo Switch support → catalog; 15495 not in candidates.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "X05",
+   "set": "core",
+   "question": "does Samsung S25 support 45W fast charging with 10334?",
+   "language": "en",
+   "category": "Compat",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "10334",
+    "device": "Samsung S25",
+    "watts": {
+     "eq": 45
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P2",
+   "notes": "Catalog route with 10334 first (good); device fast-charge protocol support ideally WEB.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Device-protocol wording → WEB."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "X06",
+   "set": "core",
+   "question": "dual monitors on Windows laptop using 90325, kaya ba?",
+   "language": "taglish",
+   "category": "Compat",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "90325",
+    "device": "Windows laptop",
+    "useCase": "dual monitors"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P1",
+   "notes": "Dual monitors with 90325 → catalog; 90325 not in candidates (Wi-Fi adapters).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same as X01/V05."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "K01",
+   "set": "core",
+   "question": "Type-C to Lightning",
+   "language": "en",
+   "category": "Cable",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charging_cable.lightning",
+   "expectedConstraints": {
+    "from": "usb_c",
+    "to": "lightning",
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\b(?:usb[\\s-]?c|type[\\s-]?c)\\b"
+     },
+     {
+      "nameRe": "\\blightning\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     }
+    ],
+    "check": "contains"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "Bare 'Type-C to Lightning' → generic 34 results; 'do we have a USB-C to Lightning cable?' gives the precise 8. Intent layer only fires on question phrasing.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Run the attribute/intent layer on bare noun phrases too."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "K02",
+   "set": "core",
+   "question": "240W cable",
+   "language": "en",
+   "category": "Cable",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 240
+    },
+    "form": "cable"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "Bare '240W cable' → 10 results; 'may 240W type c cable?' → 12. Two different counts for the same need.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Same as K01 (one consistent answer)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "K03",
+   "set": "core",
+   "question": "USB-C 10Gbps cable",
+   "language": "en",
+   "category": "Cable",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": null,
+   "expectedConstraints": {
+    "connector": "usb_c",
+    "dataGbps": {
+     "min": 10
+    },
+    "form": "cable"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "1 USB-C 10Gbps cable with evidence.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "K04",
+   "set": "core",
+   "question": "2m 100W cable",
+   "language": "en",
+   "category": "Cable",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": null,
+   "expectedConstraints": {
+    "lengthM": {
+     "eq": 2
+    },
+    "watts": {
+     "min": 100
+    },
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\bcables?\\b"
+     },
+     {
+      "num": "lengthM",
+      "op": "==",
+      "v": 2
+     },
+     {
+      "num": "wattsAny",
+      "op": ">=",
+      "v": 100
+     }
+    ],
+    "check": "set",
+    "note": "sales intent: supports at least 100W"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'2m 100W cable' → 3 (exact 100W); 8 cables are 2m and ≥100W (240W/140W). Sales intent is 'supports at least 100W'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Cable wattage = minimum (≥) by default."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "K05",
+   "set": "core",
+   "question": "cable for monitor",
+   "language": "en",
+   "category": "Cable",
+   "contextFrom": null,
+   "expectedRoute": "CLARIFY",
+   "expectedIntent": "clarify",
+   "expectedType": null,
+   "expectedConstraints": {
+    "form": "cable",
+    "useCase": "monitor"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_ai_without_intent"
+   ],
+   "priority": "P2",
+   "notes": "'cable for monitor' → '460 products across 12 sections, which one?'. Should ask the connector question.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "POOR SALES UX",
+    "priority": "P2",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Clarify by connector: HDMI / DisplayPort / USB-C to HDMI / VGA."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "K06",
+   "set": "core",
+   "question": "longest USB-C cable",
+   "language": "en",
+   "category": "Cable",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "connector": "usb_c",
+    "rank": "lengthM:max",
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\b(?:usb[\\s-]?c|type[\\s-]?c)\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "lengthM",
+      "desc"
+     ],
+     [
+      "srp",
+      "asc"
+     ]
+    ],
+    "note": "connector must be in the product name"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P0",
+   "notes": "'longest USB-C cable' → '20M' USB 2.0 Active Extension (USB-A, not USB-C). Correct: 90629 5m USB-C VR Link cable.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "UNSAFE",
+    "priority": "P0",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Apply connector filter (name must contain USB-C/Type-C) in length ranking."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "K07",
+   "set": "core",
+   "question": "usb c to usb c 1m na mura",
+   "language": "taglish",
+   "category": "Cable",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "from": "usb_c",
+    "to": "usb_c",
+    "lengthM": {
+     "eq": 1
+    },
+    "rank": "srp:min"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'usb c to usb c 1m na mura' → 3.5mm audio and printer cables first.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Connector-pair + length + 'mura' → cheapest-first ranking."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "N01",
+   "set": "core",
+   "question": "ano cheapest NAS?",
+   "language": "taglish",
+   "category": "NAS",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "nas",
+   "expectedConstraints": {
+    "rank": "srp:min"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "NAS Storage"
+      ]
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "srp",
+      "asc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "DH2300 ₱17,099. Minor 'Cheapest ano NAS' word leak.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Strip 'ano'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "N02",
+   "set": "core",
+   "question": "ilang bay itong DXP2800?",
+   "language": "taglish",
+   "category": "NAS",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "field",
+   "expectedType": "nas",
+   "expectedConstraints": {
+    "ref": "DXP2800",
+    "attr": "nasBays"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "DXP2800"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'ilang bay itong DXP2800?' → card only; 'Bays: 2' is in features but not answered.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "NAS attribute: bays (+ CPU/RAM) from features."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "N03",
+   "set": "core",
+   "question": "which NAS has more bays, DH2300 or DXP4800 Plus?",
+   "language": "en",
+   "category": "NAS",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare",
+   "expectedType": "nas",
+   "expectedConstraints": {
+    "refs": [
+     "DH2300",
+     "DXP4800 Plus"
+    ],
+    "dim": "nasBays"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'which NAS has more bays, DH2300 or DXP4800 Plus?' → only DH2300 card; second model not resolved, no answer.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Resolve 'DXP4800 Plus'; bays comparison."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "N04",
+   "set": "core",
+   "question": "ano difference DH2300 vs DXP2800?",
+   "language": "taglish",
+   "category": "NAS",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "compare",
+   "expectedType": "nas",
+   "expectedConstraints": {
+    "refs": [
+     "DH2300",
+     "DXP2800"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Compare table incl. Bays/CPU/RAM.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "N05",
+   "set": "core",
+   "question": "DXP2800 suitable for office backup?",
+   "language": "en",
+   "category": "NAS",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "nas",
+   "expectedConstraints": {
+    "ref": "DXP2800",
+    "useCase": "office backup"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "named_sku_in_candidates"
+   ],
+   "priority": "P2",
+   "notes": "'suitable for office backup?' → LOCAL lookup only, no AI offered (named SKU blocks AI).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Named SKU + suitability/judgement word → AI catalog with that SKU."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "N06",
+   "set": "core",
+   "question": "can DXP2800 run Plex?",
+   "language": "en",
+   "category": "NAS",
+   "contextFrom": null,
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": "nas",
+   "expectedConstraints": {
+    "ref": "DXP2800",
+    "software": "Plex"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P2",
+   "notes": "'can DXP2800 run Plex?' → LOCAL lookup only; needs WEB.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Named SKU + 'run/support/compatible' → WEB."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "T01",
+   "set": "core",
+   "question": "meron ba tayo ng charger na pang macbook pro?",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "device": "MacBook Pro"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P1",
+   "notes": "'charger na pang macbook pro' → '38 chargers with pang' starting with a 20W charger; compat caveat shown but list is unhelpful.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "POOR SALES UX",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Device mention → wattage clarify (like Y08) or AI; never lead with a 20W unit for a laptop."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "T02",
+   "set": "core",
+   "question": "alin dito ang pinaka mura na 3 meters hdmi?",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "connector": "hdmi",
+    "lengthM": {
+     "eq": 3
+    },
+    "rank": "srp:min"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\bhdmi\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     },
+     {
+      "num": "lengthM",
+      "op": "==",
+      "v": 3
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "srp",
+      "asc"
+     ],
+     [
+      "item_code",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'alin dito ang pinaka mura na 3 meters hdmi?' → AI catalog (paid) instead of local cheapest-3m-HDMI (45433 ₱319).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Recognise 'pinaka mura' (spaced) and 'meters'."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "T03",
+   "set": "core",
+   "question": "ano pwede pang car na charger na mabilis?",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charger.car",
+   "expectedConstraints": {
+    "rank": "watts:max"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'pang car na charger na mabilis' → AI; could be local list of car chargers by wattage.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Map 'pang car' → car charger; 'mabilis' → highest W first."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "T04",
+   "set": "core",
+   "question": "pang laptop sana na hub, may HDMI at LAN",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "ports": {
+     "has": [
+      "hdmi",
+      "rj45"
+     ]
+    },
+    "devices": [
+     "laptop"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "Hubs with HDMI + RJ45 listed; AI also called with good candidates (acceptable).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "T05",
+   "set": "core",
+   "question": "need ni customer ng mahabang type c cable",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "rank",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "connector": "usb_c",
+    "rank": "lengthM:max",
+    "form": "cable"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "nameRe": "\\b(?:usb[\\s-]?c|type[\\s-]?c)\\b"
+     },
+     {
+      "nameRe": "\\bcables?\\b"
+     }
+    ],
+    "check": "first",
+    "order": [
+     [
+      "lengthM",
+      "desc"
+     ],
+     [
+      "srp",
+      "asc"
+     ]
+    ]
+   },
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'mahabang type c cable' → shows a hub (75126).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "'mahaba/long' → length ranking for USB-C cables (see K06)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "T06",
+   "set": "core",
+   "question": "may mas mura ba sa 25286?",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "alternative",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "25286",
+    "srp": "lower"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'may mas mura ba sa 25286?' → same SKU card only.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Alternatives (A01) with 'cheaper than' reference."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "T07",
+   "set": "core",
+   "question": "kaya ba ng 25870 mag charge ng laptop?",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "25870",
+    "devices": [
+     "laptop"
+    ]
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess",
+    "named_sku_in_candidates"
+   ],
+   "priority": "P2",
+   "notes": "'kaya ba ng 25870 mag charge ng laptop?' → AI catalog (right), but candidates omit 25870 (earbuds etc.).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Named SKU first in candidates."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "T08",
+   "set": "core",
+   "question": "pwede ba ito sa iPad?",
+   "language": "taglish",
+   "category": "Taglish",
+   "contextFrom": "T07",
+   "expectedRoute": "WEB",
+   "expectedIntent": "compat",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "@context",
+    "device": "iPad"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference",
+    "no_compat_guess"
+   ],
+   "priority": "P2",
+   "notes": "'pwede ba ito sa iPad?' (context) → 'No products match'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Context follow-up + device → WEB with last SKU."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y01",
+   "set": "core",
+   "question": "recomendation for charger 65w",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'recomendation for charger 65w' → list of 6 (fine) + Ask AI chip; misspelling not recognised as recommendation intent.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Typo tolerance: recomendation/reco/recommend."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y02",
+   "set": "core",
+   "question": "powerbank 20k mah",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "power_bank",
+   "expectedConstraints": {
+    "mah": {
+     "eq": 20000
+    }
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "num": "mahName",
+      "op": "==",
+      "v": 20000
+     }
+    ],
+    "check": "set"
+   },
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "'powerbank 20k mah' → 13 20,000mAh.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y03",
+   "set": "core",
+   "question": "type c to type c 240w",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "charging_cable",
+   "expectedConstraints": {
+    "from": "usb_c",
+    "to": "usb_c",
+    "watts": {
+     "eq": 240
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": null,
+   "notes": "10 240W C-to-C cables (see K02 count inconsistency).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y04",
+   "set": "core",
+   "question": "hdmi2.1 cable",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "video_cable",
+   "expectedConstraints": {
+    "hdmiVersion": {
+     "min": 2.1
+    },
+    "form": "cable"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "11 HDMI 2.1 cables.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y05",
+   "set": "core",
+   "question": "4k60 hdmi adapter",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "video_adapter",
+   "expectedConstraints": {
+    "refresh": "4K@60Hz",
+    "connector": "hdmi",
+    "form": "adapter"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "10 4K@60Hz HDMI adapters.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y06",
+   "set": "core",
+   "question": "2.5g lan",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": "network_adapter.ethernet",
+   "expectedConstraints": {
+    "eth": {
+     "min": 2.5
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "Correct 'No' for 2.5G LAN.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y07",
+   "set": "core",
+   "question": "10g hub",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "filter",
+   "expectedType": "hub_dock",
+   "expectedConstraints": {
+    "dataGbps": {
+     "min": 10
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "evidence_tiers"
+   ],
+   "priority": null,
+   "notes": "19 10Gbps hubs.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y08",
+   "set": "core",
+   "question": "charger para macbook m4",
+   "language": "taglish",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "device": "MacBook M4"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": null,
+   "notes": "Device → WEB route + local wattage clarify. Good pattern.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "WEB",
+    "aiCandidates": null,
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "WEB",
+    "engineRoute": "web",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Y09",
+   "set": "core",
+   "question": "iphone 17 fast charger",
+   "language": "en",
+   "category": "Typo",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "device": "iPhone 17"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_compat_guess"
+   ],
+   "priority": "P3",
+   "notes": "Wattage clarify + catalog AI (web would be better for iPhone 17 charging spec).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P3",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Device-spec wording → WEB."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Q01",
+   "set": "core",
+   "question": "available ba ang 90872B?",
+   "language": "taglish",
+   "category": "Stock",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "stock",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "90872B"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "90872B"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [
+    "no_stock_claim"
+   ],
+   "priority": "P1",
+   "notes": "'available ba ang 90872B?' → card only, no 'listed, can't confirm stock' line.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Add 'available ba/available?' to stock-intent wording."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Q02",
+   "set": "core",
+   "question": "do we have 25286?",
+   "language": "en",
+   "category": "Stock",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "exist",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "25286"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "25286"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [
+    "no_stock_claim"
+   ],
+   "priority": null,
+   "notes": "'do we have 25286?' = listed in pricelist; card shown.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Q03",
+   "set": "core",
+   "question": "may stock ng 65W charger?",
+   "language": "taglish",
+   "category": "Stock",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "stock",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    }
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "field": "sheet_display",
+      "in": [
+       "Mobile: Charger"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 65
+     }
+    ],
+    "check": "set"
+   },
+   "expectedSafetyBehavior": [
+    "no_stock_claim"
+   ],
+   "priority": "P1",
+   "notes": "'may stock ng 65W charger?' → list without the stock caveat (p2r1 caveat only on ranking/NLU paths).",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Apply the stock caveat on every path when stock wording is present."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Q04",
+   "set": "core",
+   "question": "in stock ba yung 80401?",
+   "language": "taglish",
+   "category": "Stock",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "stock",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "80401"
+   },
+   "expectedSKU": {
+    "where": [
+     {
+      "codeOrModel": "80401"
+     }
+    ],
+    "check": "lookup"
+   },
+   "expectedSafetyBehavior": [
+    "no_stock_claim"
+   ],
+   "priority": null,
+   "notes": "Card + 'can't confirm stock' caveat.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PASS",
+    "priority": null,
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": null
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Q05",
+   "set": "core",
+   "question": "on hand pa ba yung 100W charger?",
+   "language": "taglish",
+   "category": "Stock",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "stock",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 100
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_stock_claim"
+   ],
+   "priority": "P1",
+   "notes": "'on hand pa ba yung 100W charger?' → list without stock caveat.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P1",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "Same as Q03."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "Q06",
+   "set": "core",
+   "question": "ano available na 65W?",
+   "language": "taglish",
+   "category": "Stock",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "stock",
+   "expectedType": null,
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    }
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_stock_claim"
+   ],
+   "priority": "P1",
+   "notes": "'ano available na 65W?' → 'No products match'.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL+offer",
+    "aiCandidates": [],
+    "recommendedFix": "'available' as filler/stock word; '65W' alone → 65W chargers."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL+offer",
+    "engineRoute": "local",
+    "canEscalate": true,
+    "codes": null
+   }
+  },
+  {
+   "id": "U01",
+   "set": "core",
+   "question": "ano best dito?",
+   "language": "taglish",
+   "category": "Vague",
+   "contextFrom": null,
+   "expectedRoute": "CLARIFY",
+   "expectedIntent": "clarify",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "@context"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference",
+    "no_ai_without_intent"
+   ],
+   "priority": "P1",
+   "notes": "'ano best dito?' (no context) → paid AI call with 3 random cables.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Vague + no context → local follow-up question ('Best for what product type / budget?'); never call AI with no candidates of intent."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "U02",
+   "set": "core",
+   "question": "alin mas okay?",
+   "language": "taglish",
+   "category": "Vague",
+   "contextFrom": "U01",
+   "expectedRoute": "CLARIFY",
+   "expectedIntent": "clarify",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "@context"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "context_reference",
+    "no_ai_without_intent"
+   ],
+   "priority": "P1",
+   "notes": "'alin mas okay?' → AI with random hubs.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same; with context → compare last SKUs."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "U03",
+   "set": "core",
+   "question": "ano reco mo?",
+   "language": "taglish",
+   "category": "Vague",
+   "contextFrom": null,
+   "expectedRoute": "CLARIFY",
+   "expectedIntent": "clarify",
+   "expectedType": null,
+   "expectedConstraints": {},
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_ai_without_intent"
+   ],
+   "priority": "P1",
+   "notes": "'ano reco mo?' → AI with random items.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P1",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Same."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "U04",
+   "set": "core",
+   "question": "pang office?",
+   "language": "taglish",
+   "category": "Vague",
+   "contextFrom": null,
+   "expectedRoute": "CLARIFY",
+   "expectedIntent": "clarify",
+   "expectedType": null,
+   "expectedConstraints": {
+    "useCase": "office"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_ai_without_intent"
+   ],
+   "priority": "P2",
+   "notes": "'pang office?' → AI with random LAN/hub items.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Clarify: 'What for the office — hub, cable, charger, NAS?'"
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "U05",
+   "set": "core",
+   "question": "pang travel?",
+   "language": "taglish",
+   "category": "Vague",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": null,
+   "expectedConstraints": {
+    "useCase": "travel"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'pang travel?' → travel bags + travel adapter, AI with mixed candidates. Acceptable but thin.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Travel bundle candidates (travel adapter, GaN charger, power bank, organizer)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "U06",
+   "set": "core",
+   "question": "customer wants something cheap",
+   "language": "en",
+   "category": "Vague",
+   "contextFrom": null,
+   "expectedRoute": "CLARIFY",
+   "expectedIntent": "clarify",
+   "expectedType": null,
+   "expectedConstraints": {
+    "budget": "low"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_ai_without_intent"
+   ],
+   "priority": "P2",
+   "notes": "'customer wants something cheap' → AI with random items.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "WRONG ROUTE",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Clarify product type."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "U07",
+   "set": "core",
+   "question": "magandang premium option na charger?",
+   "language": "taglish",
+   "category": "Vague",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "tier": "premium"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'premium option na charger' → AI with mixed candidates incl. 18W/20W units.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "Premium = high W / GaN / display series; rank by price desc."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z01",
+   "set": "core",
+   "question": "ano hero SKU natin sa 65W?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "COACH",
+   "expectedIntent": "coach",
+   "expectedType": "charger",
+   "expectedConstraints": {
+    "watts": {
+     "eq": 65
+    },
+    "want": "hero sku"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_invented_pm_priorities"
+   ],
+   "priority": "P2",
+   "notes": "'hero SKU sa 65W' → 'No products match'. Needs PM knowledge (hero/focus SKUs) not in data.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "SALES-COACH-FUTURE: PM-maintained hero/focus SKU list."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z02",
+   "set": "core",
+   "question": "ano magandang upsell sa 10334?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "COACH",
+   "expectedIntent": "coach",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "10334",
+    "want": "upsell"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_invented_pm_priorities"
+   ],
+   "priority": "P2",
+   "notes": "'upsell sa 10334' → same SKU card.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "SALES-COACH-FUTURE: upsell ladder per category (e.g. 65W → 100W)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z03",
+   "set": "core",
+   "question": "ano pwede i-bundle sa 25286?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "COACH",
+   "expectedIntent": "coach",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "25286",
+    "want": "bundle"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_invented_pm_priorities"
+   ],
+   "priority": "P2",
+   "notes": "'i-bundle sa 25286' → same SKU card.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "SALES-COACH-FUTURE: bundle/attach rules (power bank + cable)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z04",
+   "set": "core",
+   "question": "ano alternative kapag ayaw ng customer sa price ng 90872B?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "LOCAL",
+   "expectedIntent": "alternative",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "90872B",
+    "srp": "lower"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P1",
+   "notes": "'alternative kapag ayaw ng customer sa price ng 90872B' → just prices of 90872B.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P1",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Local ALTERNATIVES (A01) cheaper-first."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z05",
+   "set": "core",
+   "question": "paano ko i-explain difference ng X755 at X772?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": [
+     "X755",
+     "X772"
+    ],
+    "want": "sales explanation"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "Compare table shown (useful) but no explanation of the difference in sales language; no AI.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Optional AI 'explain difference' over the compare table."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z06",
+   "set": "core",
+   "question": "ano magandang i-push for travel?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "COACH",
+   "expectedIntent": "coach",
+   "expectedType": null,
+   "expectedConstraints": {
+    "useCase": "travel",
+    "want": "push priorities"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_invented_pm_priorities"
+   ],
+   "priority": "P2",
+   "notes": "'ano magandang i-push for travel?' → AI with random travel items; needs PM priorities.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "CATALOG",
+    "aiCandidates": null,
+    "recommendedFix": "SALES-COACH-FUTURE: focus/push list."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "CATALOG",
+    "engineRoute": "catalog",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z07",
+   "set": "core",
+   "question": "customer says mahal yung 25286, ano pwede sabihin?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "COACH",
+   "expectedIntent": "coach",
+   "expectedType": null,
+   "expectedConstraints": {
+    "ref": "25286",
+    "want": "price objection"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [
+    "no_invented_pm_priorities"
+   ],
+   "priority": "P2",
+   "notes": "'customer says mahal… ano pwede sabihin?' → same SKU card.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "FAIL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "SALES-COACH-FUTURE: objection handling + value points per SKU."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  },
+  {
+   "id": "Z08",
+   "set": "core",
+   "question": "bakit mas mahal 95405B kesa 10334?",
+   "language": "taglish",
+   "category": "SalesPM",
+   "contextFrom": null,
+   "expectedRoute": "AI",
+   "expectedIntent": "judgement",
+   "expectedType": null,
+   "expectedConstraints": {
+    "refs": [
+     "95405B",
+     "10334"
+    ],
+    "want": "price difference reason"
+   },
+   "expectedSKU": null,
+   "expectedSafetyBehavior": [],
+   "priority": "P2",
+   "notes": "'bakit mas mahal 95405B kesa 10334?' → both cards, no reason given; no AI.",
+   "baseline": {
+    "release": "p2r2",
+    "commit": "0f4b3eb",
+    "rating": "PARTIAL",
+    "priority": "P2",
+    "actualRoute": "LOCAL",
+    "aiCandidates": [],
+    "recommendedFix": "Compare + AI explanation (100W/4-port/display vs 65W/3-port)."
+   },
+   "recordedP2r21": {
+    "commit": "6a5220d",
+    "actualRoute": "LOCAL",
+    "engineRoute": "local",
+    "canEscalate": false,
+    "codes": null
+   }
+  }
+ ]
+}
