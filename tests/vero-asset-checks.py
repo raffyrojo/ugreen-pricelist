@@ -1,33 +1,38 @@
-"""Static asset / integrity checks for VERO frontend changes, against the CURRENT production baseline.
+"""Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves (default 8f3982b: p2r2.1 live + Local Brain files present but NOT loaded).
-  p2r3a (Local Brain switch-over) changes index.html (VERO script/css tags), css/vero.css (one rule), js/vero.js (context + echo),
-  js/vero-engine.js (adapter), js/vero-lexicon.js, js/vero-plan.js, NEW js/vero-compose.js, and tests.
-  js/vero-nlu.js and js/vero-facts.js are unchanged (loaded, not edited).
+  baseline_ref = the commit GitHub Pages serves now (default 835b0f5: VERO p2r3a.1 live, v2-1 files present but NOT loaded).
+  If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
+
+Two modes, decided automatically, same checks in both (nothing is skipped):
+  BASELINE VERIFICATION - the tree equals the baseline: every invariant must hold on the live tree.
+  RELEASE DELTA         - files differ: every changed path must be in RELEASE_SCOPE (G10), data changes must be in
+                          APPROVED_DATA (G11), every changed js/css must carry a new ?v= tag (G01), plus all invariants.
+Per release: edit ONLY the RELEASE SCOPE block below (reviewed together with the release) - list the files the
+release may change and any approved data fields. Leave it empty between releases.
 
 DEPLOY GATE = the "G" checks. All must pass before a frontend deploy.
 INFO checks are reported separately and never counted in the gate (known, non-live items).
-History: p2r1/p2r2/p2r2.1 versions of this script checked only the engine + NLU (see git history)."""
+History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '8f3982b'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '835b0f5'
 
-# Production baselines (VERO-Phase2 handoff 2026-10-06 + project status doc)
+# Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
 PUBLISH_WORKER_SHA = 'f3d7159f5bf7152e798b98afbd02af1e28da5255f6bf06a194d679a3ce2510e8'  # Worker ugreen-pricelist-cms
 AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
-# Files this frontend change is allowed to touch (everything else must be byte-identical to the baseline)
-ALLOWED = {'data/products.json', 'index.html', 'css/vero.css', 'js/vero.js', 'js/vero-engine.js', 'js/vero-lexicon.js', 'js/vero-plan.js', 'js/vero-compose.js',
-           'tests/vero-asset-checks.py', 'tests/vero-p1-regression.playwright.py', 'tests/vero-p2r21.test.js', 'tests/vero-plan.test.js', 'tests/vero-plan-shadow.js',
-           'tests/vero-lexicon.test.js', 'tests/vero-facts-shadow.playwright.py', 'tests/vero-plan-browser.playwright.py',
-           'tests/vero-p2r3a.test.js', 'tests/vero-p2r3a-benchmark.js', 'tests/vero-p2r3a.playwright.py',
-           'tests/vero-p2r3a-fixes.test.js', 'tests/vero-p2r3a-fixes2.test.js',
-           # v2-1 accountable parse: SHADOW ONLY (not referenced by index.html; G-check below)
-           'js/vero-parse.js', 'js/vero-ontology.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js', 'tests/vero-v2-devsets.json', 'tests/vero-v2-browser.playwright.py'}
-VER = {'css/vero.css': 'p2r3a', 'js/vero-lexicon.js': 'p2r3a', 'js/vero-nlu.js': 'p2r2.1', 'js/vero-facts.js': 'p2r3a', 'js/vero-plan.js': 'p2r3a.1',
-       'js/vero-compose.js': 'p2r3a.1', 'js/vero-engine.js': 'p2r3a', 'js/vero.js': 'p2r3a'}
-ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']
-VJS = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']
+
+# ===================== RELEASE SCOPE (edit per release; empty between releases) =====================
+# Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
+# always allowed so that a reviewed gate edit can travel with its release.
+RELEASE_SCOPE = {'tests/vero-asset-checks.py'}
+# Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
+APPROVED_DATA = {}
+# ======================================================================================================
+
+ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']   # live load order
+VJS = list(ORDER)
+SHADOW = ['js/vero-ontology.js', 'js/vero-parse.js']   # v2-1: present, must stay unloaded (G23)
 
 sha = lambda b: hashlib.sha256(b).hexdigest()
 rd = lambda f: open(os.path.join(R, f), 'rb').read()
@@ -39,33 +44,42 @@ def chk(n, ok, x=''): ok = bool(ok); gate.append(ok); print(('PASS' if ok else '
 def inf(n, ok, x=''): ok = bool(ok); info.append(ok); print(('INFO ok ' if ok else 'INFO -- ') + n + ('' if ok else f'  ({x})'))
 
 root = rd('index.html').decode('utf-8')
-print(f'Baseline: {BASE}\n--- deploy gate ---')
-for a, v in VER.items(): chk(f'G01 {a} referenced with exactly ?v={v}', re.search(re.escape(a) + r'\?v=' + re.escape(v) + r'"', root) is not None)
-chk('G02 no stale VERO tags (engine / vero.js / css not left at p1/p2/p2r1/p2r2/p2r2.1; nothing at p3)', not re.search(r'vero(-engine)?\.js\?v=p(1|2|2r1|2r2|2r2\.1)"', root) and not re.search(r'css/vero\.css\?v=p2"', root) and not re.search(r'vero[\w.-]*\?v=p3', root))
+if git('cat-file', '-e', f'{BASE}^{{commit}}').returncode != 0: print(f'Baseline {BASE} is not a commit in this repo'); sys.exit(2)
+changed = set(git('diff', '--name-only', BASE).stdout.decode().split()) | set(git('ls-files', '--others', '--exclude-standard').stdout.decode().split())
+delta = changed - {'tests/vero-asset-checks.py'}   # the gate's own (reviewed) edits are gate maintenance, not a release delta; G10 still checks them
+print(f'Baseline: {BASE}')
+print('Mode: BASELINE VERIFICATION (no release delta vs the baseline' + ('; gate script itself edited' if changed else '') + ')' if not delta else
+      f'Mode: RELEASE DELTA ({len(delta)} path(s) differ from the baseline): ' + ', '.join(sorted(delta)))
+print('--- deploy gate ---')
+b_idx = (base('index.html') or b'').decode('utf-8')
 refs = sorted(set(re.findall(r'(?:src|href)="((?:js|css)/[^"?]+)', root)))
+TAG = r'(?:src|href)="((?:js|css)/[^"?]+)\?v=([^"]+)"'
+tags, btags = dict(re.findall(TAG, root)), dict(re.findall(TAG, b_idx))
+for a in refs:   # cache-buster integrity: EVERY local js/css (tagged or not) whose bytes differ from the baseline must carry a new ?v= tag
+    t, same = tags.get(a), os.path.isfile(os.path.join(R, a)) and base(a) == rd(a)
+    one = len({v for k, v in re.findall(TAG, root) if k == a}) <= 1   # a file referenced twice must not carry two different tags
+    chk(f'G01 {a}' + (f'?v={t}' if t else ' (no ?v= tag)') + ': ' + ('unchanged vs baseline' if same else f'content changed -> needs a new ?v= tag (baseline: {btags.get(a)})'),
+        one and (same or (t is not None and t != btags.get(a))), 'conflicting tags for one file' if not one else (f'file changed but tag is ' + (f'still ?v={t}' if t else 'missing')))
+chk('G02 no retired VERO tags (engine / vero.js not at p1/p2/p2r1/p2r2/p2r2.1; css not at p2)', not re.search(r'vero(-engine)?\.js\?v=p(1|2|2r1|2r2|2r2\.1)"', root) and not re.search(r'css/vero\.css\?v=p2"', root))
 missing = [x for x in refs if not os.path.isfile(os.path.join(R, x))]
 chk(f'G03 all {len(refs)} local js/css references exist', not missing, missing)
-b_idx = (base('index.html') or b'').decode('utf-8')
-strip = lambda h: re.sub(r'<script src="js/vero[\w-]*\.js\?v=[\w.]+"></script>\n?|<link rel="stylesheet" href="css/vero\.css\?v=[\w.]+">', '', h)
+strip = lambda h: re.sub(r'((?:src|href)="(?:js|css)/[^"?]+)(?:\?v=[^"]*)?"', r'\1"', re.sub(r'<script src="js/vero[\w-]*\.js\?v=[\w.]+"></script>\n?|<link rel="stylesheet" href="css/vero\.css\?v=[\w.]+">', '', h))
 pos = [root.find(f + '?v=') for f in ORDER]
-chk('G04 index.html differs from baseline ONLY in the VERO script/css tags; Local Brain loads lexicon -> nlu -> facts -> plan -> compose -> engine -> vero.js',
-    strip(root) == strip(b_idx) and root != b_idx and all(p > 0 for p in pos) and pos == sorted(pos) and all(root.count(f + '?v=') == 1 for f in ORDER), pos)
-chk('G04b vero-nlu.js and vero-facts.js byte-identical to baseline (loaded, not edited in p2r3a)', base('js/vero-nlu.js') == rd('js/vero-nlu.js') and base('js/vero-facts.js') == rd('js/vero-facts.js'))
-for f in VJS + ['config.js']:
+chk('G04 index.html differs from baseline ONLY in VERO script/css lines and ?v= tags; Local Brain loads lexicon -> nlu -> facts -> plan -> compose -> engine -> vero.js (each once)',
+    strip(root) == strip(b_idx) and all(p > 0 for p in pos) and pos == sorted(pos) and all(root.count(f + '?v=') == 1 for f in ORDER), pos)
+outside = [f for f in VJS + SHADOW if f not in RELEASE_SCOPE and base(f) != (rd(f) if os.path.isfile(os.path.join(R, f)) else None)]
+chk('G04b VERO runtime + shadow files outside RELEASE_SCOPE are byte-identical to the baseline', not outside, outside)
+CHK_JS = sorted(set(VJS + [f for f in SHADOW if os.path.isfile(os.path.join(R, f))] + [f for f in changed if f.endswith('.js') and f.startswith('js/') and os.path.isfile(os.path.join(R, f))]))
+for f in CHK_JS + ['config.js']:
     r = subprocess.run(['node', '--check', os.path.join(R, f)], capture_output=True, text=True); chk(f'G05 node --check {f}', r.returncode == 0, r.stderr[:200])
-chk('G06 no NUL bytes in frontend files', all(b'\x00' not in rd(f) for f in ['index.html', 'config.js', 'css/vero.css'] + VJS))
-chk('G07 no raw </script> inside VERO JS', all('</script>' not in rd(f).decode('utf-8') for f in VJS))
+chk('G06 no NUL bytes in frontend files', all(b'\x00' not in rd(f) for f in ['index.html', 'config.js', 'css/vero.css'] + CHK_JS))
+chk('G07 no raw </script> inside VERO JS', all('</script>' not in rd(f).decode('utf-8') for f in CHK_JS))
 cfg = rd('config.js').decode('utf-8')
 chk('G08 config.js = live Phase 2 pilot config (enabled, aiEnabled:true, webEnabled:true, live endpoint)',
     re.search(r'aiEnabled:\s*true', cfg) and re.search(r'webEnabled:\s*true', cfg) and f"aiEndpoint: '{AI_ENDPOINT}'" in cfg and re.search(r'enabled:\s*true', cfg))
 chk('G09 config.js byte-identical to baseline (no config change in this deploy)', base('config.js') == rd('config.js'))
-changed = set(git('diff', '--name-only', BASE).stdout.decode().split()) | set(git('ls-files', '--others', '--exclude-standard').stdout.decode().split())
-chk('G10 only the approved files differ from the live baseline', changed <= ALLOWED, sorted(changed - ALLOWED))
-# G11: data/ unchanged vs baseline, EXCEPT the approved 2026-10-07 data-quality correction (5 fields; a SEPARATE data deploy, not part of the frontend change)
-APPROVED_DATA = {('70503', 'category'): ('Hard Drive Enclosure', 'PCIe Expansion Card'), ('70504', 'category'): ('Hard Drive Enclosure', 'PCIe Expansion Card'),
-                 ('30715', 'category'): ('Hard Drive Enclosure', 'PCIe Expansion Card'),
-                 ('10902', 'product_name'): ('M.2NVME Hard Drive Enclosure(10Gbps)', 'M.2 NVMe Hard Drive Enclosure (10Gbps)'),
-                 ('15512', 'product_name'): ('M.2NVME Hard Drive Enclosure(10Gbps)', 'M.2 NVMe Hard Drive Enclosure (10Gbps)')}
+chk('G10 only RELEASE_SCOPE files differ from the live baseline (no unapproved changed or new repo paths)', changed <= RELEASE_SCOPE, sorted(changed - RELEASE_SCOPE))
+# G11: data/ unchanged vs baseline, except field changes listed in APPROVED_DATA for this release
 import json as _json
 _other = git('diff', '--name-only', BASE, '--', 'data/').stdout.decode().split()
 _pb, _pn = _json.loads(base('data/products.json').decode('utf-8')), _json.loads(rd('data/products.json').decode('utf-8'))
@@ -75,10 +89,10 @@ if len(_pb) == len(_pn):
         for _k in set(_a) | set(_b):
             if _a.get(_k) != _b.get(_k): _dd.add((str(_a.get('item_code')), _k, str(_a.get(_k)), str(_b.get(_k))))
 _ok = len(_pb) == len(_pn) and all(APPROVED_DATA.get((c, k)) == (o, n) for c, k, o, n in _dd) and set(_other) <= {'data/products.json'}
-chk(f'G11 data/: unchanged except the approved data correction ({len(_dd)} field change(s) found, all approved)', _ok, sorted(_dd)[:6])
+chk(f'G11 data/: unchanged except APPROVED_DATA ({len(_dd)} field change(s) found, all approved; same product count)', _ok, sorted(_dd)[:6])
 DATA_CHANGED = len(_dd) > 0
 bcss = (base('css/vero.css') or b'').decode('utf-8').splitlines(); ncss = rd('css/vero.css').decode('utf-8').splitlines()
-chk('G12 css/vero.css: additive only (every baseline line kept; only .vero-echo added)', all(l in ncss for l in bcss) and all(l in bcss or '.vero-echo' in l for l in ncss))
+chk('G12 css/vero.css: additive only (every baseline line kept; new rules only if css/vero.css is in RELEASE_SCOPE)', all(l in ncss for l in bcss) and (ncss == bcss or 'css/vero.css' in RELEASE_SCOPE))
 chk('G13 VERO Worker source sha256 == deployed ugreen-vero baseline 594f9606…2d99', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
 chk('G14 publish Worker source sha256 == deployed ugreen-pricelist-cms baseline f3d7159f…', sha(rd('backend/worker.js')) == PUBLISH_WORKER_SHA)
 chk('G15 backend/ (both Workers, wrangler configs = budgets/limits/vars) unchanged vs baseline', git('diff', '--quiet', BASE, '--', 'backend/').returncode == 0)
@@ -89,7 +103,7 @@ payload = lambda t: t[t.find('var body='):t.find("fetch(a.url+'/ask'")]
 chk('G17 AI request payload (vero.js body) identical to baseline', payload(vjs) and payload(vjs) == payload(bvjs))
 chk('G18 AI request payload has no price/MOQ/dealer fields', not re.search(r'srp|\bdp|dp_volume|special_dp|moq|dealer|price', payload(vjs), re.I), payload(vjs))
 nocom = lambda t: re.sub(r'/\*[\s\S]*?\*/|//[^\n]*', '', t)
-brain = {f: nocom(rd(f).decode('utf-8')) for f in VJS + ['js/vero-ontology.js', 'js/vero-parse.js'] if f != 'js/vero.js' and os.path.isfile(os.path.join(R, f))}
+brain = {f: nocom(rd(f).decode('utf-8')) for f in VJS + SHADOW if f != 'js/vero.js' and os.path.isfile(os.path.join(R, f))}
 chk('G19 no Local Brain / engine file reads priceSchedule (future prices cannot leak)', not any('priceSchedule' in t for t in brain.values()))
 chk('G20 VERO local scripts make no network calls (no fetch/XMLHttpRequest/sendBeacon in lexicon/nlu/facts/plan/compose/engine)', not any(re.search(r'\bfetch\s*\(|XMLHttpRequest|sendBeacon', t) for t in brain.values()))
 import json
@@ -105,6 +119,6 @@ inf('I01 mirror ugreen-pricelist-cms/index.html identical to root index.html (mi
     os.path.isfile(mirror) and open(mirror, encoding='utf-8').read() == root, 'mirror not synced — not served, not a deploy blocker')
 inf('I02 mirror unchanged vs baseline (this deploy does not touch it)', os.path.isfile(mirror) and base('ugreen-pricelist-cms/index.html') == rd('ugreen-pricelist-cms/index.html'))
 
-print(f'\nDeploy gate: {sum(gate)}/{len(gate)} PASS' + ('' if all(gate) else '  <-- BLOCKED'))
+print(f'\nDeploy gate: {sum(gate)}/{len(gate)} PASS' + ('' if all(gate) else '  <-- BLOCKED') + ('  [baseline verification]' if not delta else '  [release delta]'))
 print(f'Informational: {sum(info)}/{len(info)} (not gating)')
 sys.exit(0 if all(gate) else 1)
