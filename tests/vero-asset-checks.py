@@ -88,8 +88,20 @@ if len(_pb) == len(_pn):
     for _a, _b in zip(_pb, _pn):
         for _k in set(_a) | set(_b):
             if _a.get(_k) != _b.get(_k): _dd.add((str(_a.get('item_code')), _k, str(_a.get(_k)), str(_b.get(_k))))
-_ok = len(_pb) == len(_pn) and all(APPROVED_DATA.get((c, k)) == (o, n) for c, k, o, n in _dd) and set(_other) <= {'data/products.json'}
-chk(f'G11 data/: unchanged except APPROVED_DATA ({len(_dd)} field change(s) found, all approved; same product count)', _ok, sorted(_dd)[:6])
+# APPROVED_DATA is the EXACT data-change manifest: the actual change map must equal it (no extra, no missing, exact old/new).
+# Values are compared as str() of the products.json value, so write them as stored (e.g. 999 vs '999.0' differ -> fails safe).
+_actual = {(c, k): (o, n) for c, k, o, n in _dd}
+_want = {(str(c), k): (str(o), str(n)) for (c, k), (o, n) in APPROVED_DATA.items()}
+_extra = sorted(f'{c}.{k}: {o!r} -> {n!r} (not approved)' for (c, k), (o, n) in _actual.items() if _want.get((c, k)) != (o, n))
+_miss = sorted(f'{c}.{k}: expected {o!r} -> {n!r} (missing / differs)' for (c, k), (o, n) in _want.items() if _actual.get((c, k)) != (o, n))
+_ok = (len(_pb) == len(_pn) and len(_actual) == len(_dd) and len(_want) == len(APPROVED_DATA) and _actual == _want
+       and set(_other) <= {'data/products.json'})
+_why = ([f'product count {len(_pb)} -> {len(_pn)}'] if len(_pb) != len(_pn) else []) + \
+       (['duplicate (item_code, field) in the actual changes'] if len(_actual) != len(_dd) else []) + \
+       (['APPROVED_DATA has keys that collide after str() normalisation'] if len(_want) != len(APPROVED_DATA) else []) + \
+       ([f'other data/ file changed: {sorted(set(_other) - {"data/products.json"})}'] if not set(_other) <= {'data/products.json'} else [])
+chk(f'G11 data/: field changes == APPROVED_DATA exactly ({len(_dd)} found, {len(_want)} approved; same product count; no other data/ file)', _ok,
+    (_why + ([] if len(_pb) != len(_pn) else _extra + _miss))[:6])
 DATA_CHANGED = len(_dd) > 0
 bcss = (base('css/vero.css') or b'').decode('utf-8').splitlines(); ncss = rd('css/vero.css').decode('utf-8').splitlines()
 chk('G12 css/vero.css: additive only (every baseline line kept; new rules only if css/vero.css is in RELEASE_SCOPE)', all(l in ncss for l in bcss) and (ncss == bcss or 'css/vero.css' in RELEASE_SCOPE))
