@@ -610,11 +610,18 @@
     }
     /* p2r3a fix 1: an inventory question is never answered with a SKU count ("ilan pa natitira" ≠ number of SKUs) */
     if(plan.flags.stock && I==='count'){ I=subject.length?'lookup':'exist'; trace.push('inventory: count → listed'); }
-    /* p2r3a fix 5: existence with no product noun we know — name the noun in a zero result, or clarify when there is none */
-    if(I==='exist' && !subject.length && !plan.type && !plan.form && !plan.useCase && !hasSpec && !plan.anchors.length){
+    /* p2r3a fix 5 + P0 guard 1: existence or count with no product noun we know — name the noun in a zero result, or clarify
+       when there is none. A count never falls through to a catalogue-empty "0 —": a field / measure asked with no product
+       ("ilang ports") clarifies, and a generic catalogue noun ("how many products") gets the listed total (not on a stock question). */
+    if((I==='exist'||I==='count') && !subject.length && !plan.type && !plan.form && !plan.useCase && !hasSpec && !plan.anchors.length){
       var nn=nounOf(X,c);
-      if(nn && nn.split(' ').length<=3){ plan.unknownNoun=nn; trace.push('unknown noun: '+nn); }
-      else plan.ambiguity.push({ slot:'type', reason:'existence question with no product noun' });
+      var nnW=nn?nn.split(' '):[], catW=nnW.some(function(w){ return CATALOG_NOUN.indexOf(w)>=0; });
+      if(nn && catW && nnW.length===1 && !plan.flags.stock){ plan.catalogTotal=products.length; trace.push('generic catalogue noun → listed total'); }
+      else if((I==='count' && specAttr.length) || (nn && fieldOnly(nn,c))) plan.ambiguity.push({ slot:'type', reason:'field / measure with no product' });
+      /* the per-noun negative is only honest when no published product NAME or CATEGORY carries the noun; a qualified catalogue
+         noun ("products for macbook") is not a product type either — both clarify instead of a false "Wala tayong …" */
+      else if(nn && !catW && nnW.length<=3 && !inCatalogue(nnW,products)){ plan.unknownNoun=nn; trace.push('unknown noun: '+nn); }
+      else plan.ambiguity.push({ slot:'type', reason:(I==='count'?'count':'existence')+' question with no product noun' });
     }
     /* p2r3a fix 2: "with cable" on a power bank / charger without built-in or retractable = unclear hard constraint → clarify */
     if(plan.type && (plan.type.family==='power_bank'||plan.type.family==='charger') && !plan.pair && !subject.length &&
@@ -712,7 +719,21 @@
     'lahat all any some every each other others iba ibang good nice best better okay ok legit genuine authentic sample stocks item items unit units piece').split(' ');
   var NOUN_STOP=('may meron mayroon ba kayo tayo ka po ng na sa pa rin din nga lang naman ho kami ako you we do does have has any there is are a an the us our your natin namin ninyo inyo '+
     'ganito ganyan yung ung ang mga si ni right now currently pricelist ugreen stock stocks available on hand inventory still sold out remaining natitira natira ubos ilan pa').split(' ');
-  function nounOf(X,c){ var stop={}; NOUN_STOP.forEach(function(w){ stop[w]=1; }); Object.keys(c.smallFill).forEach(function(w){ stop[w]=1; });
+  /* P0 guard 2: closed-class words only (prepositions / conjunctions, count words and quantifiers, Tagalog pronoun spellings) —
+     never product vocabulary — so "in stock ba?" leaves no product noun ("Walang in …"). Stock words are already in NOUN_STOP. */
+  var FUNC_STOP=('in on at of for to with from by into about and or but how many much number kahit ilang total lahat all ano nyo niyo kayong').split(' ');
+  /* generic catalogue nouns: "how many products / items / SKUs" asks for the listed total, not for a product type */
+  var CATALOG_NOUN=['product','products','item','items','sku','skus'];
+  /* a leftover made only of the lexicon's field / measure words (metrics + attributes: "ports", "capacity", "speed") is not a product */
+  function fieldOnly(nn,c){ var F={}; [c.L.metrics||{},c.L.attributes||{}].forEach(function(o){ Object.keys(o).forEach(function(k){ (o[k]||[]).forEach(function(t){ String(t).split(' ').forEach(function(w){ F[w]=1; }); }); }); });
+    return nn.split(' ').every(function(w){ return F[w]; }); }
+  /* any leftover word (singular or plural) appearing as a whole word in a published product name or category */
+  function inCatalogue(words,products){
+    /* the word as typed plus its -s / -es stems ("cases" → case); a line name glued to a model number (letters + digits) counts */
+    var res=words.filter(function(w){ return w.length>=2; }).map(function(w){ var st=[w]; if(w.length>3 && /s$/.test(w)) st.push(w.slice(0,-1)); if(w.length>4 && /es$/.test(w)) st.push(w.slice(0,-2));
+      return new RegExp('(^|[^a-z0-9])(?:'+st.map(esc).join('|')+')(?:s|es)?(?![a-z'+(w.length>=3?'':'0-9')+'])','i'); });
+    return res.length>0 && products.some(function(p){ var t=String(p.product_name||'')+' '+String(p.category||''); return res.some(function(re){ return re.test(t); }); }); }
+  function nounOf(X,c){ var stop={}; NOUN_STOP.concat(FUNC_STOP).forEach(function(w){ stop[w]=1; }); Object.keys(c.smallFill).forEach(function(w){ stop[w]=1; });
     var w=X.t.replace(/[^a-z0-9 -]+/g,' ').split(/\s+/).filter(function(x){ return x && !stop[x] && x.length>1 && !/^\d+$/.test(x); });
     return w.length?w.join(' '):null; }
   function finish(plan,t0){ plan.ms=Date.now()-t0; return plan; }

@@ -83,10 +83,19 @@
   function article(w){ return /^[aeiou8]|^(11|18)\d?W|^(HDMI|LAN|NAS|USB|SD|M\.2)/i.test(w)?'an':'a'; }
 
   /* ---------- evidence tail ---------- */
-  function evidenceTail(plan,R,lang){
-    var parts=[];
+  /* P0 guard 3: when the note names a product type / form, a code named as "not confirmed" must belong to the family being
+     shown (else plan.type); other families are dropped. A generic label ("8K HDMI products") names no family: nothing dropped. */
+  function sameFamily(codes,shown,plan,idx){
+    if(!plan.type && !plan.form) return codes||[];
+    var fams={}; (shown||[]).forEach(function(c){ var F=idx&&idx.byCode[c]; if(F) fams[F.type.family]=1; });
+    if(!Object.keys(fams).length && plan.type) fams[plan.type.family]=1;
+    if(!Object.keys(fams).length) return codes||[];
+    return (codes||[]).filter(function(c){ var F=idx.byCode[c]; return F && fams[F.type.family]; });
+  }
+  function evidenceTail(plan,R,lang,shown,idx){
+    var parts=[], ment=sameFamily(R.mentioned,shown,plan,idx);
     if(R.medium) parts.push(T(lang,'perFeatures',{ n:R.medium }));
-    if(R.mentioned&&R.mentioned.length) parts.push(T(lang,'mentioned',{ codes:R.mentioned.slice(0,5).join(', ')+(R.mentioned.length>5?' …':'') }));
+    if(ment.length) parts.push(T(lang,'mentioned',{ codes:ment.slice(0,5).join(', ')+(ment.length>5?' …':'') }));
     var dev=plan.flags.devices; if(dev.named.length||dev.classes.length) parts.push(T(lang,'compat',{ device:devLabel((dev.named[0]&&dev.named[0].label)||dev.classes[0]) }));
     return parts.length?' ('+parts.join('; ')+')':'';
   }
@@ -224,7 +233,7 @@
       if(rt==='AI_CATALOG'||rt==='WEB'){ res.needsAI=true; res.aiReason='recommendation/compatibility'; }
       return done();
     }
-    var many=codes2.length!==1, lab=label(plan,many), lab1=label(plan,false), tail=evidenceTail(plan,R,lang);
+    var many=codes2.length!==1, lab=label(plan,many), lab1=label(plan,false), tail=evidenceTail(plan,R,lang,codes2,idx);
     res.detail=detailMap(R);
     if(plan.sort && plan.sort[0] && /^(srp|dp|dp_volume)$/.test(plan.sort[0].by)) res.fields=[plan.sort[0].by];
     else if(plan.filters.some(function(f){ return f.attr==='price'; })) res.fields=[plan.priceField];
@@ -232,7 +241,8 @@
     if(!codes2.length){
       var fc=facets(plan,idx);
       res.type=related.length?'list':'text';
-      if(plan.flags.stock) res.note=T(lang,'invNone',{ label:plan.unknownNoun||lab1 });
+      if(plan.catalogTotal) res.note=T(lang,'count',{ n:fmtNum(plan.catalogTotal), label:'products', tail:'' }).replace(/:$/,'.');   /* P0 guard 1: generic catalogue noun → listed total */
+      else if(plan.flags.stock) res.note=T(lang,'invNone',{ label:plan.unknownNoun||lab1 });
       else if(plan.unknownNoun) res.note=T(lang,'noNoun',{ x:plan.unknownNoun });
       else res.note=(I==='count'?'0 — ':'')+T(lang,'existNo',{ a:article(lab1)+' ', label:lab1, tail:'' }).replace('  ',' ');
       if(fc){ var famN=fc.family; res.note+=' '+T(lang,'facets',{ family:lang==='tl'?famN:famN.replace(/^./,function(x){ return x.toUpperCase(); }), values:fc.text }); res.chips=fc.chips; }

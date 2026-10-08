@@ -144,5 +144,62 @@ const J6=['pcie card','pci-e card','pci express card'].map(q=>({ q, r:E.answer(P
 chk('J6 normalization is generic: synthetic SKUs spelled "PCI Express" / "PCI-E" / "PCIe" all match every spelling (derived '+want6.length+')',
   J6.every(x=>sortedEq(x.r.codes,want6)), J6.map(x=>x.q+' => '+(x.r.codes||[]).join(',')).join(' || '));
 
+/* ================= K P0 live safety guards (p2r3a.2, 2026-10-08) =================
+   K1–K4 guard 1: a count / existence with no product subject never answers a catalogue-empty "0 — Wala … product".
+   K5–K6 guard 2: closed-class grammar / stock words are never a product name ("Walang in …").
+   K7 guard 3: every code named as "not confirmed" belongs to the family of the products shown.
+   Known residuals — NOT fixed by P0, they belong to v2-2 (QueryPlan delta):
+     - "which one is Gen 4?" after a PCIe search still answers "I can't find 'gen'"
+     - "yung may 3 ports lang" after a charger search loses the context (whole-catalogue search)
+     - the 10000mAh constraint is dropped on "yung may built-in cable"
+     - stock follow-ups ("in stock ba?", "stock?") ask for the product type instead of inheriting the context
+     - RELAX ("kahit ilang ports", "any number of ports") clarifies; it does not yet return the relaxed set */
+const emptyCat=x=>/^0\s*—|\b(?:wala tayong|we don.t have (?:a|any)) products?\b/i.test(x.r.note||'');
+const clarified=x=>x.r.type==='clarify' && !(x.r.codes||[]).length;
+const K1=['ilan?','how many?','ilang ports','kahit ilang ports','any number of ports','may ports ba?'].map(one);
+chk('K1 a bare count / field-only question (no product noun) clarifies — never "0 —" / "Wala … product", LOCAL',
+  K1.every(x=>clarified(x) && !emptyCat(x) && local(x)), K1.map(txt).join(' || '));
+const K2=['100W charger 4 ports','65W charger 3 ports'].map((q,i)=>chat([q,i?'any number of ports':'kahit ilang ports'])[1]);
+chk('K2 RELAX-shaped follow-ups after a charger search never give a false catalogue-empty answer (P0 may clarify; RELAX is v2-2)',
+  K2.every(x=>!emptyCat(x) && !/^Wala|don.t have/i.test(x.r.note||'') && local(x)), K2.map(txt).join(' || '));
+const K3=['how many products do you have','ilang items meron kayo','how many skus do you have'].map(one), total=PUB.length;
+chk('K3 a generic catalogue noun gets the listed (published) total, derived from data ('+total+'), LOCAL, no cards',
+  K3.every(x=>new RegExp('^'+total.toLocaleString('en-US')+'\\b').test(x.r.note||'') && !(x.r.codes||[]).length && local(x)), K3.map(txt).join(' || '));
+const kb=PUB.filter(p=>/\bkeyboard\b/i.test(String(p.product_name))).length;
+const K4=['ilan ang keyboard nyo?','how many keyboards do you have','may keyboard kayo?'].map(one), K4x=one('meron ba kayong xyzabc');
+chk('K4 an unknown product noun gets the honest per-noun negative for count AND existence (data has '+kb+' keyboard names); never "0 — … product"',
+  kb===0 && K4.every(x=>/\bkeyboards?\b/i.test(x.r.note||'') && /^(?:Wala tayong|We don.t have any)/.test(x.r.note||'') && !emptyCat(x) && local(x))
+  && /xyzabc/.test(K4x.r.note||'') && /^Wala tayong/.test(K4x.r.note||''), K4.concat([K4x]).map(txt).join(' || '));
+const K4r=one('ilan ang power bank?'), pbAll=PUB.filter(p=>fam(p.item_code)==='power_bank').map(p=>String(p.item_code));
+chk('K4b a real product count is unchanged (power banks, derived '+pbAll.length+')', sortedEq(K4r.r.codes,pbAll) && new RegExp('^'+pbAll.length+'\\b').test(K4r.r.note||'') && local(K4r), txt(K4r));
+const K5=[one('in stock ba?'), chat(['65W charger','in stock ba?'])[1], one('may stock pa ba?')];
+chk('K5 "in stock ba?" (standalone / after a search) never names "in" as a product: asks for the product type + live-inventory caveat, no quantity, LOCAL',
+  K5.every(x=>!/\bwalang in\b|\bno in\b/i.test(x.r.note||'') && clarified(x) && /live inventory/.test(x.r.stockNote||'') && !/\b\d+\s*(?:units|pcs|left|natitira)\b/i.test((x.r.note||'')+(x.r.stockNote||'')) && local(x)), K5.map(txt).join(' || '));
+const K6=one('may stock ba ng 65W charger?');
+chk('K6 a stock question WITH a product still lists it + caveat (guard 2 does not swallow real nouns)', K6.r.codes.length>0 && K6.r.codes.every(c=>fam(c)==='charger') && /live inventory/.test(K6.r.stockNote||''), txt(K6));
+const codesIn=s=>(String(s||'').match(/[A-Z0-9]{4,}/g)||[]).filter(c=>byCode[c]);
+const K7=[chat(['power bank 10000mah','yung may built-in cable'])[1], one('power bank with built-in cable')];
+chk('K7 every code named in a "not confirmed" note belongs to the family of the shown products (no off-family enclosure named as a power bank)',
+  K7.every(x=>{ const sf=new Set((x.r.codes||[]).map(fam)), named=codesIn(x.r.note).filter(c=>!(x.r.codes||[]).includes(c)); return x.r.codes.length && named.every(c=>sf.has(fam(c))) && local(x); }),
+  K7.map(x=>txt(x)+' [named: '+codesIn(x.r.note).map(c=>c+':'+fam(c)).join(',')+']').join(' || '));
+const K7raw=(K7[0].r.plan.result.mentioned||[]).filter(c=>fam(c)!=='power_bank');
+chk('K7b the guard is exercised: the underlying weak matches DO contain off-family codes ('+K7raw.length+'), and none of them reaches the note',
+  K7raw.length>0 && K7raw.every(c=>!(K7[0].r.note||'').includes(c)), K7raw.join(','));
+const K8=one('hdmi2.1'), K8g=one('8k hdmi under 2.5k'), K8gRaw=(K8g.r.plan.result.mentioned||[]);
+chk('K8 a typed label ("HDMI 2.1 video cables") never cites other families as unconfirmed; a GENERIC label ("8K HDMI products", no type) keeps its mentions',
+  K8.r.plan.type && codesIn(K8.r.note).filter(c=>!K8.r.codes.includes(c)).every(c=>fam(c)===K8.r.plan.type.family)
+  && !K8g.r.plan.type && !K8g.r.plan.form && K8gRaw.slice(0,5).every(c=>(K8g.r.note||'').includes(c)), txt(K8)+' || '+txt(K8g));
+const negWord=x=>/^(?:Wala tayong|We don.t have any)\b/.test(x.r.note||'');
+const K9t=['how many products in total','ilan lahat ng products?'].map(one), K9q=['how many new products','how many products for macbook','may products for car?','how many items for iphone'].map(one);
+chk('K9 a catalogue noun with a quantifier gets the listed total; with a qualifier it clarifies — never "We don\'t have any products …"',
+  K9t.every(x=>new RegExp('^'+total.toLocaleString('en-US')+'\\b').test(x.r.note||'') && local(x)) && K9q.every(x=>!negWord(x) && !emptyCat(x) && local(x)), K9t.concat(K9q).map(txt).join(' || '));
+/* K10 generic: for each noun, derive from data whether a published NAME / CATEGORY carries it; the per-noun negative must match that fact */
+const inData=w=>{ const st=[w].concat(/s$/.test(w)?[w.slice(0,-1)]:[],/es$/.test(w)?[w.slice(0,-2)]:[]), re=new RegExp('(^|[^a-z0-9])(?:'+st.join('|')+')(?:s|es)?(?![a-z])','i'); return PUB.some(p=>re.test(String(p.product_name||'')+' '+String(p.category||''))); };
+const K10n=['bag','stand','headphones','kvm','backpack','dxp','sleeves','drives','phones','cases','keyboards','keyboard','drone'], K10=[];
+K10n.forEach(w=>['may '+w+' ba kayo?','how many '+w+' do you have'].forEach(q=>K10.push({ w, has:inData(w), x:one(q) })));
+chk('K10 a "Wala / We don\'t have <noun>" is only given when no published product name or category carries the noun (derived per noun); otherwise no negative',
+  K10.some(o=>o.has) && K10.some(o=>!o.has) && K10.every(o=>o.has?!negWord(o.x):true) && K10.filter(o=>!o.has).every(o=>negWord(o.x)) && K10.every(o=>local(o.x)),
+  K10.filter(o=>o.has?negWord(o.x):!negWord(o.x)).map(o=>o.w+'(has='+o.has+'): '+txt(o.x)).join(' || '));
+
 console.log(`\nVERO p2r3a fix pack 2: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
