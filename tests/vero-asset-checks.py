@@ -1,6 +1,7 @@
 """Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves now (default 835b0f5: VERO p2r3a.1 live, v2-1 files present but NOT loaded).
+  baseline_ref = the commit GitHub Pages serves now (default b4d7244: VERO p2r3a.3 live; v2 shadow files present but NOT loaded).
+  Always pass the baseline explicitly for a release; a CMS Publish moves main and makes any default stale.
   If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
 
 Two modes, decided automatically, same checks in both (nothing is skipped):
@@ -15,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '835b0f5'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'b4d7244'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
@@ -26,15 +27,16 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # VERO p2r3a.3 (baseline ec87b42): car items excluded only AFTER matching (car-only matches kept + noted)
-                 'js/vero-plan.js', 'js/vero-compose.js', 'index.html', 'tests/vero-p2r3a-fixes2.test.js'}
+                 # VERO v2-2A (baseline b4d7244): dormant discourse / QueryPlan-delta module + its tests; no runtime file changes
+                 'js/vero-discourse.js', 'tests/vero-v2-delta.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}
 # ======================================================================================================
 
 ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']   # live load order
 VJS = list(ORDER)
-SHADOW = ['js/vero-ontology.js', 'js/vero-parse.js']   # v2-1: present, must stay unloaded (G23)
+# v2 shadow assets: ONE authoritative map file -> browser global. Every entry must stay unloaded and unreferenced (G23).
+SHADOW = {'js/vero-ontology.js': 'VeroOntology', 'js/vero-parse.js': 'VeroParse', 'js/vero-discourse.js': 'VeroDiscourse'}
 
 sha = lambda b: hashlib.sha256(b).hexdigest()
 rd = lambda f: open(os.path.join(R, f), 'rb').read()
@@ -69,9 +71,9 @@ strip = lambda h: re.sub(r'((?:src|href)="(?:js|css)/[^"?]+)(?:\?v=[^"]*)?"', r'
 pos = [root.find(f + '?v=') for f in ORDER]
 chk('G04 index.html differs from baseline ONLY in VERO script/css lines and ?v= tags; Local Brain loads lexicon -> nlu -> facts -> plan -> compose -> engine -> vero.js (each once)',
     strip(root) == strip(b_idx) and all(p > 0 for p in pos) and pos == sorted(pos) and all(root.count(f + '?v=') == 1 for f in ORDER), pos)
-outside = [f for f in VJS + SHADOW if f not in RELEASE_SCOPE and base(f) != (rd(f) if os.path.isfile(os.path.join(R, f)) else None)]
+outside = [f for f in VJS + list(SHADOW) if f not in RELEASE_SCOPE and base(f) != (rd(f) if os.path.isfile(os.path.join(R, f)) else None)]
 chk('G04b VERO runtime + shadow files outside RELEASE_SCOPE are byte-identical to the baseline', not outside, outside)
-CHK_JS = sorted(set(VJS + [f for f in SHADOW if os.path.isfile(os.path.join(R, f))] + [f for f in changed if f.endswith('.js') and f.startswith('js/') and os.path.isfile(os.path.join(R, f))]))
+CHK_JS = sorted(set(VJS + [f for f in list(SHADOW) if os.path.isfile(os.path.join(R, f))] + [f for f in changed if f.endswith('.js') and f.startswith('js/') and os.path.isfile(os.path.join(R, f))]))
 for f in CHK_JS + ['config.js']:
     r = subprocess.run(['node', '--check', os.path.join(R, f)], capture_output=True, text=True); chk(f'G05 node --check {f}', r.returncode == 0, r.stderr[:200])
 chk('G06 no NUL bytes in frontend files', all(b'\x00' not in rd(f) for f in ['index.html', 'config.js', 'css/vero.css'] + CHK_JS))
@@ -117,14 +119,20 @@ payload = lambda t: t[t.find('var body='):t.find("fetch(a.url+'/ask'")]
 chk('G17 AI request payload (vero.js body) identical to baseline', payload(vjs) and payload(vjs) == payload(bvjs))
 chk('G18 AI request payload has no price/MOQ/dealer fields', not re.search(r'srp|\bdp|dp_volume|special_dp|moq|dealer|price', payload(vjs), re.I), payload(vjs))
 nocom = lambda t: re.sub(r'/\*[\s\S]*?\*/|//[^\n]*', '', t)
-brain = {f: nocom(rd(f).decode('utf-8')) for f in VJS + SHADOW if f != 'js/vero.js' and os.path.isfile(os.path.join(R, f))}
+brain = {f: nocom(rd(f).decode('utf-8')) for f in VJS + list(SHADOW) if f != 'js/vero.js' and os.path.isfile(os.path.join(R, f))}
 chk('G19 no Local Brain / engine file reads priceSchedule (future prices cannot leak)', not any('priceSchedule' in t for t in brain.values()))
 chk('G20 VERO local scripts make no network calls (no fetch/XMLHttpRequest/sendBeacon in lexicon/nlu/facts/plan/compose/engine)', not any(re.search(r'\bfetch\s*\(|XMLHttpRequest|sendBeacon', t) for t in brain.values()))
 import json
 codes = {str(p['item_code']).upper() for p in json.load(open(os.path.join(R, 'data/products.json'), encoding='utf-8'))}
 leak = sorted({(f, t) for f, t0 in brain.items() for t in re.findall(r'\b\d{5}[A-Z]{0,2}\b', t0.upper()) if t in codes})
 chk('G21 no catalog item code hardcoded in any Local Brain / engine file', not leak, leak[:5])
-chk('G23 v2-1 shadow files (vero-ontology.js, vero-parse.js) are NOT loaded by index.html, vero-engine.js or vero.js', not re.search(r'vero-parse|vero-ontology|VeroParse|VeroOntology', root + rd('js/vero-engine.js').decode('utf-8') + vjs))
+# G23: tokens derived from SHADOW (exact basenames without .js + exact-case globals), escaped and case-sensitive; scanned in
+# index.html and EVERY live load-order file. Never a bare word such as "discourse" (live comments may contain it).
+G23_TOKENS = sorted({os.path.basename(f)[:-3] for f in SHADOW} | set(SHADOW.values()))
+G23_RE = re.compile('|'.join(re.escape(t) for t in G23_TOKENS))
+g23_hits = sorted({(f, m) for f, t in [('index.html', root)] + [(f, rd(f).decode('utf-8')) for f in ORDER] for m in G23_RE.findall(t)})
+chk(f'G23 v2 shadow assets ({", ".join(os.path.basename(f) for f in SHADOW)}; globals {", ".join(SHADOW.values())}) are NOT referenced by index.html or any of the {len(ORDER)} live load-order files',
+    bool(G23_TOKENS) and not g23_hits, g23_hits[:5])
 chk('G22 vero.js stores no prices in the conversation context (keepCtx/convCtx carry codes + plan only)', 'keepCtx' in vjs and not re.search(r'ctx[^;]{0,80}\.(srp|dp|dp_volume)\b', vjs))
 
 print('--- informational (not part of the deploy gate) ---')
