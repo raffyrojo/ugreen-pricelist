@@ -26,7 +26,7 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # VERO P0 live safety fix pack (p2r3a.2): count / function-word / "not confirmed" family guards
+                 # VERO p2r3a.3 (baseline ec87b42): car items excluded only AFTER matching (car-only matches kept + noted)
                  'js/vero-plan.js', 'js/vero-compose.js', 'index.html', 'tests/vero-p2r3a-fixes2.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}

@@ -126,7 +126,10 @@
     var I=plan.intent, rt=plan.route.route;
     if(plan.flags.stock) res.stockNote=T(lang,plan.flags.invQty?'stockQty':'stock');
     var hi=plan.greeting?T(lang,'hiPrefix'):'';
-    function done(){ if(hi && res.note) res.note=hi+res.note; return res; }
+    function done(){
+      /* p2r3a.3: shown only because car items were the only matches ("car" not asked) — say so */
+      if(R.carOnly && res.codes.length && res.note) res.note=res.note.replace(/:$/,'')+' ('+(lang==='tl'?'car chargers/accessories lahat ng tugmang items':'all matching items are car chargers/accessories')+')'+(/:$/.test(res.note)?':':'');
+      if(hi && res.note) res.note=hi+res.note; return res; }
 
     if(I==='smalltalk'){ res.note=T(lang,plan.smalltalk); res.smalltalk=plan.smalltalk; return res; }
     if(I==='coach' || rt==='COACH_FUTURE'){ res.note=T(lang,'coach'); if(plan.subject.length){ res.type='list'; res.codes=plan.subject.slice(0,4); } return done(); }

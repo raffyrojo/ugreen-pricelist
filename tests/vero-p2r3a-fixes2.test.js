@@ -201,5 +201,102 @@ chk('K10 a "Wala / We don\'t have <noun>" is only given when no published produc
   K10.some(o=>o.has) && K10.some(o=>!o.has) && K10.every(o=>o.has?!negWord(o.x):true) && K10.filter(o=>!o.has).every(o=>negWord(o.x)) && K10.every(o=>local(o.x)),
   K10.filter(o=>o.has?negWord(o.x):!negWord(o.x)).map(o=>o.w+'(has='+o.has+'): '+txt(o.x)).join(' || '));
 
+/* ================= L p2r3a.3 post-match car rule (2026-10-08) =================
+   "car items only when car is asked, unless they are the only matches" is applied AFTER matching (as in p2r2.1).
+   The old pre-match pool filter hid car-only wattages / features ("may 36W charger ba?" → false "Wala").
+   Intentional policy: the soft-qualifier rerun ("travel charger 36W"), the facet rerun and the MagSafe related list keep
+   the non-car pool. Out of scope (known residuals): subtype narrowing ("magnetic phone holder", "gravity phone holder",
+   "phone holder with suction cup", "phone mount"), "bluetooth 5.0" read as a price, qc 3.0 / 12V / 24V / truck
+   qualifier drops, vent / waterfall / dashboard / headrest holders, CM763 / 35265 data. All sets derived from data. */
+const isCarP=p=>!!p && (sub(String(p.item_code))==='car' || /\bcar\b/i.test(String(p.product_name||'')) || /\bcar\b/i.test(String(p.sheet_display||'')));
+const isCarC=c=>isCarP(byCode[c]);
+const carNote=x=>/all matching items are car chargers\/accessories|car chargers\/accessories lahat ng tugmang items/.test(x.r.note||'');
+const falseNeg=x=>/\bWala\b|We don.t have|^0\s*—/.test(x.r.note||'');
+const chargers=PUB.filter(p=>fam(p.item_code)==='charger'), wOf=c=>IDX.byCode[c].attrs.watts.value;
+const wSet={}; chargers.forEach(p=>{ const c=String(p.item_code), w=wOf(c); if(w==null) return; (wSet[w]=wSet[w]||[]).push(c); });
+const carOnlyW=Object.keys(wSet).map(Number).filter(w=>wSet[w].every(isCarC)).sort((a,b)=>a-b);
+const mixedW=Object.keys(wSet).map(Number).filter(w=>wSet[w].some(isCarC) && wSet[w].some(c=>!isCarC(c))).sort((a,b)=>a-b);
+const wallOnlyW=Object.keys(wSet).map(Number).filter(w=>wSet[w].every(c=>!isCarC(c)));
+chk('L0 derived sets: car-only charger wattages ['+carOnlyW.join(',')+'] (expected today 36,60,63,75,90,130,145); mixed ['+mixedW.join(',')+']',
+  carOnlyW.length>0 && mixedW.length>0 && JSON.stringify(carOnlyW)==='[36,60,63,75,90,130,145]', carOnlyW.join(','));
+const L1=[], L1bad=[];
+carOnlyW.forEach(w=>{ const want=wSet[w];
+  ['%W charger','may %W charger ba?','how many %W chargers do you have?','ilan ang %W charger nyo?','cheapest %W charger'].forEach(t=>{ const x=one(t.replace('%',w)); L1.push(x);
+    if(!(sortedEq(x.r.codes,want) && carNote(x) && !falseNeg(x) && local(x))) L1bad.push(txt(x)); });
+  /* bare "<W>" (no type): if any NON-car product in any family has that wattage, the rule keeps those (no car item, no note);
+     otherwise only the car chargers match → the car set + note */
+  const anyNC=PUB.some(p=>!isCarP(p) && IDX.byCode[String(p.item_code)].attrs.watts.value===w), xb=one(w+'W'); L1.push(xb);
+  if(!(anyNC ? (xb.r.codes.length && !xb.r.codes.some(isCarC) && !carNote(xb)) : (sortedEq(xb.r.codes,want) && carNote(xb))) || falseNeg(xb) || !local(xb)) L1bad.push('bare '+txt(xb));
+  const two=want.filter(c=>{ const pv=IDX.byCode[c].attrs.ports.value; return pv && pv.total===2; });
+  if(two.length){ const x=one(w+'W charger 2 ports'); L1.push(x); if(!(sortedEq(x.r.codes,two) && carNote(x) && local(x))) L1bad.push(txt(x)); }
+  const uc=want.filter(c=>IDX.byCode[c].attrs.connectors.named.indexOf('usb_c')>=0);
+  if(uc.length){ const x=one(w+'W usb c charger'); L1.push(x); if(!(sortedEq(x.r.codes,uc) && carNote(x) && local(x))) L1bad.push(txt(x)); } });
+chk('L1 every car-only wattage (derived): bare / charger / exist / count EN+TL / cheapest / 2 ports / USB-C return exactly the car set + car note, never "Wala" / "0 —", LOCAL ('+L1.length+' queries)',
+  L1.length>=40 && !L1bad.length, L1bad.join(' || '));
+const L2=[]; carOnlyW.forEach(w=>[w+'W car charger','car charger '+w+'W'].forEach(q=>L2.push({ x:one(q), want:wSet[w] })));
+chk('L2 explicit car queries for those wattages: same car set, no extra car-only note, LOCAL',
+  L2.every(o=>sortedEq(o.x.r.codes,o.want) && !carNote(o.x) && !falseNeg(o.x) && local(o.x)), L2.filter(o=>!(sortedEq(o.x.r.codes,o.want)&&!carNote(o.x))).map(o=>txt(o.x)).join(' || '));
+const L3=mixedW.map(w=>({ w, x:one(w+'W charger'), want:wSet[w].filter(c=>!isCarC(c)) }));
+chk('L3 mixed wattages ['+mixedW.join(',')+']: "<W> charger" shows only the non-car chargers (derived), no car item, no car-only note',
+  L3.every(o=>sortedEq(o.x.r.codes,o.want) && !o.x.r.codes.some(isCarC) && !carNote(o.x)), L3.map(o=>txt(o.x)).join(' || '));
+const L4=[45,65,100].map(w=>({ x:one(w+'W charger'), want:wSet[w] })), L4p=[one('65W charger 3 ports'),one('100W charger 4 ports')];
+chk('L4 wall-only controls: 45W / 65W / 100W charger = the derived set, no car note; port-count queries unchanged and car-free',
+  [45,65,100].every(w=>wallOnlyW.includes(w)) && L4.every(o=>sortedEq(o.x.r.codes,o.want) && !carNote(o.x)) && L4p.every(x=>x.r.codes.length && !x.r.codes.some(isCarC) && !carNote(x)), L4.map(o=>txt(o.x)).concat(L4p.map(txt)).join(' || '));
+const nonCarCh=chargers.filter(p=>!isCarP(p)).map(p=>String(p.item_code)), carCh=chargers.filter(isCarP).map(p=>String(p.item_code));
+const L5=['how many chargers do you have?','car charger','wall charger','cheapest charger','highest wattage charger','pinakamurang charger'].map(one);
+chk('L5 generic counts / ranks unchanged: chargers = non-car ('+nonCarCh.length+'), car charger = car ('+carCh.length+'), wall charger has no car item, ranks car-free, no car note',
+  sortedEq(L5[0].r.codes,nonCarCh) && sortedEq(L5[1].r.codes,carCh) && L5[2].r.codes.length && !L5[2].r.codes.some(isCarC) && L5.slice(3).every(x=>x.r.codes.length && !x.r.codes.some(isCarC)) && L5.every(x=>!carNote(x)),
+  L5.map(x=>x.q+' => '+x.r.codes.length+' '+(x.r.note||'').slice(0,60)).join(' || '));
+/* L6 the "not ranked" caption counts only the set that is shown: with non-car matches, car items with no listed value never add to it */
+const L6=['cheapest 65W charger','cheapest 100W charger','highest wattage charger'].map(one);
+const unkNC=w=>chargers.filter(p=>!isCarP(p) && (w==null || true) && wOf(String(p.item_code))==null).length;
+chk('L6 "(N without a listed value not ranked)" = non-car chargers with no listed wattage ('+unkNC()+'); car chargers never inflate it',
+  L6.every(x=>{ const m=(x.r.note||'').match(/\((\d+) without a listed value not ranked\)/); return m && Number(m[1])===unkNC(); }), L6.map(txt).join(' || '));
+const retr=chargers.filter(p=>IDX.byCode[String(p.item_code)].attrs.flags.retractable).map(p=>String(p.item_code));
+const L7=['retractable charger','charger with retractable cable','may charger na may retractable cable ba?'].map(one), L7b=[one('1c1a charger'),one('2c1a charger')];
+chk('L7 car-only feature queries: retractable (derived '+retr.length+', all car = '+retr.every(isCarC)+') → that set + car note; 1C1A / 2C1A → car chargers + car note, never "Wala"',
+  retr.length && retr.every(isCarC) && L7.every(x=>sortedEq(x.r.codes,retr) && carNote(x) && local(x)) && L7b.every(x=>x.r.codes.length && x.r.codes.every(isCarC) && carNote(x) && !falseNeg(x)), L7.concat(L7b).map(txt).join(' || '));
+const holders=PUB.filter(p=>fam(p.item_code)==='holder'), magH=holders.filter(p=>/\bmagnetic\b/i.test(String(p.product_name))).map(p=>String(p.item_code));
+const L8=[one('magnetic holder'),one('may magnetic holder ba?'),one('suction cup holder'),one('gravity holder')];
+chk('L8 holder cases of the SAME rule (broad "holder" type): magnetic (derived '+magH.length+', all car mounts) / suction cup / gravity → car mounts + note, never "Wala"',
+  magH.length && magH.every(isCarC) && sortedEq(L8[0].r.codes,magH) && sortedEq(L8[1].r.codes,magH) && L8.every(x=>x.r.codes.length && x.r.codes.every(isCarC) && carNote(x) && !falseNeg(x) && local(x)), L8.map(txt).join(' || '));
+const L9=one('36W travel charger');
+chk('L9 soft-qualifier policy (intentional): "36W travel charger" keeps the conservative answer — no car chargers surfaced, no car note',
+  !L9.r.codes.some(isCarC) && !carNote(L9) && /travel/i.test(L9.r.note||''), txt(L9));
+const L10=one('magsafe charger');
+chk('L10 MagSafe related list keeps the non-car pool (no car item listed as related)', !(L10.r.codes||[]).some(isCarC), txt(L10));
+const L11=one('36W charger'), L11f=one('200W charger');
+chk('L11 facet rerun keeps the non-car pool: a zero-result wall-family facet ("Chargers we carry") lists no car-only wattage; "36W charger" is no longer a zero result',
+  L11.r.codes.length && (!/we carry/i.test(L11f.r.note||'') || !carOnlyW.some(w=>new RegExp('\\b'+w+'W\\b').test((L11f.r.note||'').split(/we carry/i)[1]||''))), txt(L11)+' || '+txt(L11f));
+const L12=[chat(['36W charger','alin dun yung type c?'])[1], chat(['65W charger','how about 36W'])[1], chat(['car charger','how about 30W'])[1]];
+const ucCar36=wSet[36].filter(c=>IDX.byCode[c].attrs.connectors.named.indexOf('usb_c')>=0);
+chk('L12 follow-ups after / into a car-only result stay consistent: 36W → type c = the USB-C car charger(s) + note; "how about 36W" = the 36W car set; car charger → 30W stays car, no extra note; LOCAL',
+  sortedEq(L12[0].r.codes,ucCar36) && carNote(L12[0]) && sortedEq(L12[1].r.codes,wSet[36]) && carNote(L12[1]) && L12[2].r.codes.length && L12[2].r.codes.every(isCarC) && !carNote(L12[2]) && L12.every(local), L12.map(txt).join(' || '));
+/* L13–L15 ACCEPTED (2026-10-08): a compatibility question on a car-only wattage routes through the EXISTING WEB/AI
+   compatibility path with the car-only catalog candidates — same policy as "65W charger compatible ba sa iphone 15?".
+   Deterministic: checks routing + candidate / payload construction only, never an external AI answer. */
+const vjs=fs.readFileSync(path.join(ROOT,'js','vero.js'),'utf8'), vbody=vjs.slice(vjs.indexOf('var body='),vjs.indexOf('fetch(a.url+\'/ask\''));   /* same slice as p2r3a A23 */
+const PRICEY=/\b(srp|dp|dp_volume|dpvol|moq|price|presyo|dealer|special)\b/i;
+function compatOk(x,matchSet,carOnlyCase){
+  const a=x.a, R=x.r.plan.result, cand=a.candidates;
+  return x.r.plan.route.route==='WEB' && /^R3 compat/.test(x.r.plan.route.rule||'') && a.route==='web'      // intentional compat route, not a Local Brain failure
+    && sortedEq(R.codes,matchSet) && !!R.carOnly===carOnlyCase && !falseNeg(x)                           // correct catalog match set, no false "Wala"
+    && cand.length>=2 && cand.length<=8 && cand.every(c=>typeof c==='string' && !!byCode[c])                // valid published item codes only (Worker min 2 / max 8)
+    && JSON.stringify(cand.slice(0,matchSet.length).slice().sort())===JSON.stringify(matchSet.slice().sort())// the match set leads the candidates
+    && cand.every(c=>fam(c)==='charger') && (!carOnlyCase || cand.every(isCarC))                           // padding = same family (car-only case: car items only)
+    && !PRICEY.test(JSON.stringify(a)) && !x.r.plan.flags.stock && !x.r.stockNote;                          // no prices / dealer fields in the route object; no stock inference
+}
+const L13=[one('36W charger compatible ba sa iphone 15?'), one('36W charger para sa iphone')];
+chk('L13 accepted: car-only wattage compatibility (36W, iPhone) → existing WEB compat route, candidates = exactly the derived 36W car set, car note, no "Wala", no stock, no price fields',
+  L13.every(x=>compatOk(x,wSet[36],true) && sortedEq(x.a.candidates,wSet[36]) && carNote(x)), L13.map(x=>txt(x)+' route='+x.a.route+' cands='+x.a.candidates.join(',')+' rule='+x.r.plan.route.rule).join(' || '));
+const L14=one('60W charger for macbook');
+chk('L14 accepted: "60W charger for macbook" → WEB compat route; the single 60W car charger is candidate #1, padding (Worker minimum) is car chargers only, ≤ 8, valid codes, no price fields',
+  compatOk(L14,wSet[60],true) && L14.a.candidates[0]===wSet[60][0], txt(L14)+' cands='+L14.a.candidates.join(','));
+const L15=one('65W charger compatible ba sa iphone 15?');
+chk('L15 control: "65W charger compatible ba sa iphone 15?" follows the same existing policy (WEB compat route, the derived 65W wall set as candidates, no car item, no car note)',
+  compatOk(L15,wSet[65],false) && sortedEq(L15.a.candidates,wSet[65]) && !L15.a.candidates.some(isCarC) && !carNote(L15), txt(L15)+' cands='+L15.a.candidates.join(','));
+chk('L16 AI payload schema unchanged (vero.js): exactly v, q, candidates (codes, max 8), history, route, trigger — no SRP / DP / DP Vol / MOQ / dealer field',
+  /v:1,\s*q:/.test(vbody) && /candidates:am\.candidates\.slice\(0,8\)/.test(vbody) && /history:/.test(vbody) && /route:am\.route/.test(vbody) && /trigger:am\.trigger/.test(vbody) && !/srp|\bdp|moq|price|dealer/i.test(vbody), vbody);
+
 console.log(`\nVERO p2r3a fix pack 2: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

@@ -802,6 +802,9 @@
     if(form==='adapter') return (!!t.forms.adapter || /adapter|converter|expansion card/i.test(F.category)) && t.family!=='hub_dock';   /* expansion cards are sold as "M.2 / PCIe adapters" */
     return !!t.forms[form];
   }
+  /* car item = car subtype, or "car" in the product name / section (same test as the p2r3a pre-filter it replaces) */
+  function carItem(p,idx){ if(!p) return false; var F=idx.byCode[String(p.item_code)];
+    return !!(F && F.type.subtype==='car') || /\bcar\b/i.test(String(p.product_name||'')) || /\bcar\b/i.test(String(p.sheet_display||'')); }
   function execute(plan,products,idx,subject,X,c){
     var R={ executor:null, codes:[], mentioned:[], related:[], unknown:0, evidence:{}, notes:[], caveats:[] };
     if(plan.flags.stock) R.caveats.push('stock');
@@ -820,7 +823,7 @@
     if(I==='compare'){ R.executor='compare'; R.codes=subject.slice(0,4); if(plan.metric) R.verdict=verdict(plan.metric,R.codes,idx,byCode,plan.priceField); return R; }
 
     /* subject (anchor / context) questions: the subject IS the set, narrowed by any spec named with it */
-    var pool, fromSubject=subject.length>0;
+    var pool, fromSubject=subject.length>0, carRule=false;
     if(fromSubject) pool=subject.map(function(x){ return byCode[x]; }).filter(Boolean);
     else {
       var T=plan.type, fams=plan.useCase&&!T?plan.useCase.families:null;
@@ -831,10 +834,12 @@
         if(plan.formStrict && !formOk(F,plan.formStrict)) return false;
         return true; });
       if(T && T.subtype && T.fallback && !pool.length){ var T2={ family:T.family }; pool=products.filter(function(p){ var F=idx.byCode[String(p.item_code)]; return F && inType(F,T2); }); R.notes.push('subtype fallback to family'); }
-      /* car items only when "car" is asked (engine rule), unless they are the only matches */
-      if(!/\bcar\b/.test(X.t)){ var nc=pool.filter(function(p){ var F=idx.byCode[String(p.item_code)]; return F.type.subtype!=='car' && !/\bcar\b/i.test(String(p.product_name||'')) && !/\bcar\b/i.test(String(p.sheet_display||'')); }); if(nc.length) pool=nc; }
+      /* car items only when "car" is asked (engine rule), unless they are the only MATCHES (p2r3a.3: decided after matching,
+         as in p2r2.1 — a pre-match pool filter hid car-only wattages / features). The soft-qualifier and facet reruns keep
+         the non-car pool (conservative: a secondary rerun never surfaces car-only results). */
+      if(!/\bcar\b/.test(X.t)){ var nc=pool.filter(function(p){ return !carItem(p,idx); }); if(nc.length){ if(plan._softRun||plan._facetRun) pool=nc; else carRule=true; } }
     }
-    var conf=[], weak=[];
+    var conf=[], weak=[], unk=[];
     pool.forEach(function(p){
       var code=String(p.item_code), F=idx.byCode[code]; if(!F) return;
       var worst=3, ev=[], unknown=false, fail=false;
@@ -853,9 +858,19 @@
         if(a.k==='size'){ var sz=sizeOk(p,a.v); if(sz===null) unknown=true; return take(sz?{ ok:true, tier:'strong' }:{ ok:false, unknown:sz===null }); }
         var m=FACTS().match(F,a); if(!m) return take({ ok:false }); take({ ok:true, tier:m.t, ev:m.ev }); });
       (plan.standards||[]).forEach(function(sd){ if(!fail) take(standardCheck(F,sd,c)); });
-      if(fail){ if(unknown) R.unknown++; return; }
+      if(fail){ if(unknown) unk.push(code); return; }
       if(worst===1) weak.push(code); else { conf.push({ code:code, tier:worst===3?'strong':'medium' }); if(ev.length) R.evidence[code]=ev[0]; }
     });
+    /* p2r3a.3 post-match car rule: any non-car match → non-car only (identical to the old pre-filter); only car matches →
+       keep them (R.carOnly, compose names them); no match → as before. Unknown counts follow the same set. */
+    if(carRule){
+      var isCar=function(code){ return carItem(byCode[code],idx); }, notCar=function(code){ return !isCar(code); };
+      var ncConf=conf.filter(function(x){ return notCar(x.code); }), ncWeak=weak.filter(notCar);
+      if(ncConf.length || ncWeak.length || (!conf.length && !weak.length)){ conf=ncConf; weak=ncWeak; unk=unk.filter(notCar); }
+      else { R.carOnly=true; unk=unk.filter(isCar); }
+      pool=pool.filter(function(p){ return !carItem(p,idx); });   /* secondary lists (MagSafe related) keep the non-car pool */
+    }
+    R.unknown+=unk.length;
     /* MagSafe asked: magnetic-wireless names are listed separately as related, never confirmed */
     if(plan.match.some(function(a){ return a.k==='flag' && a.v==='magsafe'; })){
       var inC={}; conf.forEach(function(x){ inC[x.code]=1; });
