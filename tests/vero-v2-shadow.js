@@ -10,6 +10,8 @@
               plan has no slot for ("current silent drop"); misleading-label and false-"wala" checks for both sides.
    Follow-up turns (contextFrom / seq position > 1) are COVERAGE-ONLY in v2-1: discourse/delta is v2-2.
    V2-2B: S03 reads the gate SHADOW map (fail closed); RT1-RT6 ratchets and the EX1 EXCLUDE-integrity audit are gating.
+   V2-2C C1: one authoritative follow-up taxonomy (T1-T3, plan §10.8 reworded), every gold check implemented and a null judge =
+   UNSCORED (J1-J2), and a single-turn freeze of all standalone v2 proposals with a reviewed allow-list (F1-F2).
    Shadow purity: engine answers are captured BEFORE vero-ontology / vero-parse are loaded and compared AFTER the run.
    Exit 1 on: purity failure, any silent span drop, any V2_WORSE turn, any v2 label-integrity violation, any v2 false
    "wala", any v2 inventory-safety failure. */
@@ -29,11 +31,24 @@ const DEV=JSON.parse(fs.readFileSync(path.join(__dirname,'vero-v2-devsets.json')
 let pass=0, fail=0; const chk=(n,c,x)=>{ if(c){ pass++; if(VERBOSE) console.log('PASS - '+n); } else { fail++; console.log('FAIL - '+n+(x?'  -> '+String(x).slice(0,600):'')); } };
 
 /* ---------- unified item list ---------- */
+/* V2-2C C1 — ONE authoritative follow-up taxonomy (design §15.1). Before C1 three definitions disagreed: positional (a turn after
+   an earlier turn of the same sequence / a B144 contextFrom: 35), devsets contextTurns + B144 contextFrom (32) and the item flag
+   followUp (19). Every turn now has exactly one class, derived from the data in that order of authority:
+     STANDALONE         not a follow-up (no earlier turn in its sequence)
+     TOPIC_SWITCH       a follow-up position flagged topicSwitch (leakage negative; wins over a contextTurns listing)
+     CONTEXT            a follow-up listed in contextTurns (HO) or carrying contextFrom (B144)
+     STANDALONE_IN_SEQ  a follow-up position that is neither (it does not use the earlier turn)
+   CONTEXT turns whose gold route is WEB / AI are CONTEXT_COMPAT: context-anchored compatibility questions that legitimately use
+   the existing WEB / AI route (plan §10.8 reworded: the LOCAL + 0-candidate criterion applies to the other CONTEXT turns only).
+   followUp is descriptive only (a subset of CONTEXT + TOPIC_SWITCH). In C1 every follow-up stays COVERAGE-ONLY (scoring is C3). */
+function classOf(pos,listed,topicSwitch,exp){ if(!pos) return 'STANDALONE'; if(topicSwitch) return 'TOPIC_SWITCH'; if(listed) return /^(WEB|AI)$/.test(exp)?'CONTEXT_COMPAT':'CONTEXT'; return 'STANDALONE_IN_SEQ'; }
 const ITEMS=[];
-BENCH.forEach(q=>ITEMS.push({ set:'B144', id:q.id, q:q.question, prev:q.contextFrom||null, follow:!!q.contextFrom, expRoute:q.expectedRoute, gold:q.expectedSKU||null, bench:q, inventory:/stock|inventory/i.test(JSON.stringify(q.expectedSafetyBehavior||[])) }));
+BENCH.forEach(q=>ITEMS.push({ set:'B144', id:q.id, q:q.question, prev:q.contextFrom||null, follow:!!q.contextFrom, expRoute:q.expectedRoute, gold:q.expectedSKU||null, bench:q, inventory:/stock|inventory/i.test(JSON.stringify(q.expectedSafetyBehavior||[])),
+  cls:classOf(!!q.contextFrom,!!q.contextFrom,false,q.expectedRoute), legacy:{ positional:!!q.contextFrom, contextTurn:!!q.contextFrom, followUpFlag:false } }));
 Object.keys(DEV.sets).forEach(k=>{ const S=DEV.sets[k], seen={};
-  S.items.forEach(it=>{ const corr=S.corrections[it.id]; const prevId=it.seq?seen[it.seq]:null;
-    ITEMS.push({ set:k, id:it.id, q:it.q, prev:prevId||null, follow:!!prevId, expRoute:it.exp, expCodes:corr?corr.codes:it.expCodes, check:corr?corr.check:it.check, inventory:!!it.inventory, behavior:it.behavior });
+  S.items.forEach(it=>{ const corr=S.corrections[it.id]; const prevId=it.seq?seen[it.seq]:null, listed=(S.contextTurns||[]).includes(it.id);
+    ITEMS.push({ set:k, id:it.id, q:it.q, prev:prevId||null, follow:!!prevId, expRoute:it.exp, expCodes:corr?corr.codes:it.expCodes, check:corr?corr.check:it.check, inventory:!!it.inventory, behavior:it.behavior,
+      cls:classOf(!!prevId,listed,!!it.topicSwitch,it.exp), legacy:{ positional:!!prevId, contextTurn:listed, followUpFlag:!!it.followUp } });
     if(it.seq) seen[it.seq]=it.id; }); });
 
 /* ---------- 1. CURRENT answers BEFORE v2 is loaded ---------- */
@@ -93,10 +108,27 @@ function derive(d){ let rows=PUB.filter(p=>d.where.every(c=>clause(p,c)));
   return rows.map(p=>String(p.item_code)); }
 function judgeBench(d,exp,codes){ const s=a=>JSON.stringify([...a].sort());
   switch(d.check){ case 'lookup': return exp.length>0&&exp.includes(codes[0]); case 'first': return exp.length>0&&codes[0]===exp[0]; case 'top': return exp.length>0&&JSON.stringify(codes.slice(0,d.take))===JSON.stringify(exp.slice(0,d.take));
-    case 'set': return s(codes)===s(exp); case 'count': return codes.length===exp.length; case 'contains': return exp.length>0&&exp.every(c=>codes.includes(c)); case 'empty': return codes.length===0&&exp.length===0; } return null; }
-function judgeHO(exp,check,codes,cand,cards){ switch(check){ case 'first': return codes[0]===exp[0]; case 'firstIn': return exp.includes(codes[0]); case 'set': return JSON.stringify([...codes].sort())===JSON.stringify([...exp].sort());
+    case 'set': return s(codes)===s(exp); case 'count': return codes.length===exp.length; case 'contains': return exp.length>0&&exp.every(c=>codes.includes(c)); case 'empty': return codes.length===0&&exp.length===0; }
+  throw new Error('unknown B144 gold check "'+d.check+'"'); }   /* V2-2C C1: an unknown judge never passes silently */
+/* V2-2C C1 (design §15.2): every HO check name is implemented; an unknown name throws (J1). A judge that has nothing to judge
+   returns null and the turn is UNSCORED, never SAME_OK.
+     none          the gold names no products (route / behaviour only): the code dimension is judged true
+     cands         >= 2 candidate products offered (AI / WEB routes judge the candidate list)
+     candsNas      >= 2 candidates, all NAS;   candsMouse   >= 2 candidates, all mice
+     noCat5eClaim  nothing presented as Cat5e: no shown product named Cat5e, and a non-empty answer's label does not claim Cat5e
+   These are documented MINIMUMS, weaker than some behaviour texts (C3 tightens them with derived gold): cands does not check
+   the ">= 45W" rating (HO09); none does not judge "must not name a best seller / newest product" (HO14, N31); noCat5eClaim does
+   not require the "we don't have Cat5e" statement. */
+function judgeHO(exp,check,codes,cand,cards,label){ const names=cs=>cs.map(c=>String((byCode[c]||{}).product_name||''));
+  switch(check){ case 'first': return codes[0]===exp[0]; case 'firstIn': return exp.includes(codes[0]); case 'set': return JSON.stringify([...codes].sort())===JSON.stringify([...exp].sort());
   case 'empty': return codes.length===0; case 'ordered': return JSON.stringify(codes.slice(0,exp.length))===JSON.stringify(exp); case 'subsetNonEmpty': return codes.length>0&&codes.every(c=>exp.includes(c));
-  case 'anchorFirst': return cand[0]===exp[0]; case 'subsetOrEmpty': return codes.every(c=>exp.includes(c)); case 'allFamilyMouse': return codes.length>0&&cards.every(c=>/mouse/i.test(c)); case 'history': return exp.every(c=>codes.includes(c)); default: return null; } }
+  case 'anchorFirst': return cand[0]===exp[0]; case 'subsetOrEmpty': return codes.every(c=>exp.includes(c)); case 'allFamilyMouse': return codes.length>0&&cards.every(c=>/mouse/i.test(c)); case 'history': return exp.every(c=>codes.includes(c));
+  case 'none': return true;
+  case 'cands': return cand.length>=2;
+  case 'candsNas': return cand.length>=2 && names(cand).every(n=>/\bnas(?:ync)?\b|network attached/i.test(n));   /* the product line is "NASync" */
+  case 'candsMouse': return cand.length>=2 && names(cand).every(n=>/\bmouse\b|\bmice\b/i.test(n));
+  case 'noCat5eClaim': return !names(codes).some(n=>/cat\s?5e/i.test(n)) && !(codes.length && /cat\s?5e/i.test(String(label||'')) && !/don.?t have|\bwala\b|we have no|\bno cat\s?5e/i.test(String(label||'')));
+  } throw new Error('unknown HO gold check "'+check+'"'); }
 /* route: benchmark/HO vocabulary -> current route / v2 route */
 function routeOkCur(exp,route,intent,codes){ if(exp==='LOCAL') return route==='LOCAL'||route==='LOCAL+offer'; if(exp==='CLARIFY') return route==='CLARIFY'; if(exp==='AI') return route==='CATALOG'||route==='WEB'; if(exp==='WEB') return route==='WEB';
   if(exp==='NOT_AI') return route!=='CATALOG'&&route!=='WEB'; if(exp==='SMALLTALK') return intent==='smalltalk'&&!codes.length; if(exp==='NOT_CLARIFY_LOCAL_OR_AI') return route!=='CLARIFY'; if(exp==='COACH') return route==='COACH'; return null; }
@@ -128,7 +160,7 @@ function curHas(pl,c){
   return false; }
 
 /* ---------- 5. evaluate every turn ---------- */
-const ROWS=[];
+const ROWS=[], JUDGE_ERR=[];
 ITEMS.forEach(it=>{
   const key=it.set+':'+it.id, cur=CUR[key], P=V2[key], pr=P.proposal, pl=cur.r.plan||{};
   const curRoute=routeOf(cur.a,cur.r), curCodes=cur.r.codes||[], curCand=cur.a.candidates||[];
@@ -147,14 +179,16 @@ ITEMS.forEach(it=>{
     if(it.gold && it.gold.where){ const exp=derive(it.gold); gold={ check:it.gold.check, expected:exp.slice(0,15), nExpected:exp.length };
       const note=cur.r.note||'', yes=note.match(/^(?:Yes — )?(\d+) /); let cc=curCodes; if(it.gold.check==='set'&&yes&&/not explicitly confirmed|mentioned only/.test(note)) cc=curCodes.slice(0,+yes[1]); if(it.gold.check==='empty') cc=/^No\b/.test(note)?[]:curCodes;
       const routeAI=it.expRoute==='AI'||it.expRoute==='WEB';
-      curOk=judgeBench(it.gold,exp,routeAI&&curCand.length?curCand:cc); v2Ok=judgeBench(it.gold,exp,routeAI?v2Codes:v2Ans); }
+      try{ curOk=judgeBench(it.gold,exp,routeAI&&curCand.length?curCand:cc); v2Ok=judgeBench(it.gold,exp,routeAI?v2Codes:v2Ans); }catch(e){ JUDGE_ERR.push(key+': '+e.message); curOk=null; v2Ok=null; } }
   } else if(it.check){ gold={ check:it.check, expected:it.expCodes };
-    curOk=judgeHO(it.expCodes,it.check,curCodes,curCand,curCodes.map(c=>nameOf(byCode[c]||{})));
-    v2Ok=judgeHO(it.expCodes,it.check,v2Ans,v2Codes,v2Ans.map(c=>nameOf(byCode[c]||{}))); }
-  row.gold=gold; row.routeOk={ current:curRouteOk, v2:v2RouteOk };
+    try{ curOk=judgeHO(it.expCodes,it.check,curCodes,curCand,curCodes.map(c=>nameOf(byCode[c]||{})),[cur.r.echo,String(cur.r.note||'').split('\n')[0]].filter(Boolean).join(' | '));
+      v2Ok=judgeHO(it.expCodes,it.check,v2Ans,v2Codes,v2Ans.map(c=>nameOf(byCode[c]||{})),pr.label); }catch(e){ JUDGE_ERR.push(key+': '+e.message); curOk=null; v2Ok=null; } }
+  row.gold=gold; row.routeOk={ current:curRouteOk, v2:v2RouteOk }; row.cls=it.cls; row.legacy=it.legacy;
   const scorable=!it.follow;
+  /* V2-2C C1 (design §15.2): a side with no judgeable dimension (code judge and route judge both null) is UNSCORED, never OK */
+  const cJ=[curOk,curRouteOk].filter(x=>x!==null&&x!==undefined).length, vJ=[v2Ok,v2RouteOk].filter(x=>x!==null&&x!==undefined).length; row.judged={ current:cJ, v2:vJ };
   const cOK=(curOk!==false)&&(curRouteOk!==false), vOK=(v2Ok!==false)&&(v2RouteOk!==false);
-  row.category=!scorable?(it.expRoute==='COACH'?'OUT_OF_SCOPE_COACH':'FOLLOWUP_COVERAGE_ONLY'):(cOK&&vOK?'SAME_OK':(!cOK&&!vOK?'SAME_FAIL':(vOK?'V2_BETTER':'V2_WORSE')));
+  row.category=!scorable?(it.expRoute==='COACH'?'OUT_OF_SCOPE_COACH':'FOLLOWUP_COVERAGE_ONLY'):((!cJ||!vJ)?'UNSCORED':(cOK&&vOK?'SAME_OK':(!cOK&&!vOK?'SAME_FAIL':(vOK?'V2_BETTER':'V2_WORSE'))));
   /* silent drops, unresolved, senses */
   row.silentDrops=P.ledger.silentDrops; row.unresolved=P.ledger.unresolved; row.ambiguous=P.ledger.ambiguous; row.senses=P.senses;
   /* current silent drops: v2 bound a constraint the current plan has no slot for */
@@ -188,7 +222,9 @@ const pct=(a,b)=>b?Math.round(a/b*1000)/10:0;
 const sets=['B144','HO1','HO2','HO3'], M={};
 sets.concat(['ALL']).forEach(s=>{ const R=ROWS.filter(r=>s==='ALL'||r.set===s), sc=R.filter(r=>/^(SAME|V2)/.test(r.category));
   const cnt=c=>R.filter(r=>r.category===c).length;
-  M[s]={ turns:R.length, scorable:sc.length, followUps:cnt('FOLLOWUP_COVERAGE_ONLY'), coach:cnt('OUT_OF_SCOPE_COACH'),
+  const cls=c=>R.filter(r=>r.cls===c).length;
+  M[s]={ turns:R.length, scorable:sc.length, followUps:cnt('FOLLOWUP_COVERAGE_ONLY'), coach:cnt('OUT_OF_SCOPE_COACH'), UNSCORED:cnt('UNSCORED'),
+    taxonomy:{ STANDALONE:cls('STANDALONE'), CONTEXT:cls('CONTEXT'), CONTEXT_COMPAT:cls('CONTEXT_COMPAT'), TOPIC_SWITCH:cls('TOPIC_SWITCH'), STANDALONE_IN_SEQ:cls('STANDALONE_IN_SEQ') },
     SAME_OK:cnt('SAME_OK'), SAME_FAIL:cnt('SAME_FAIL'), V2_BETTER:cnt('V2_BETTER'), V2_WORSE:cnt('V2_WORSE'),
     currentCorrect:sc.filter(r=>r.category==='SAME_OK'||r.category==='V2_WORSE').length, v2Correct:sc.filter(r=>r.category==='SAME_OK'||r.category==='V2_BETTER').length,
     silentDrops:R.reduce((a,r)=>a+r.silentDrops.length,0), turnsWithUnresolved:R.filter(r=>r.unresolved.length).length, turnsWithAmbiguous:R.filter(r=>r.ambiguous.length).length,
@@ -235,6 +271,41 @@ ITEMS.map(it=>({ q:it.q, P:V2[it.set+':'+it.id] })).concat(EXM.map(q=>({ q, P:VP
     (pr.codes||[]).forEach(code=>{ if(VP.evalConstraint(code,pos,{ facts:FACTS, products:PUB })==='CONFIRMED') audit.push(q+' :: proposed '+code+' carries the excluded '+c.label); }); });
   if(P.ledger.unresolved.some(u=>u.kind==='neg'||u.kind==='relaxneg') && pr.kind==='exact') audit.push(q+' :: unresolved negator but exact'); });
 chk('EX1 EXCLUDE-integrity: no proposed product carries an excluded value; polarity null never exact; an unresolved negator never exact ('+(ITEMS.length+EXM.length)+' turns, '+negSeen+' exclusions, '+polNullSeen+' null-polarity constraints)', !audit.length && negSeen>=40 && polNullSeen>=10, audit.slice(0,6));
+/* ---------- V2-2C C1: test-spec corrections + single-turn freeze (gating) ---------- */
+chk('J1 every gold check name has an implemented judge (none, cands, candsNas, candsMouse, noCat5eClaim added; unknown names throw)', !JUDGE_ERR.length, JUDGE_ERR.slice(0,6));
+chk('J2 a null judge is UNSCORED, never SAME_OK: every scored turn has >= 1 judged dimension per side ('+A.UNSCORED+' UNSCORED)', ROWS.filter(r=>/^(SAME|V2)/.test(r.category)).every(r=>r.judged.current>0 && r.judged.v2>0) && ROWS.filter(r=>r.category==='UNSCORED').every(r=>!r.judged.current||!r.judged.v2));
+{ const F=ROWS.filter(r=>r.legacy.positional), byC=c=>F.filter(r=>r.cls===c), keys=a=>a.map(r=>r.set+':'+r.id).sort();
+  const ctx=byC('CONTEXT').concat(byC('CONTEXT_COMPAT')), ts=byC('TOPIC_SWITCH'), sis=byC('STANDALONE_IN_SEQ');
+  const listed=ROWS.filter(r=>r.legacy.contextTurn), flag=ROWS.filter(r=>r.legacy.followUpFlag);
+  chk('T1 ONE follow-up taxonomy: the '+F.length+' positional follow-ups partition into CONTEXT '+ctx.length+' (incl. '+byC('CONTEXT_COMPAT').length+' compat) + TOPIC_SWITCH '+ts.length+' + STANDALONE_IN_SEQ '+sis.length+'; the legacy contextTurns ('+listed.length+') = CONTEXT + TOPIC_SWITCH; followUp flags ('+flag.length+') are a subset; no follow-up is STANDALONE',
+    F.length===35 && ctx.length===28 && ts.length===4 && sis.length===3 && ctx.length+ts.length+sis.length===F.length && listed.length===32 && JSON.stringify(keys(listed))===JSON.stringify(keys(ctx.concat(ts))) && flag.length===19 && flag.every(r=>/^(CONTEXT|CONTEXT_COMPAT|TOPIC_SWITCH)$/.test(r.cls)) && !ROWS.some(r=>!r.legacy.positional && r.cls!=='STANDALONE'),
+    JSON.stringify(M.ALL.taxonomy));
+  chk('T2 plan §10.8 reworded: context-anchored compatibility turns (gold WEB / AI) are their own class CONTEXT_COMPAT = HO1:SQ3-2, HO3:S5-2, B144:T08; the LOCAL + 0-candidate criterion applies to the other '+byC('CONTEXT').length+' CONTEXT turns',
+    JSON.stringify(keys(byC('CONTEXT_COMPAT')))==='["B144:T08","HO1:SQ3-2","HO3:S5-2"]' && byC('CONTEXT').every(r=>!/^(WEB|AI)$/.test(r.expRoute)), keys(byC('CONTEXT_COMPAT')));
+  const judgeable=ctx.filter(r=>r.gold && ((r.gold.expected&&r.gold.expected.length)||r.gold.nExpected>0||/^(none|cands|candsNas|candsMouse|noCat5eClaim|empty)$/.test(r.gold.check)));
+  console.log('C1 taxonomy: '+judgeable.length+' of '+ctx.length+' CONTEXT turns have judgeable gold today (scored in C3); B144 context turns with gold: '+ctx.filter(r=>r.set==='B144' && r.gold).length+'/7');
+  chk('T3 follow-ups stay COVERAGE-ONLY in C1 (no follow-up is scored; scoring is C3) and the honest scorable-context count is reported ('+judgeable.length+'/'+ctx.length+')', F.every(r=>/^(FOLLOWUP_COVERAGE_ONLY|OUT_OF_SCOPE_COACH)$/.test(r.category)) && judgeable.length>=20 && ctx.filter(r=>r.set==='B144' && r.gold).length===0); }
+/* single-turn freeze (design §15 C1 tests): sha256 of every STANDALONE v2 proposal (route, kind, codes), pinned at the live baseline
+   16a827d, minus a REVIEWED allow-list of intended C1 changes, each pinned to its new value */
+{ const crypto=require('crypto');
+  /* review round 1: E03 / D07 left the allow-list — with the evidence floor (a proposed row must name or mention every requested
+     connector) they are byte-identical to the live baseline again */
+  const ALLOW={ 'B144:S05':['LOCAL','inferred',8,'#6: retractable => built-in cable is INFERRED (+1, labelled; the set is no longer "exact")'],
+    'B144:B04':['LOCAL','inferred',17,'#6: retractable => built-in (+1 INFERRED)'], 'HO3:T17':['LOCAL','inferred',17,'#6: retractable => built-in (+1 INFERRED)'],
+    'B144:A04':['LOCAL','alternative',17,'#6: one more alternative admitted only through retractable => built-in, labelled inferred'],
+    'B144:G04':['LOCAL','exact',50,'§7 rule 4: rows with no wattage are kept AFTER the ranked rows (were dropped)'],
+    'B144:V01':['LOCAL','exact',61,'§7 rule 4: rows with no length kept after the ranked rows'], 'B144:K06':['LOCAL','exact',129,'§7 rule 4: rows with no length kept last'], 'B144:T05':['LOCAL','exact',129,'§7 rule 4: rows with no length kept last'] };
+  const ST=ROWS.filter(r=>!r.follow), sig=JSON.stringify(ST.filter(r=>!ALLOW[r.set+':'+r.id]).map(r=>r.set+':'+r.id).sort().map(k=>{ const p=V2[k].proposal; return [k,p.route,p.kind,p.codes]; }));
+  const sha=crypto.createHash('sha256').update(sig).digest('hex'), FREEZE='1225cca49e0c88370a48c15d05a8666dd96ca360eb1e2c14e1202dc7cf95b33d';
+  const allowBad=Object.keys(ALLOW).filter(k=>{ const p=V2[k]&&V2[k].proposal, w=ALLOW[k]; return !p || p.route!==w[0] || p.kind!==w[1] || p.codes.length!==w[2]; });
+  chk('F1 single-turn freeze: '+(ST.length-Object.keys(ALLOW).length)+' standalone v2 proposals byte-identical to live 16a827d (sha '+sha.slice(0,12)+'…); '+Object.keys(ALLOW).length+' reviewed allow-list changes each at their pinned value', ST.length===225 && sha===FREEZE && !allowBad.length, JSON.stringify([ST.length,sha,allowBad]));
+  chk('F2 allow-listed changes never worsen a scored turn (category SAME_OK / V2_BETTER / SAME_FAIL as before; no V2_WORSE)', Object.keys(ALLOW).every(k=>ROWS.find(r=>r.set+':'+r.id===k).category!=='V2_WORSE'));
+  /* EV1 (review round 1): structural evidence floor over every shadow turn — a partial / closest / inferred proposal never contains a
+     product that neither names nor mentions a requested (affirmed) connector; this catches E03 / D07-style answers without gold */
+  const named=(c,k)=>{ const g=VP.graphFor(c,{ facts:FACTS, products:PUB }); return !!g && (g.conns.all.includes(k)||g.conns.feat.includes(k)||(k==='usb'&&g.conns.all.concat(g.conns.feat).some(x=>/^usb|micro_usb/.test(x)))||(g.pair&&(g.pair.from.includes(k)||g.pair.to.includes(k)))); };
+  const evb=[]; ROWS.forEach(r=>{ const P=V2[r.set+':'+r.id], pr=P.proposal; if(!/^(partial|closest|inferred)$/.test(pr.kind)) return;
+    P.frame.constraints.filter(c=>c.kind==='connector' && !c.polNull && !c.affirmBase && c.label!==pr.relaxed).forEach(c=>{ const bad=(pr.codes||[]).filter(code=>!named(code,c.id)); if(bad.length) evb.push(r.set+':'+r.id+' '+c.id+' '+bad.slice(0,3).join(',')); }); });
+  chk('EV1 evidence floor: no partial / closest / inferred proposal lists a product with no trace of a requested connector ('+ROWS.length+' turns)', !evb.length, evb.slice(0,6)); }
 console.log(JSON.stringify({ metrics:M, perf:PERF },null,1));
 if(arg('--json')) fs.writeFileSync(arg('--json'),JSON.stringify({ ranAt:new Date().toISOString(), note:'Development / regression sets only — no unbiased claim.', metrics:M, perf:PERF, rows:ROWS },null,1));
 if(arg('--md')){

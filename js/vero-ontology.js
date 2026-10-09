@@ -22,7 +22,7 @@
     micro_usb:{ label:'Micro USB', aliases:['micro usb','micro-usb','microusb','micro b','micro-b'], group:'usb' },
     usb_b:{ label:'USB-B', aliases:['usb-b','usb b','type-b','type b','printer port'], group:'usb' },
     lightning:{ label:'Lightning', aliases:['lightning'], group:'apple' },
-    hdmi:{ label:'HDMI', aliases:['hdmi'], versions:['1.4','2.0','2.1'], group:'video' },
+    hdmi:{ label:'HDMI', aliases:['hdmi'], versions:['1.4','2.0','2.1','2.2'], group:'video' },   /* V2-2C C1: 2.2 is a version token only (no catalogue semantics) */
     mini_hdmi:{ label:'Mini HDMI', aliases:['mini hdmi','mini-hdmi'], group:'video' },
     micro_hdmi:{ label:'Micro HDMI', aliases:['micro hdmi','micro-hdmi'], group:'video' },
     dp:{ label:'DisplayPort', aliases:['displayport','display port','dp'], versions:['1.2','1.4','2.0','2.1'], group:'video', senseTerm:'dp' },
@@ -38,7 +38,7 @@
     tf:{ label:'TF / microSD', aliases:['tf','micro sd','microsd','tf card','micro sd card'], group:'card' },
     m2:{ label:'M.2', aliases:['m.2','m2','ngff'], group:'storage' },
     sata:{ label:'SATA', aliases:['sata'], group:'storage' },
-    thunderbolt:{ label:'Thunderbolt', aliases:['thunderbolt','tbt'], versions:['3','4','5'], group:'usb' },
+    thunderbolt:{ label:'Thunderbolt', aliases:['thunderbolt','tbt'], versions:['3','4','5'], group:'usb' },   /* V2-2C C1: "tb4" / "thunderbolt4" are split by the lexer; a bare "tb" is not Thunderbolt (often terabyte) */
     usb4:{ label:'USB4', aliases:['usb4','usb 4'], group:'usb' },
     /* v2-2B: PCIe is an expansion INTERFACE (never a product-line name); "pci-e" / "pci express" are normalized to "pcie" */
     pcie:{ label:'PCIe', aliases:['pcie'], versions:['1.0','2.0','3.0','4.0','5.0','6.0'], group:'expansion' }
@@ -75,14 +75,14 @@
      (medium); 'negative' marks an explicit contradiction ("without audio"). The description is never evidence (same
      hierarchy as VeroFacts). A feature with no evidence is UNKNOWN, not false. 'hard' = changes what product is meant. */
   var FEATURES={
-    mic:{ label:'built-in mic', aliases:['mic','microphone','with mic','may mic','w/ mic','inline mic','in-line mic'], evidence:'\\b(?:mic|microphone|in-?line control|hands-?free calls?)\\b', hard:true },
+    mic:{ label:'built-in mic', aliases:['mic','microphone','with mic','may mic','w/ mic','inline mic','in-line mic','built-in mic','built in mic','builtin mic'], evidence:'\\b(?:mic|microphone|in-?line control|hands-?free calls?)\\b', hard:true },
     anc:{ label:'active noise cancelling', aliases:['anc','noise cancelling','noise canceling','noise cancellation'], evidence:'\\b(?:anc|active noise|noise cancel)', hard:true },
     open_ear:{ label:'open-ear', aliases:['open ear','open-ear','clip-on','clip on','air conduction'], evidence:'\\b(?:open[- ]?ear|open wearable|open[- ]?fit|clip[- ]on|air conduction|ear[- ]?clip)', hard:true },
     fan:{ label:'cooling fan', aliases:['fan','cooling fan','may fan','with fan'], evidence:'\\b(?:fan|cooling)\\b', hard:true },
     audio:{ label:'audio', aliases:['audio','may audio','with audio','sound'], evidence:'\\b(?:audio|3\\.5 ?mm|sound)\\b', negative:'\\bwithout audio\\b|\\bno audio\\b', hard:true },
     power_port:{ label:'power port', aliases:['power port','power input','may power port','with power port','pd in','dc in'], evidence:'\\b(?:power port|power input|pd in|dc in|power supply|pd charging port|charging port)\\b', hard:true },
     passthrough:{ label:'pass-through charging', aliases:['pass-through','passthrough','pass through','charging port','may charging port','with charging port'], evidence:'\\b(?:pass[- ]?through|pd charging|charging port|female adapter|\\+ ?usb-c female|\\+ ?type c female)', hard:true },
-    builtin:{ label:'built-in cable', aliases:['built-in cable','built in cable','build in cable','builtin cable','integrated cable','attached cable','sariling cable','nakakabit na cable','may cable na nakakabit'], evidence:'\\b(?:built-?in|build-?in|integrated) cable', hard:true },
+    builtin:{ label:'built-in cable', aliases:['built-in cable','built in cable','build in cable','builtin cable','integrated cable','attached cable','sariling cable','nakakabit na cable','may cable na nakakabit','built-in','built in','builtin','build in'], evidence:'\\b(?:built-?in|build-?in|integrated) cable', hard:true },
     retractable:{ label:'retractable cable', aliases:['retractable','retractable cable'], evidence:'\\bretractable\\b', hard:true },
     magnetic:{ label:'magnetic', aliases:['magnetic','magnet'], evidence:'\\bmagnetic\\b', hard:true },
     magsafe:{ label:'MagSafe', aliases:['magsafe','mag safe'], evidence:'\\bmagsafe\\b', hard:true },
@@ -108,8 +108,13 @@
     nvme:{ label:'NVMe', aliases:['nvme','pcie nvme'], evidence:'\\bnvme\\b', hard:true },
     sata_proto:{ label:'SATA', aliases:['m.2 sata','sata ssd'], evidence:'\\bsata\\b', hard:true },
     poe:{ label:'PoE', aliases:['poe'], evidence:'\\bpoe\\b', hard:true },
-    without_audio:{ label:'without audio', aliases:['without audio','no audio','walang audio'], evidence:'\\bwithout audio\\b', hard:true }
+    without_audio:{ label:'without audio', aliases:['without audio','no audio','walang audio'], evidence:'\\bwithout audio\\b', hard:true },
+    /* V2-2C C1: DisplayPort Alternate Mode is STATED or MENTIONED only; it is never implied by USB-C or USB4 */
+    dp_alt:{ label:'DP Alt Mode', aliases:['dp alt mode','dp alt','dp altmode','displayport alt mode','displayport alternate mode','alt mode','alternate mode'], evidence:'\\b(?:dp|displayport) ?alt(?:ernate)? ?mode\\b|\\balt(?:ernate)? mode\\b', hard:true }
   };
+  /* V2-2C C1: governed feature relations. An implied feature is INFERRED (labelled, never exact), never CONFIRMED:
+     a retractable cable is a built-in cable; the reverse does not hold. */
+  var FEATURE_IMPLIES={ retractable:['builtin'] };
 
   /* ---------- device classes: HINTS ONLY ----------
      Used for routing, candidate ordering, likely connector needs and the clarification question. Never a compatibility
@@ -409,7 +414,7 @@
         if(/^4(?:\.0)?$/.test(r)) return '4';
         return null;
       case 'thunderbolt': m=r.match(/^([345])$/); return m?m[1]:null;
-      case 'hdmi': m=r.match(/^(1\.3|1\.4|2\.0|2\.1)[ab]?$/); return m?m[1]:(r==='2'?'2.0':null);
+      case 'hdmi': m=r.match(/^(1\.3|1\.4|2\.0|2\.1|2\.2)[ab]?$/); return m?m[1]:(r==='2'?'2.0':null);
       case 'dp': m=r.match(/^(1\.1|1\.2|1\.3|1\.4|2\.0|2\.1)a?$/); return m?m[1]:(r==='2'?'2.0':null);
     }
     return null;
@@ -472,6 +477,11 @@
   var SPEED_CUES={ watts:['charging','charge','pang charge','magcharge','mag charge'], gbps:['transfer','data','gbps','internet'] };
   /* "same but <comparative>" -> sameBut + metric; "same but <value>" is an ordinary elliptical constraint */
   var SAME_BUT=['same but','same pero','pareho pero','parehas pero','ganun din pero','katulad pero','same lang pero'];
+  /* V2-2C C1 (additive A5 amendment): "same <attribute>" keeps that slot of the anchor ("same wattage" -> keep num:watts);
+     a SAME_BUT cue with no metric comparative is flags.same ("same but white"). The parser only marks them; the context
+     layer (C2) resolves them against the focus / anchor. */
+  var SAME_WORDS=['same','pareho','parehong','parehas','kapareho','kaparehong','katulad','kaparehas'];
+  var KEEP_SLOTS={ watts:'num:watts', mah:'num:mah', length:'num:lengthM', colour:'colour', ports:'ports', speed:'num:gbps', price:'price' };
   /* NAME guard: words of these classes are never product-line NAME spans, whatever the catalogue contains */
   var NAME_GUARD_CLASSES={
     stock:INTENT_CUES.inventory, reference:REFERENCE.concat(REF_KIND.other,REF_KIND.results,REF_KIND.focus), discourse:DISCOURSE,
@@ -481,14 +491,15 @@
     interface:Object.keys(INTERFACES).concat(['gen','pcie','pci','express'],[].concat.apply([],Object.keys(INTERFACES).map(function(k){ return INTERFACES[k].connectors.map(function(c){ return CONNECTORS[c]?CONNECTORS[c].aliases:[]; }).reduce(function(a,b){ return a.concat(b); },[]); })).filter(function(a){ return /^[a-z0-9]+$/.test(a); })),
     lane:LANE_WIDTHS.map(function(n){ return 'x'+n; }) };
 
-  var API={ version:'v2-2B', CONNECTORS:CONNECTORS, USB_VERSIONED:USB_VERSIONED, STANDARDS:STANDARDS, PORT_ROLES:PORT_ROLES, FEATURES:FEATURES,
+  var API={ version:'v2-2C-C1', CONNECTORS:CONNECTORS, USB_VERSIONED:USB_VERSIONED, STANDARDS:STANDARDS, PORT_ROLES:PORT_ROLES, FEATURES:FEATURES,
     DEVICE_CLASSES:DEVICE_CLASSES, NAMED_DEVICES:NAMED_DEVICES, FIELDS:FIELDS, UNITS:UNITS, INTENT_CUES:INTENT_CUES, RANK_METRICS:RANK_METRICS,
     FUNCTION_WORDS:FUNCTION_WORDS, DISCOURSE:DISCOURSE, REFERENCE:REFERENCE, SENSES:SENSES, MARGIN_MIN:MARGIN_MIN, USE_CASES:USE_CASES,
     METRIC_WORDS:METRIC_WORDS, MEASURE_WORDS:MEASURE_WORDS, METRIC_POLARITY:METRIC_POLARITY,
     INTERFACES:INTERFACES, interfaceOf:interfaceOf, canonVersion:canonVersion, USB_NAMING:USB_NAMING, LANE_WIDTHS:LANE_WIDTHS,
     NEGATION:NEGATION, QUESTION_PARTICLES:QUESTION_PARTICLES, QUANTIFIERS:QUANTIFIERS, RELAX_AFTER:RELAX_AFTER, RELAX_FIELDS:RELAX_FIELDS,
     ORDINALS:ORDINALS, LAST_WORDS:LAST_WORDS, REF_KIND:REF_KIND, SELECT_CUES:SELECT_CUES, COMPARATIVES:COMPARATIVES, COMPARE_MORE:COMPARE_MORE,
-    JUDGEMENT_WORDS:JUDGEMENT_WORDS, JUDGEMENT_AFTER:JUDGEMENT_AFTER, SPEED_CUES:SPEED_CUES, SAME_BUT:SAME_BUT, NAME_GUARD_CLASSES:NAME_GUARD_CLASSES };
+    JUDGEMENT_WORDS:JUDGEMENT_WORDS, JUDGEMENT_AFTER:JUDGEMENT_AFTER, SPEED_CUES:SPEED_CUES, SAME_BUT:SAME_BUT, NAME_GUARD_CLASSES:NAME_GUARD_CLASSES,
+    FEATURE_IMPLIES:FEATURE_IMPLIES, SAME_WORDS:SAME_WORDS, KEEP_SLOTS:KEEP_SLOTS };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroOntology=API;
 })(typeof window!=='undefined'?window:globalThis);

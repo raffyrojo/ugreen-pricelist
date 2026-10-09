@@ -7,7 +7,9 @@
    M9 label integrity              M10 compat / device hints    M11 data-driven graph (future SKU, CM763 fixture)
    M12 purity + performance
    V2-2B: A5 validator · R RELAX · X EXCLUDE · O ordinals/references · V version/interface/lanes · K comparatives ·
-          NG name guard · H end-to-end chains through VeroDiscourse · I robustness + contract-drift pin */
+          NG name guard · H end-to-end chains through VeroDiscourse · I robustness + contract-drift pin
+   V2-2C C1: C1.P parser follow-ups · C1.A additive A5 amendment (flags.same, keep) · C1.O ontology concepts · C1.E frame executor +
+          evidence / USB matrices + price-cache fixture · C1.H discourse chain · C1.MUT mutation kills */
 const fs=require('fs'), path=require('path');
 const ROOT=path.join(__dirname,'..');
 global.window={ PRICE_SETTINGS:{ indicatorDays:30 } };
@@ -260,10 +262,12 @@ const PR=q=>{ const P=VP.run(q,OPTS); return { P, T:VP.turnFrame(P) }; };
 const ifIds=Object.keys(O.INTERFACES);
 /* ---------- closed-world A5 validator (independent of the parser: derived from the contract header + discourse source) ---------- */
 const FORBID=new Set((DISC_SRC.match(/var FORBIDDEN_KEYS=\{([\s\S]*?)\};/)||[,''])[1].match(/\b\w+(?=:1)/g)||[]);
-const A5={ top:['intent','subject','constraints','fields','flags','relax','ref','metric','rank','sameBut','ledger'], optTop:['choice'],
+/* V2-2C C1 additive A5 amendment (design §12-D, DECISIONS): optional top-level keep:[{ slot, span? }] and flags.same — exactly
+   these two keys; VeroDiscourse ignores both (sanitizeFrame drops keep; flags pass through) and its bytes are unchanged (I3) */
+const A5={ top:['intent','subject','constraints','fields','flags','relax','ref','metric','rank','sameBut','ledger'], optTop:['choice','keep'],
   subject:['family','subtype','interface','anchors'], anchor:['kind','codes'], anchorKinds:['sku','model','name'],
   constraint:['kind','slot','value','op','polarity','hard','interfaces','typed','origin','source'], source:['span'],
-  flags:['needsContext','elliptical','refPronoun','selectCue','followUp'], relax:['slot','span'], ref:['kind','n'], refKinds:['focus','results','ordinal','other'],
+  flags:['needsContext','elliptical','refPronoun','selectCue','followUp','same'], relax:['slot','span'], keep:['slot','span'], ref:['kind','n'], refKinds:['focus','results','ordinal','other'],
   metric:['metric','dir','candidates','judgement'], rank:['metric','dir'], ledger:['span','state','nameShaped','impact'], states:['BOUND','UNCONFIRMABLE','UNRESOLVED','AMBIGUOUS'],
   intents:['FIND','ATTRIBUTE','INVENTORY','COMPARE','ALTERNATIVE','RANK','SMALLTALK','NODATA','COUNT','EXIST','RECOMMEND','COMPAT','CLARIFY','COACH','PRICE_HISTORY'],
   kinds:['num','ports','connector','feature','colour','standard','form','price','name','pair','version','lanes','family','component','role','res','hz','size','nametoken','nametext'],
@@ -309,6 +313,7 @@ function validateA5(T){ const bad=[]; const B=(w)=>bad.push(w), keys=(o,allowed,
   if(!Array.isArray(T.fields)||!T.fields.every(f=>typeof f==='string'&&/^[a-z_]+$/.test(f))) B('fields');
   if(!isO(T.flags)) B('flags'); else { keys(T.flags,A5.flags,'flags'); Object.keys(T.flags).forEach(k=>{ if(T.flags[k]!==true) B('flag '+k+' not boolean true'); }); }
   if(!Array.isArray(T.relax)) B('relax'); else T.relax.forEach((r,i)=>{ if(!isO(r)) return B('relax '+i); keys(r,A5.relax,'relax'); if(typeof r.slot!=='string'||!r.slot) B('relax slot'); if('span' in r && typeof r.span!=='string') B('relax span'); if(/^ports:/.test(r.slot) && !explicitFam) B('C1: qualified ports RELAX without a family named in this turn'); });
+  if('keep' in T){ if(!Array.isArray(T.keep)||!T.keep.length) B('keep must be a non-empty array when present'); else T.keep.forEach((r,i)=>{ if(!isO(r)) return B('keep '+i); keys(r,A5.keep,'keep'); if(typeof r.slot!=='string'||!/^(num:[a-zA-Z]+|ports(:[a-z_0-9]+)?|colour|price)$/.test(r.slot)) B('keep slot '+r.slot); if('span' in r && typeof r.span!=='string') B('keep span'); if(/^ports:/.test(r.slot) && !explicitFam) B('C1: qualified ports KEEP without a family named in this turn'); }); }
   if(T.ref!==null){ if(!isO(T.ref)) B('ref'); else { keys(T.ref,A5.ref,'ref'); if(!A5.refKinds.includes(T.ref.kind)) B('ref kind '+T.ref.kind); if(T.ref.kind==='ordinal'?!(Number.isInteger(T.ref.n)&&T.ref.n>=1):('n' in T.ref)) B('ref n'); } }
   if(T.metric!==null){ const m=T.metric; if(!isO(m)) B('metric'); else { keys(m,A5.metric,'metric');
     if('judgement' in m && (m.judgement!==true || 'metric' in m)) B('metric judgement shape');
@@ -330,6 +335,8 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
     ['extra top-level key',x=>{ x.label='x'; }],['extra constraint key',x=>{ x.constraints[0].label='65W'; }],['extra subject key',x=>{ x.subject.kind='family'; }],
     ['forbidden key at depth',x=>{ x.subject.anchors=[{ kind:'model', codes:['A'], text:'t' }]; delete x.subject.family; }],['forbidden key qty',x=>{ x.flags.qty=true; }],
     ['invalid ref kind',x=>{ x.ref={ kind:'code', code:'A1' }; }],['ordinal without n',x=>{ x.ref={ kind:'ordinal' }; }],['n on a focus ref',x=>{ x.ref={ kind:'focus', n:1 }; }],
+    ['C1 amendment: empty keep',x=>{ x.keep=[]; }],['C1 amendment: keep with text',x=>{ x.keep=[{ slot:'num:watts', text:'same wattage' }]; }],['C1 amendment: keep of an unkeepable slot',x=>{ x.keep=[{ slot:'family' }]; }],
+    ['C1 amendment: flags.same not boolean true',x=>{ x.flags.same='yes'; }],['C1 amendment: unknown flag',x=>{ x.flags.sameAs=true; }],
     ['invalid polarity',x=>{ x.constraints[0].polarity='no'; }],['C1 qualified ports without a turn family',x=>{ x.subject=null; }],
     ['C2 generation-only with a qualified slot',x=>{ x.constraints.push({ kind:'version', slot:'version:pcie', value:{ interface:null, generation:'gen4' }, polarity:true, hard:true, source:{ span:'s9' } }); }],
     ['non-canonical generation',x=>{ x.constraints.push({ kind:'version', slot:'version:pcie', value:{ interface:'pcie', generation:'4.0' }, polarity:true, hard:true, source:{ span:'s9' } }); }],
@@ -396,9 +403,10 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
   chk('X14 common negators ("ayaw ko", "dont want", "wag / huwag", "hindi naman", "ayoko ng") EXCLUDE the value, never affirm it ('+NG.length+')', !ngb.length, ngb);
   const rn=[['di ko need ng cable','form'],['hindi ko po kailangan ng hdmi','connector:hdmi']].filter(([q,s])=>{ const T=TF(q); return T.constraints.some(c=>c.slot===s && c.polarity===true) || !T.relax.length; }).map(([q])=>q+' -> '+JSON.stringify(TF(q).relax));
   chk('X15 "di ko need" / "hindi ko kailangan" + value -> RELAX (not required), never an affirmed constraint', !rn.length, rn);
-  const RV=[['power bank na ayaw ko ng may cable','form'],['ayaw ko yung may cable','form'],['huwag yung may cable','form'],['hindi yung may built-in cable','feature:builtin'],['not the one with hdmi','connector:hdmi'],['dont want one with cable','form'],['ayoko ng may white','colour']];
-  const rvb=RV.filter(([q,s])=>pol(q,s)!==false).map(([q,s])=>q+' -> '+pol(q,s));
-  chk('X17 negator + relativiser ("ayaw ko ng MAY cable", "not THE ONE WITH hdmi") -> the relativised value is EXCLUDED ('+RV.length+')', !rvb.length, rvb);
+  /* V2-2C C1 (#1, allow-listed change): a relativised "with cable" is the built-in-cable FEATURE, never the product form */
+  const RV=[['power bank na ayaw ko ng may cable','feature:builtin'],['ayaw ko yung may cable','feature:builtin'],['huwag yung may cable','feature:builtin'],['hindi yung may built-in cable','feature:builtin'],['not the one with hdmi','connector:hdmi'],['dont want one with cable','feature:builtin'],['ayoko ng may white','colour']];
+  const rvb=RV.filter(([q,s])=>pol(q,s)!==false || TF(q).constraints.some(c=>c.slot==='form')).map(([q,s])=>q+' -> '+pol(q,s));
+  chk('X17 negator + relativiser ("ayaw ko ng MAY cable", "not THE ONE WITH hdmi") -> the relativised value is EXCLUDED; "with cable" = built-in cable, never form ('+RV.length+')', !rvb.length, rvb);
   const NN=[['dont need 65w charger','num:watts'],['no need 65w','num:watts'],['hindi kailangan ng 65w','num:watts'],['charger, no need 20000mah','num:mah'],['no need 2m','num:lengthM'],['di ko need ng 65w','num:watts'],['hindi ko kailangan ng 65w','num:watts'],['hindi na kailangan 100w','num:watts'],['no need 4 ports','ports'],['no need under 1000 pesos','price']];
   const nnb=NN.filter(([q,s])=>{ const { P, T }=PR(q); return T.constraints.some(c=>c.polarity===true && (c.slot===s || c.kind===s.split(':')[0])) || !T.relax.some(r=>r.slot===s); }).map(([q])=>{ const { P, T }=PR(q); return q+' -> relax '+JSON.stringify(T.relax)+' cons '+T.constraints.map(c=>c.slot+':'+c.polarity)+' '+P.proposal.kind; });
   chk('X19 "not needed" + number / price / port count -> RELAX of that slot (not required), never an affirmed constraint ('+NN.length+')', !nnb.length, nnb);
@@ -484,7 +492,7 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
   chk('K7 "alin mas mura?" price asc; "alin mas maraming ports?" / "more ports" ports desc (field consumed); "fewer ports" asc', m('alin mas mura?').dir==='asc' && m('alin mas maraming ports?').metric==='ports' && m('more ports').metric==='ports' && !TF('more ports').fields.includes('ports') && m('fewer ports').dir==='asc');
   chk('K8 "same but faster" -> sameBut with ambiguous candidates (resolver clarifies the metric)', TF('same but faster').sameBut===true && TF('same but faster').metric.candidates.length===2);
   const sw2=TF('same wattage pero mas mura sa 95405B');
-  chk('K9 KNOWN GAP recorded, not invented: "same wattage" has no A5 attribute-keep (no sameBut, no keep slot; price comparative only)', sw2.sameBut===false && !sw2.constraints.some(c=>/^keep/.test(c.slot)) && sw2.metric && sw2.metric.metric==='price'); }
+  chk('K9 V2-2C C1 closes the recorded gap: "same wattage" carries the A5 amendment keep [num:watts] (no sameBut, no constraint), price comparative unchanged', sw2.sameBut===false && JSON.stringify(sw2.keep)==='[{"slot":"num:watts","span":"s0"}]' && !sw2.constraints.some(c=>/^keep/.test(c.slot)) && sw2.metric && sw2.metric.metric==='price', JSON.stringify([sw2.keep,sw2.metric])); }
 
 /* ================= NG  NAME / function-word guard ================= */
 { const GC=O.NAME_GUARD_CLASSES, need=['stock','reference','discourse','function','quantifier','negator','ordinal','interface','lane'], guard=VP._nameGuard();
@@ -541,6 +549,168 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
   chk('H.X "not white" -> EXCLUDE inside the context; "last" -> CLARIFY (unresolved high impact); "yung pangalawa" -> SELECT shown[1]', ex[1].r.act==='EXCLUDE' && last[1].r.act==='CLARIFY' && o2[1].r.act==='SELECT' && o2[1].r.delta.target.codes[0]===o2[0].ctx.shown[1]);
   const allC=[x,s1,s2,s3,pb,ex,last,o2,xf]; chk('H.V every turn of every chain is a valid A5 frame and VeroDiscourse never throws', allC.every(z=>z.every(y=>y.valid && y.r && y.r.act!==undefined))); }
 
+/* =====================================================================================================================
+   V2-2C C1 — parser follow-ups (design §13 #1/2/3/5/6/15), additive A5 amendment (flags.same, keep), ontology concepts,
+   frame executor (executeFrame) with the §7 evidence model, USB / interface relations, price-cache fixture, mutation kills.
+   Current turn only: nothing here reads a result set. C2 (context layer) and C3 (chained scoring) are NOT part of this block.
+   ===================================================================================================================== */
+{ const pol=(q,s)=>{ const c=TF(q).constraints.find(x=>x.slot===s); return c?c.polarity:'(none)'; };
+  /* ---- parser follow-ups ---- */
+  const P1=['not the one with cable','yung walang cable','ayaw ko yung may cable','dont want one with cable'].filter(q=>{ const T=TF(q); return pol(q,'feature:builtin')!==false || T.constraints.some(c=>c.slot==='form') || !(T.flags.elliptical||T.flags.needsContext); });
+  chk('C1.P1 (#1) "not the one with cable" / "yung walang cable" -> elliptical EXCLUDE of feature:builtin, never form:cable', !P1.length, P1.map(q=>q+' -> '+JSON.stringify(TF(q).constraints.map(c=>c.slot+':'+c.polarity))+' '+JSON.stringify(TF(q).flags)));
+  chk('C1.P1b control: "not a cable" (no relativiser) keeps the FORM exclusion; "charger na walang built-in cable" unchanged', pol('not a cable','form')===false && pol('charger na walang built-in cable','feature:builtin')===false);
+  const P2=[['white, not needed','colour'],['65w, not needed','num:watts'],['hdmi, hindi kailangan','connector:hdmi'],['white, no need','colour']].filter(([q,s])=>{ const T=TF(q); return !T.relax.some(r=>r.slot===s) || T.constraints.some(c=>c.slot===s && c.polarity===true); });
+  chk('C1.P2 (#2) a trailing "not needed" across a comma relaxes the preceding value, never affirms it', !P2.length, P2.map(([q])=>q+' -> '+JSON.stringify(TF(q).relax)+' '+JSON.stringify(TF(q).constraints.map(c=>c.slot+':'+c.polarity))));
+  const p2b=TF('white, not needed ang cable');
+  chk('C1.P2b the comma reach-back applies only when nothing relaxable follows: "white, not needed ang cable" relaxes the cable form, white stays affirmed', p2b.relax.map(r=>r.slot).join()==='form' && p2b.constraints.some(c=>c.slot==='colour' && c.polarity===true), JSON.stringify([p2b.relax,p2b.constraints.map(c=>c.slot+':'+c.polarity)]));
+  const P3=[['white pero no need white','colour'],['65w pero kahit ilang watts','num:watts'],['65w charger, kahit ilang watts','num:watts']].filter(([q,s])=>{ const { P, T }=PR(q); return T.constraints.some(c=>c.slot===s) || T.relax.some(r=>r.slot===s) || T.ledger.filter(l=>l.state==='AMBIGUOUS' && l.impact==='high').length<2 || P.proposal.kind==='exact'; });
+  chk('C1.P3 (#3) one turn that requires AND relaxes a slot keeps neither: two AMBIGUOUS (high) spans, no constraint, no relax, never exact', !P3.length, P3.map(([q])=>q+' -> '+JSON.stringify(TF(q))));
+  const h1=TF('not hdmi 2.1'), h2=TF('hdmi cable not hdmi 2.1'), hv=T=>T.constraints.find(c=>c.slot==='version:hdmi');
+  chk('C1.P5 (#5) "not HDMI 2.1" -> EXCLUDE version:hdmi 2.1 with connector:hdmi affirmed; the connector is never excluded', [h1,h2].every(T=>hv(T) && hv(T).polarity===false && hv(T).value.generation==='2.1' && T.constraints.some(c=>c.slot==='connector:hdmi' && c.polarity===true) && !T.constraints.some(c=>c.slot==='connector:hdmi' && c.polarity===false)) && h1.flags.elliptical===true, JSON.stringify([h1.constraints,h2.constraints]));
+  const hx=run('hdmi cable not hdmi 2.1');
+  chk('C1.P5b executor: no proposed product states HDMI 2.1; products that do not state a version are kept and labelled "not stated"', hx.proposal.codes.length>0 && hx.proposal.codes.every(c=>G(c).versions.hdmi!=='2.1') && (hx.proposal.notStated||[]).length===1, JSON.stringify([hx.proposal.kind,hx.proposal.codes.length,hx.proposal.notStated]));
+  const b0=VP.parse('built-in',OPTS), b1=TF('built-in'), bm=TF('built-in mic');
+  chk('C1.P6 (#6) "built-in" alone = feature:builtin (BOUND, never a NAME / UNKNOWN span); "built-in mic" = mic; retractable stays its own feature', b1.constraints.length===1 && b1.constraints[0].slot==='feature:builtin' && b1.constraints[0].polarity===true && !b0.spans.some(s=>s.type==='NAME'||s.type==='UNKNOWN') && bm.constraints.map(c=>c.slot).join()==='feature:mic' && TF('retractable').constraints.map(c=>c.slot).join()==='feature:retractable', JSON.stringify([b1.constraints,bm.constraints]));
+  const retr=PUB.map(p=>String(p.item_code)).filter(c=>G(c) && G(c).feats.retractable && G(c).feats.retractable.state==='CONFIRMED' && !G(c).feats.builtin);
+  chk('C1.P6b retractable => built-in is INFERRED (never CONFIRMED), and only in that direction ('+retr.length+' retractable products without a stated built-in cable)', retr.length>0 && retr.every(c=>VP.evalConstraint(c,{ kind:'feature', id:'builtin' },OPTS)==='INFERRED') && retr.every(c=>VP.evalConstraint(c,{ kind:'feature', id:'builtin', neg:true },OPTS)==='CONTRADICTED') && VP.evalConstraint(PUB.map(p=>String(p.item_code)).find(c=>G(c)&&G(c).feats.builtin&&G(c).feats.builtin.state==='CONFIRMED'&&!G(c).feats.retractable),{ kind:'feature', id:'retractable' },OPTS)==='UNKNOWN', retr);
+  const cd=TF('card'), C0=VP.catalog(FACTS,PUB), one=Object.keys(C0.phrases).find(k=>!k.includes(' ') && C0.phrases[k].length>=2 && new Set(C0.phrases[k].map(c=>G(c).family)).size===1 && TF(k).subject);
+  chk('C1.P15 (#15) a generic name word over several families ("card") is a name: constraint, never the subject; a single-family name ("'+one+'") stays the subject', cd.subject===null && cd.constraints.some(c=>c.slot==='name:card') && new Set(cd.constraints.find(c=>c.slot==='name:card').value.codes.map(c=>G(c).family)).size>1 && TF(one).subject && TF(one).subject.anchors, JSON.stringify(cd));
+  chk('C1.P4 (#4, NOT a bug, pinned) "hindi po, 65w charger" is a genuine new 65W request: watts 65 affirmed (never null), charger subject', pol('hindi po, 65w charger','num:watts')===true && TF('hindi po, 65w charger').subject.family==='charger');
+  /* ---- additive A5 amendment ---- */
+  const same=['same but white','pareho pero white','same pero black'].filter(q=>{ const T=TF(q); return T.flags.same!==true || T.sameBut!==false || validateA5(T).length; });
+  chk('C1.A1 flags.same: a same-but cue with no metric comparative ("same but white") -> flags.same, no sameBut', !same.length, same);
+  chk('C1.A2 a metric comparative keeps the V2-2B sameBut and never sets flags.same ("same but cheaper")', TF('same but cheaper').sameBut===true && !TF('same but cheaper').flags.same && !TF('65W charger').flags.same);
+  const KP=[['same wattage','num:watts'],['parehong capacity','num:mah'],['same color','colour'],['same length','num:lengthM'],['same ports','ports'],['charger same ports','ports:charging_output'],['kaparehong kulay','colour']];
+  const kb=KP.filter(([q,s])=>{ const T=TF(q); return !(T.keep && T.keep.length===1 && T.keep[0].slot===s) || validateA5(T).length || T.constraints.some(c=>c.slot===s); }).map(([q])=>q+' -> '+JSON.stringify(TF(q).keep));
+  chk('C1.A3 keep: "same <attribute>" -> keep [{slot}] only (no constraint); ports unqualified unless this turn names a family (C1) ('+KP.length+')', !kb.length, kb);
+  chk('C1.A4 no keep without a same-word + attribute ("65W charger", "same but white", "same", "white wattage")', ['65W charger','same but white','same','white wattage'].every(q=>!('keep' in TF(q))));
+  const kctx=['same wattage','same but white','not the one with cable'].filter(q=>new Set([null,{ lastField:'watts', shown:['A'], focus:['A'] }].map(c=>JSON.stringify(VP.turnFrame(VP.parse(q,Object.assign({},OPTS,{ ctx:c })))))).size!==1);
+  chk('C1.A5 keep / flags.same are structural: identical for any context passed in (the parser never resolves them)', !kctx.length, kctx);
+  const strip=T=>{ const x=JSON.parse(JSON.stringify(T)); delete x.keep; delete x.flags.same; return x; };
+  const dIgn=['same wattage','same but white'].filter(q=>{ const T=TF(q), OPd={ now:1e12, mode:'public' }; return JSON.stringify(D.resolve(T,null,OPd))!==JSON.stringify(D.resolve(strip(T),null,OPd)); });
+  chk('C1.A6 VeroDiscourse (byte-identical) ignores keep and flags.same: resolve() with and without them is identical', !dIgn.length, dIgn);
+  /* ---- ontology concepts ---- */
+  const tb=TF('tb4'), tb2=TF('thunderbolt4 cable'), dpa=TF('usb-c hub with dp alt mode'), h22=TF('hdmi 2.2 cable');
+  chk('C1.O1 TB4 aliases ("tb4", "thunderbolt4") -> version:thunderbolt 4, never USB4; DP Alt Mode is a feature concept; HDMI 2.2 is a version token', [tb,tb2].every(T=>T.constraints.some(c=>c.slot==='version:thunderbolt' && c.value.generation==='4') && !T.constraints.some(c=>c.slot==='version:usb')) && dpa.constraints.some(c=>c.slot==='feature:dp_alt') && h22.constraints.some(c=>c.slot==='version:hdmi' && c.value.generation==='2.2') && O.canonVersion('hdmi','2.2')==='2.2', JSON.stringify([tb.constraints,dpa.constraints,h22.constraints]));
+  const ug=['usb gen 4','usb-c gen 4 cable','usb 3.2 gen 4'].filter(q=>{ const T=TF(q); return T.constraints.some(c=>c.kind==='version' && c.value.generation==='4') || !T.ledger.some(l=>l.state==='UNRESOLVED'); });
+  chk('C1.O2 USB "Gen 4" never becomes USB4 (no version constraint; the notation stays UNRESOLVED)', !ug.length, ug);
+  chk('C1.O3 PCIe lane width is never a generation; 8K never implies HDMI 2.1; HDMI = connector:hdmi + version:hdmi', !TF('pcie x16').constraints.some(c=>c.kind==='version') && !TF('8k hdmi cable').constraints.some(c=>c.kind==='version') && TF('hdmi 2.1').constraints.map(c=>c.slot).sort().join()==='connector:hdmi,version:hdmi');
+  chk('C1.O4 PORT_ROLE_BY_FAMILY is exported once and frozen (single source for C2 qualify)', VP.PORT_ROLE_BY_FAMILY && Object.isFrozen(VP.PORT_ROLE_BY_FAMILY) && VP.PORT_ROLE_BY_FAMILY.charger==='charging_output' && TF('charger 3 ports').constraints.some(c=>c.slot==='ports:charging_output'));
+  /* ---- executor + evidence model ---- */
+  const A=(kind,slot,value,polarity,x)=>Object.assign({ kind, slot, value, polarity, hard:true, source:{ span:'s0' } },x||{});
+  const xpb=VP.executeFrame({ subject:{ family:'power_bank' }, constraints:[A('connector','connector:usb_a',{ id:'usb_a' },false)] },OPTS);
+  const pbAll=famCodes('power_bank'), hasA=c=>G(c).conns.all.includes('usb_a')||G(c).conns.feat.includes('usb_a');
+  chk('C1.E1 EXCLUDE needs governed evidence: "power bank without USB-A" removes every listing that names or lists USB-A ('+pbAll.filter(hasA).length+'), keeps the rest UNKNOWN + "not stated", never "exact without"', xpb.codes.length===pbAll.filter(c=>!hasA(c)).length && xpb.codes.every(c=>!hasA(c) && xpb.evidence[c]['connector:usb_a']==='UNKNOWN') && (xpb.notStated||[]).length===1, JSON.stringify([xpb.kind,xpb.codes.length,xpb.notStated]));
+  const pairs=[]; PUB.slice(0,400).forEach(p=>{ const c=String(p.item_code), g=G(c); if(!g) return; ['vga','rj45','hdmi','dp','sd'].forEach(k=>{ if(!g.conns.all.includes(k) && !g.conns.feat.includes(k) && !g.pair) pairs.push([c,k]); }); });
+  const absBad=pairs.filter(([c,k])=>VP.evalConstraint(c,{ kind:'connector', id:k },OPTS)!=='UNKNOWN');
+  const formBad=PUB.slice(0,300).map(p=>String(p.item_code)).filter(c=>G(c) && !/\bcables?\b|\bcord\b/.test(G(c).lname) && !/\bcable\b/i.test(G(c).category)).filter(c=>VP.evalConstraint(c,{ kind:'form', form:'cable' },OPTS)!=='CONTRADICTED');
+  chk('C1.E2 absence is never CONTRADICTED ('+pairs.length+' product x unnamed-connector pairs -> UNKNOWN) except name-defined slots (form absent -> CONTRADICTED)', pairs.length>200 && !absBad.length && !formBad.length, JSON.stringify([absBad.slice(0,4),formBad.slice(0,4)]));
+  const u1=run('usb 3.2 gen 1 hub'), inf=u1.proposal.inferred||[];
+  chk('C1.E3 USB naming equivalence: "USB 3.2 Gen 1 hub" lists USB 3.0 hubs as INFERRED (labelled), never exact', u1.proposal.kind==='inferred' && inf.length>0 && inf.every(c=>['3.0','3.1g1'].includes(O.canonVersion('usb',G(c).versions.usb||G(c).versions.usb_a||G(c).versions.usb_c))) && /Inferred, not stated/.test(u1.proposal.notes.join(' ')), JSON.stringify([u1.proposal.kind,inf.length,u1.proposal.notes]));
+  const xf=VP.executeFrame({ subject:{ family:'hub_dock' }, constraints:[A('version','version:usb',{ interface:'usb', generation:'3.2g1' },true)] },OPTS);
+  chk('C1.E3b executeFrame: version:usb evaluated against graph versions; INFERRED evidence recorded per product; a set with an inferred row is never "exact"', xf.kind==='inferred' && (xf.inferred||[]).every(c=>xf.evidence[c]['version:usb']==='INFERRED'), JSON.stringify([xf.kind,(xf.inferred||[]).length]));
+  const usbV=O.INTERFACES.usb.connectors, tbV=O.INTERFACES.thunderbolt.connectors, v4=PUB.map(p=>String(p.item_code)).filter(c=>G(c) && G(c).versions.usb4!=null);
+  chk('C1.E4 USB4 and Thunderbolt 4 never imply each other (interfaces disjoint; no product evaluates TB4 from a USB4 version or vice versa)', !usbV.some(k=>tbV.includes(k)) && PUB.slice(0,811).every(p=>{ const c=String(p.item_code); if(!G(c)) return true; const t=VP.evalConstraint(c,{ kind:'ifaceVersion', iface:'thunderbolt', gen:'4' },OPTS), u=VP.evalConstraint(c,{ kind:'ifaceVersion', iface:'usb', gen:'4' },OPTS); return !(t==='CONFIRMED' && !G(c).versions.thunderbolt) && !(u==='CONFIRMED' && G(c).versions.thunderbolt && !G(c).versions.usb4); }), v4.length);
+  const tbFeat=PUB.map(p=>String(p.item_code)).filter(c=>G(c) && /thunderbolt/i.test(byCode[c].features||'') && !/thunderbolt/i.test(G(c).lname));
+  chk('C1.E5 MENTIONED stays UNKNOWN: products that mention Thunderbolt only in their features ('+tbFeat.length+') are never CONFIRMED Thunderbolt', tbFeat.length>0 && tbFeat.every(c=>VP.evalConstraint(c,{ kind:'connector', id:'thunderbolt' },OPTS)!=='CONFIRMED' && VP.evalConstraint(c,{ kind:'ifaceVersion', iface:'thunderbolt', gen:'4' },OPTS)!=='CONFIRMED'), tbFeat.slice(0,5));
+  const vs=VP.executeFrame({ subject:{ family:'hub_dock' }, constraints:[A('version','version:usb',{ interface:'usb', generation:'3.2g2' },true)] },OPTS);
+  const vs2=VP.executeFrame({ subject:{ family:'hub_dock' }, constraints:[A('version','version:usb',{ interface:'usb', generation:'3.2g2x2' },true)] },OPTS);
+  chk('C1.E6 a version request lists only items that STATE it as exact (USB 3.2 Gen 2: CONFIRMED); a version no listing states is never a match (Gen 2x2: no exact, no row CONFIRMED; a relaxed closest set is labelled)', (vs.kind!=='exact' || vs.codes.every(c=>vs.evidence[c]['version:usb']==='CONFIRMED')) && vs2.kind!=='exact' && !vs2.codes.some(c=>vs2.evidence[c]['version:usb']==='CONFIRMED'), JSON.stringify([vs.kind,vs.codes.length,vs2.kind,vs2.codes.length]));
+  const fl=[run('tb4'),run('hdmi 2.2'),run('same wattage')].map(P=>P.proposal), fe=VP.executeFrame({ subject:null, constraints:[A('feature','feature:dp_alt',true,true)] },OPTS);
+  chk('C1.E7 no subject-less catalogue flood: "tb4" / "hdmi 2.2" / bare "same wattage" / a subject-less merged frame clarify instead of listing unrelated families', fl.every(p=>p.kind==='clarify' && !p.codes.length) && fe.kind==='clarify' && !fe.codes.length, JSON.stringify(fl.map(p=>[p.kind,p.codes.length]).concat([[fe.kind,fe.codes.length]])));
+  const lg=run('longest HDMI cable'), noLen=lg.proposal.codes.filter(c=>G(c).lengthM==null), firstNo=lg.proposal.codes.findIndex(c=>G(c).lengthM==null);
+  chk('C1.E8 a ranked set keeps rows with no value for the metric AFTER the ranked rows and says so (never silently dropped)', noLen.length>0 && lg.proposal.codes.slice(firstNo).every(c=>G(c).lengthM==null) && lg.proposal.unrankedTail===noLen.length, JSON.stringify([noLen.length,firstNo,lg.proposal.codes.length]));
+  const pn=VP.executeFrame({ subject:{ family:'charger' }, constraints:[A('colour','colour','white',null)] },OPTS);
+  chk('C1.E9 polarity null is never confirmed by the executor (unclear negation scope -> no exact answer)', pn.kind!=='exact', pn.kind);
+  const big=VP.executeFrame({ subject:{ family:'video_cable' }, constraints:[] },OPTS), bad=VP.executeFrame({ subject:{ family:'charger' }, constraints:[A('mystery','mystery:x',1,true)] },OPTS);
+  chk('C1.E10 executor evaluates the FULL published catalogue (no 50-candidate cap) and reports unsupported constraint kinds (never silently ignored)', big.codes.length===famCodes('video_cable').length && big.codes.length>50 && bad.frameErrors.length===1 && bad.frameErrors[0].slot==='mystery:x', JSON.stringify([big.codes.length,bad.frameErrors]));
+  /* ---- price-cache fixture (no resetCache): an in-memory price edit is read at execution time ---- */
+  { const P2=PUB.map(p=>Object.assign({},p)), F2=VF.build(P2), O2={ facts:F2, products:P2 }, fr={ subject:{ family:'charger' }, rank:{ metric:'price', dir:'asc' }, constraints:[] };
+    const r1=VP.executeFrame(fr,O2), cheapest=r1.codes[0], row=P2.find(p=>String(p.item_code)===cheapest), old=row.srp, cap=Number(P2.find(p=>String(p.item_code)===r1.codes[5]).srp); row.srp='99999';
+    const r2=VP.executeFrame(fr,O2), r3=VP.executeFrame({ subject:{ family:'charger' }, constraints:[A('price','price',cap,true,{ op:'<=', typed:true })] },O2);
+    chk('C1.E11 price cache (QA F4.5): after an in-memory SRP edit (same facts key, no resetCache) ranking and price filters use the LIVE price', r2.codes[0]!==cheapest && r2.codes.slice(r2.codes.indexOf(cheapest)+1).every(c=>!isFinite(parseFloat(P2.find(p=>String(p.item_code)===c).srp))) && r3.kind==='exact' && r3.codes.length>=5 && !r3.codes.includes(cheapest), JSON.stringify([cheapest,r2.codes.slice(0,3),r2.codes.indexOf(cheapest),r3.kind,r3.codes.length]));
+    row.srp=old; VP.executeFrame(fr,OPTS); }
+  /* ---- review fixes (QA + VERO round 1 on fingerprint 1080f744…) ---- */
+  { const pbB=famCodes('power_bank').filter(c=>G(c).feats.builtin && G(c).feats.builtin.state==='CONFIRMED').length, pbI=famCodes('power_bank').filter(c=>!G(c).feats.builtin && G(c).feats.retractable && G(c).feats.retractable.state==='CONFIRMED').length;
+    const cnt=['how many power banks with built-in cable','ilan power bank na may built-in cable'].map(q=>run(q).proposal);
+    chk('C1.R1 a COUNT with inferred matches counts the STATED ones ('+pbB+') and reports the inferred ones separately ('+pbI+'), never 0', pbB>0 && cnt.every(p=>p.count===pbB && p.inferredCount===pbI && /not counted/.test(p.notes.join(' '))), JSON.stringify(cnt.map(p=>[p.kind,p.count,p.inferredCount])));
+    const alt=run('same capacity as 25286 pero may built-in cable').proposal, ai=alt.inferred||[];
+    chk('C1.R2 alternatives: an INFERRED alternative is listed AFTER the stated ones and labelled (main and closest-same-spec paths)', alt.kind==='alternative' && ai.length>0 && JSON.stringify(alt.codes.slice(-ai.length))===JSON.stringify(ai) && /inferred, not stated, listed last/.test(alt.notes.join(' ')), JSON.stringify([alt.codes.length,ai,alt.notes]));
+    const named=(c,k)=>{ const g=G(c); return g.conns.all.includes(k)||g.conns.feat.includes(k)||(g.pair&&(g.pair.from.includes(k)||g.pair.to.includes(k))); };
+    const floorQ=[['hub with 3 HDMI ports','hdmi'],['meron 2.5G LAN adapter?','rj45'],['thunderbolt 4 cable','thunderbolt'],['hdmi 2.2 cable','hdmi'],['usb-c to hdmi dp alt mode','hdmi']];
+    const fb=floorQ.filter(([q,k])=>{ const p=run(q).proposal; return !p.codes.length || !p.codes.every(c=>named(c,k)); }).map(([q])=>{ const p=run(q).proposal; return q+' -> '+p.kind+' '+p.codes.length; });
+    chk('C1.R3 evidence floor: partial / closest rows always name or mention every requested connector (no "partial" product with no trace of the request: E03 Wi-Fi adapter, D07 plain USB hubs)', !fb.length, fb);
+    const e03=run('meron 2.5G LAN adapter?').proposal, d07=run('hub with 3 HDMI ports').proposal;
+    chk('C1.R3b E03 / D07 are back to the live-baseline answers (closest gigabit RJ45 adapters; the 3 HDMI docks), never the Wi-Fi adapter or plain USB hubs', e03.kind==='closest' && !e03.codes.includes('35265') && d07.kind==='partial' && d07.codes.length===3, JSON.stringify([e03.kind,e03.codes,d07.kind,d07.codes]));
+    const dp=run('usb-c to hdmi dp alt mode').proposal, tbc=run('thunderbolt 4 cable').proposal, tb=run('tb4').proposal;
+    chk('C1.R4 the flood guard never fires when a proposed product confirms a defining constraint (pair / form / connector); its wording never claims "no product type" when one was named', dp.kind!=='clarify' && dp.codes.length>0 && tbc.kind!=='clarify' && tb.kind==='clarify' && /No listed product states Thunderbolt 4/.test(tb.notes.join(' ')) && !/no product type/.test(tb.notes.join(' ')), JSON.stringify([dp.kind,tbc.kind,tb.notes]));
+    const sw=run('switch without usb-a').proposal;
+    chk('C1.R5 an exclusion that removes every match says so ("every listed … has USB-A"), never a false "wala" / "No exact match"', sw.kind==='none' && /Every listed .* has USB-A/.test(sw.notes.join(' ')) && !/Wala|No exact match/.test(sw.notes.join(' ')), JSON.stringify(sw.notes));
+    const g2=PUB.map(p=>String(p.item_code)).filter(c=>G(c) && /usb 3\.[12] gen ?2/i.test(G(c).lname)), u2=run('usb 3.2 gen 2 hub').proposal;
+    chk('C1.R6 a stated USB Gen ("USB 3.2 Gen 2", "USB-C 3.1 GEN2") is part of the graph version and CONFIRMED ('+g2.length+' products)', g2.length>0 && g2.every(c=>/g2$/.test(Object.values(G(c).versions).join(' '))) && u2.kind==='exact' && u2.codes.every(c=>/3\.2 gen 2/i.test(G(c).lname)), JSON.stringify([g2.map(c=>c+':'+JSON.stringify(G(c).versions)),u2.kind,u2.codes]));
+    chk('C1.R7 a bare "tb" is never Thunderbolt ("tb ssd" = terabyte context); "tb4" still is', !TF('tb ssd').constraints.some(c=>/thunderbolt/.test(c.slot)) && TF('tb4').constraints.some(c=>c.slot==='version:thunderbolt'));
+    /* review round 2 (VERO R2-1 / R2-2) */
+    const NG=[['charger not 65w','charger','watts',65],['charger hindi 65w','charger','watts',65],['hindi 20w na charger','charger','watts',20],['power bank not 10000mah','power_bank','mah',10000],['power bank not 2m','power_bank','lengthM',2],['hub not 2m','hub_dock','lengthM',2]];
+    const ngb=NG.filter(([q,f,a,v])=>{ const p=run(q).proposal, all=famCodes(f); return p.kind==='exact' || p.codes.length<all.length*0.8 || (p.codes.length && p.codes.every(c=>G(c)[a]===v)); }).map(([q])=>{ const p=run(q).proposal; return q+' -> '+p.kind+' '+p.codes.length; });
+    chk('C1.R9 an unclear negated number ("charger not 65w", "power bank not 2m") keeps the whole family, labelled; never "nearest" to the negated value, never exact', !ngb.length, ngb);
+    const g1=run('usb-c 3.1 gen 1 cable').proposal;
+    chk('C1.R10 a GEN token later in the name binds to the single USB 3.x version ("USB-C 3.1 Male To Male GEN1" = 3.1 Gen 1, CONFIRMED and listed first)', /g1$/.test(Object.values(G('50751').versions).join(' ')) && (g1.exactCodes||g1.codes)[0]==='50751', JSON.stringify([G('50751').versions,g1.kind,g1.exactCodes,g1.codes]));
+    /* review round 3 (VERO R3): bare USB "Gen N" without a 3.x number */
+    const stG=(c,g)=>new RegExp(g+'$').test(Object.values(G(c).versions).join(' '));
+    const BG=[['usb-c gen 1 cable','g1'],['usb c gen2 cable','g2'],['usb-c gen 1 ethernet adapter','g1'],['usb-c gen1 to ethernet','g1'],['usb gen 2 hub','g2']];
+    const bgb=BG.filter(([q,g])=>{ const p=run(q).proposal, st=(p.exactCodes||p.codes); return !st.length || !st.every(c=>stG(c,g)); }).map(([q])=>{ const p=run(q).proposal; return q+' -> '+p.kind+' '+(p.exactCodes||p.codes).join(','); });
+    chk('C1.R11 a bare Gen request ("usb-c gen 1 cable", "usb gen 2 hub") matches the products whose names STATE that Gen (stated first; USB 3.0 = Gen 1 only INFERRED; never contradicted)', !bgb.length, bgb);
+    const ng=['gen 2 hub','hub gen 1','usb gen 4 cable'].map(q=>run(q).proposal).filter(p=>/No exact match for Gen/i.test(p.notes.join(' ')));
+    chk('C1.R12 a generation with no interface is never relaxed into a "No exact match for Gen N" claim', !ng.length, ng.map(p=>p.notes));
+    const negG=['usb-c cable not gen 1','hub hindi gen 2','not gen 2'].filter(q=>TF(q).constraints.some(c=>(c.kind==='version' || /^version:/.test(c.slot)) && c.polarity===true) || TF(q).constraints.some(c=>c.kind==='connector' && /gen/i.test(JSON.stringify(c.value))));
+    chk('C1.R13 a negated bare generation ("not gen 1", "hindi gen 2") is never applied as a requirement (UNRESOLVED, as before)', !negG.length && ['usb-c cable not gen 1','hub hindi gen 2'].every(q=>TF(q).ledger.some(l=>l.state==='UNRESOLVED')), negG);
+    const ch=run('cheapest usb 3.0 hub').proposal;
+    chk('C1.R14 in a ranking, stated matches come before inferred ones ("cheapest usb 3.0 hub": an inferred 3.2 Gen 1 hub is never first)', ch.kind==='inferred' && JSON.stringify(ch.codes.slice(0,(ch.exactCodes||[]).length).sort())===JSON.stringify((ch.exactCodes||[]).slice().sort()), JSON.stringify([ch.codes.slice(0,4),ch.exactCodes&&ch.exactCodes.length]));
+    chk('C1.R15 a version exclusion keeps the Gen in its label ("not USB 3.1 Gen 1")', /not USB 3\.1 Gen 1/.test((run('not usb 3.1 gen 1 cable').proposal.notStated||[]).join(' ')));
+    const kb=run('cheapest keyboard built-in').proposal;
+    chk('C1.R8 an inferred-only set over unrelated families with no subject clarifies (never 23 cross-family items)', kb.kind==='clarify' && !kb.codes.length, JSON.stringify([kb.kind,kb.codes.length])); }
+  /* ---- discourse chain with the C1 parser output (structure only; context guards are C2) ---- */
+  { const OPc={ now:1e12, mode:'public', families:['power_bank','charger','video_cable'], applies:()=>true, qualify:()=>null };
+    const T1=TF('power bank 10000mah'), r1=D.resolve(T1,null,OPc), c1=D.buildContext(null,r1,{ shown:famCodes('power_bank').slice(0,6) },OPc);
+    const T2=TF('not the one with cable'), r2=D.resolve(T2,c1,OPc), mv=Object.fromEntries((r2.mergedFrame?r2.mergedFrame.constraints:[]).map(c=>[c.slot,c.polarity]));
+    chk('C1.H1 "power bank 10000mah" -> "not the one with cable": the C1 frame reaches discourse as an elliptical EXCLUDE of feature:builtin inside the power-bank context (own-family retention is C2)', r2.act==='EXCLUDE' && mv['feature:builtin']===false && mv['num:mah']===true && !('form' in mv), JSON.stringify([r2.act,mv])); }
+  /* ---- mutation kills: every new rule is load-bearing (a mutated vero-parse.js must fail its check) ---- */
+  { const vm=require('vm'), PSRC=fs.readFileSync(path.join(ROOT,'js','vero-parse.js'),'utf8');
+    const mutant=(from,to)=>{ if(PSRC.split(from).length!==2) throw new Error('mutation anchor not unique: '+from.slice(0,50)); const sb={ module:{ exports:{} }, window:{ VeroOntology:O, VeroLexicon:window.VeroLexicon, VeroFacts:VF }, performance, console }; vm.runInNewContext(PSRC.replace(from,()=>to),sb); return sb.module.exports; };
+    const tf=(M,q)=>M.turnFrame(M.parse(q,OPTS)), rn=(M,q)=>M.run(q,OPTS).proposal;
+    const retrC=retr[0], v32=PUB.map(p=>String(p.item_code)).find(c=>G(c) && G(c).family==='hub_dock' && (inf||[]).includes(c));
+    const MUT=[
+      ['#1 relativised cable rebind', "if(relObj && t.type==='FORM'", "if(false && t.type==='FORM'", M=>tf(M,'not the one with cable').constraints.some(c=>c.slot==='form')],
+      ['#2 comma relax', "if(!ns && !ps && pv && !pv.negGov", "if(false && !ns && !ps && pv && !pv.negGov", M=>!tf(M,'white, not needed').relax.length],
+      ['#3 require+relax conflict', "if(relaxSlotOf(v)===r.value.relaxSlot){", "if(false){", M=>tf(M,'white pero no need white').constraints.some(c=>c.slot==='colour')],
+      ['#5 versioned negation', "var nIf=s.negated && (s.value.ver||s.value.gen)", "var nIf=false && (s.value.ver||s.value.gen)", M=>tf(M,'not hdmi 2.1').constraints.some(c=>c.slot==='connector:hdmi' && c.polarity===false)],
+      ['#15 generic name guard', "if(nf.length<=1) return true;", "return true;", M=>!!tf(M,'card').subject],
+      ['keep emission', "if(keep.length) T.keep=keep;", "", M=>!('keep' in tf(M,'same wattage'))],
+      ['flags.same emission', "if(sameCue && !T.sameBut) T.flags.same=true;", "", M=>!tf(M,'same but white').flags.same],
+      ['notConnector absence', "(g.conns.all.indexOf(c.id)>=0 || g.conns.feat.indexOf(c.id)>=0)?CONTRA:UNK", "(g.conns.all.indexOf(c.id)>=0 || g.conns.feat.indexOf(c.id)>=0)?CONTRA:CONF", M=>!(M.executeFrame({ subject:{ family:'power_bank' }, constraints:[A('connector','connector:usb_a',{ id:'usb_a' },false)] },OPTS).notStated)],
+      ['connector absence', "var st=inMain?CONF:(g.conns.power.indexOf(c.id)>=0?CONTRA:UNK);", "var st=inMain?CONF:(g.conns.power.indexOf(c.id)>=0?CONTRA:(g.conns.main.length?CONTRA:UNK));", M=>pairs.slice(0,60).some(([c,k])=>M.evalConstraint(c,{ kind:'connector', id:k },OPTS)==='CONTRADICTED')],
+      ['INFERRED counted as exact', "if(r===CONF) conf++; else if(r===INF) inf++;", "if(r===CONF||r===INF) conf++;", M=>rn(M,'usb 3.2 gen 1 hub').kind==='exact'],
+      ['USB naming -> CONFIRMED', "if(usbSame(h,want)) return INF;", "if(usbSame(h,want)) return CONF;", M=>v32 && M.evalConstraint(v32,{ kind:'ifaceVersion', iface:'usb', gen:'3.2g1' },OPTS)==='CONFIRMED'],
+      ['retractable => built-in as CONFIRMED', "g.feats[k].state===CONF) s=INF;", "g.feats[k].state===CONF) s=CONF;", M=>M.evalConstraint(retrC,{ kind:'feature', id:'builtin' },OPTS)==='CONFIRMED'],
+      ['subject-less flood guard (ladder sets)', "if(!F.subject && chosen.length && kind!=='exact'", "if(false && chosen.length && kind!=='exact'", M=>rn(M,'same wattage').kind!=='clarify'],
+      ['subject-less flood guard (none-confirmed)', "if(floods(partialRows.map(function(x){ return x.code; }))) return flood(partialRows.length);", "", M=>M.executeFrame({ subject:null, constraints:[A('feature','feature:dp_alt',true,true)] },OPTS).kind!=='clarify'],
+      ['rank keeps null-metric rows', "return withV.concat(noV);", "return withV;", M=>rn(M,'longest HDMI cable').codes.some(c=>G(c).lengthM==null)===false],
+      ['evidence floor (partial step)', "var posRows=partialRows.filter(function(x){ return admissible(x.code,cons,true); });", "var posRows=partialRows;", M=>rn(M,'hub with 3 HDMI ports').codes.length!==3],
+      ['evidence floor (relax ladder)', "return x.contra===0 && admissible(x.code,keep); });", "return x.contra===0; });", M=>rn(M,'meron 2.5G LAN adapter?').codes.length!==5],
+      ['COUNT counts stated matches', "out.count=(out.exactCodes||[]).length;", "out.count=0;", M=>rn(M,'how many power banks with built-in cable').count===0],
+      ['flood exemption for confirmed defining constraints', "!codes.some(function(code){ return defCons.some(", "!codes.some(function(code){ return false && defCons.some(", M=>rn(M,'usb-c to hdmi dp alt mode').kind==='clarify'],
+      ['USB Gen in graph versions', "if(a && a.t==='gen' && b && b.k==='num' && /^[12]$/.test(b.t)) return { v:ver+'g'+b.t, n:2 };", "", M=>rn(M,'usb 3.2 gen 2 hub').kind==='exact'===false],
+      ['negated value is never a requirement (R2-1)', "!c.polNull && !c.negGov; })); };", "true; })); };", M=>rn(M,'power bank not 2m').kind!=='partial'],
+      ['later GEN token binding (R2-2)', "for(var gi=u3[0].end;gi<toks.length;gi++){", "for(var gi=toks.length;gi<toks.length;gi++){", M=>!/g1$/.test(Object.values(M.graphFor('50751',OPTS).versions).join(' '))],
+      ['bare Gen matches a stated Gen (R3)', "var hg=(h.match(/g(\\d(?:x\\d)?)$/)||[])[1]; if(hg) return 'g'+hg===want?CONF:CONTRA;", "var hg=null;", M=>!(M.run('usb c gen2 cable',OPTS).proposal.codes||[]).includes('80150')],
+      ['negated bare generation unresolved (R3)', "if(vb>=0 && (spans[vb].type==='NEG' || spans[vb].type==='RELAXNEG') && !cut(spans[vb],v)){ v._unres=true; v.impact='high'; return; }", "", M=>tf(M,'usb-c cable not gen 1').constraints.some(c=>/^version:/.test(c.slot) && c.polarity===true)],
+      ['ranking puts stated before inferred (R3)', "(kind==='inferred'&&out.exactCodes?rankCodes(out.exactCodes,F.rank,C).concat(rankCodes(out.inferred||[],F.rank,C)):rankCodes(chosen,F.rank,C))", "rankCodes(chosen,F.rank,C)", M=>{ const p=M.run('cheapest usb 3.0 hub',OPTS).proposal; return (p.inferred||[]).includes(p.codes[0]); }],
+      ['price cache refresh', "if(CAT.priceSig!==ps){ refreshPrices(CAT,products); CAT.priceSig=ps; }", "", M=>{ const P2=PUB.map(p=>Object.assign({},p)), O2={ facts:VF.build(P2), products:P2 }, fr={ subject:{ family:'charger' }, rank:{ metric:'price', dir:'asc' }, constraints:[] };
+        const a=M.executeFrame(fr,O2).codes[0]; P2.find(p=>String(p.item_code)===a).srp='99999'; return M.executeFrame(fr,O2).codes[0]===a; }] ];
+    const survived=MUT.filter(([n,f,t,kill])=>{ try{ return !kill(mutant(f,t)); }catch(e){ return 'error '+e.message; } }).map(x=>x[0]);
+    chk('C1.MUT mutation kills: every C1 rule is load-bearing ('+MUT.length+' mutants of vero-parse.js, each detected)', !survived.length, survived); }
+}
+
 /* ================= I  robustness + contract drift ================= */
 { const odd=['','   ','???','12345','₱','😀 charger','a'.repeat(400),'usb-c to to to hdmi','2 2 2 2 port port','ano ba yan hahaha','to','with with may may','dp dp dp','k k k','0w 0mah 0m','-5m cable','99999999999 mah power bank','hdmi to','to hdmi','"quoted" cable','x'.repeat(30)+' 65w',
     'gen gen gen','x16 x16','not not white','walang walang','kahit kahit','last last','pangalawa pangalawa','pcie pcie pcie','same but','mas','hindi','wala','any','x0','gen0','usb 9.9 gen 9x9'];
@@ -553,5 +723,5 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
   const t=[]; for(let i=0;i<300;i++){ const q=pick(['kahit ilang ports','not white','yung pangalawa','which one is Gen 4?','same but cheaper','PCI-E3.0X4','usb 3.2 gen 2 hub','charger na walang built-in cable'])+pick(['',' po','?']); const s=process.hrtime.bigint(); VP.turnFrame(VP.run(q,OPTS)); t.push(Number(process.hrtime.bigint()-s)/1e6); }
   t.sort((a,b)=>a-b); chk('I4 performance incl. turnFrame: 300 B-matrix turns p95 '+t[Math.floor(t.length*0.95)].toFixed(2)+' ms (budget 15 ms)', t[Math.floor(t.length*0.95)]<=15); }
 
-console.log(`\nVERO v2-1/v2-2B parse tests: ${pass} passed, ${fail} failed`);
+console.log(`\nVERO v2-1/v2-2B/v2-2C-C1 parse tests: ${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
