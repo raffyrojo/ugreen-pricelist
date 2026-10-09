@@ -8,6 +8,8 @@
      AMBIGUOUS      several senses with too small a margin (clarify or surface the interpretation)
    A span with none of these states is a SILENT DROP; the shadow report counts them and v2-1 must keep them at zero.
    SHADOW ONLY: not loaded by index.html, never called by vero-engine.js / vero.js; the live answer path is unchanged.
+   v2-2B (still SHADOW, still unloaded): scope() adds version notation, PCIe lanes, bare generations, negation scope and RELAX;
+   turnFrame(P) projects a parse into the frozen A5 turn-frame contract consumed by VeroDiscourse (js/vero-discourse.js).
    Browser: window.VeroParse; Node: module.exports. Depends on VeroOntology, VeroLexicon, VeroFacts (data only). */
 (function(root){
   'use strict';
@@ -20,7 +22,7 @@
   function ONT(){ return root.VeroOntology||ONT0; }
   function LEX(){ return root.VeroLexicon||LEX0; }
   function VF(){ return root.VeroFacts||VF0; }
-  var VERSION='v2-1';
+  var VERSION='v2-2B';
   function now(){ return (typeof performance!=='undefined' && performance.now)?performance.now():Date.now(); }
   function uniq(a){ var s={}, o=[]; (a||[]).forEach(function(x){ var k=typeof x==='object'?JSON.stringify(x):String(x); if(!s[k]){ s[k]=1; o.push(x); } }); return o; }
   function own(o,k){ return Object.prototype.hasOwnProperty.call(o,k); }
@@ -38,6 +40,10 @@
     for(var i=0;i<2;i++) s=s.replace(/(\d),(\d{3})(?!\d)/g,'$1$2');
     s=s.replace(/\bwi-?fi\b/g,'wifi').replace(/(\w)'s\b/g,'$1s').replace(/'/g,'');
     s=s.replace(/\bpinaka[\s-]+(?=[a-z])/g,'pinaka');
+    /* v2-2B: one spelling for the PCIe interface ("PCI-E", "pci e", "PCI Express" -> "pcie"); split glued versions / lanes
+       inside PCIe notation only ("pci-e3.0x4" -> "pcie 3.0 x4"); keep USB "Gen 2x2" as one generation token */
+    s=s.replace(/\bpci[\s-]?e(?=\d|\b)/g,'pcie').replace(/\bpci[\s-]express\b/g,'pcie').replace(/\bpcie(?=\d)/g,'pcie ');
+    s=s.replace(/\b(pcie (?:gen ?)?\d(?:\.\d)?)x(\d{1,2})\b/g,'$1 x$2').replace(/\bgen ?(\d)x(\d)\b/g,'gen$1x$2');
     /* Taglish verb prefixes on an English stem carry aspect, not product meaning: "nag-increase" -> "increase", "i-recommend" -> "recommend" */
     s=s.replace(/\b(nag|mag|na|ma|pa|pag)-(iba|bago|taas|baba|mura|mahal|ubos|dagdag|bawas|palit|sira|bili|benta|kaiba)\b/g,'$1$2');
     s=s.replace(/\b(?:nag|mag|naka|maka|pag|ipa|mai|pina|i|ma)(?:[a-z]{1,3})?-(?=[a-z]{3})/g,function(m){ return /^(nag|mag|naka|maka|pag|ipa|mai|pina|i|ma)-$/.test(m)||/^(nag|mag)[a-z]{1,3}-$/.test(m)?'':m; });
@@ -92,7 +98,7 @@
     set:['set','kit'], stand:['stand','stands'], pen:['pen'] };
   var FORM_NAME_RE={ cable:/\bcables?\b|\bcord\b/, adapter:/\badapt[eo]rs?\b|\bconverter\b|\bdongle\b/, extender:/\bextender\b/, splitter:/\bsplitter\b/, switcher:/\bswitch(?:er)?\b/,
     enclosure:/\benclosure\b/, extension:/\bextension\b/, set:/\bset\b|\bkit\b/, stand:/\bstand\b/, pen:/\bpen\b/ };
-  var NEG_WORDS=['walang','wala','without','no','hindi','di','non','not','no need','no need for','hindi kailangan','di kailangan','ayaw ng','except','maliban sa'];
+  /* v2-2B: negators come from VeroOntology.NEGATION (clear / existential negate; relax = "not needed"; epistemic = unsure) */
   var GENDER_WORDS={ male:'male', female:'female', lalaki:'male', babae:'female' };
   var TO_WORDS={ to:1, papunta:1, into:1 };
   var PRICE_OPS={ under:'<=', below:'<=', 'less than':'<=', 'mababa sa':'<=', 'hindi lalagpas':'<=', max:'<=', hanggang:'<=', within:'<=', budget:'<=', 'up to':'<=',
@@ -155,7 +161,18 @@
     ['how about','what about','e yung','eh yung','e kung','eh kung','paano kung','paano naman','e di','with a','with my','sa may'].forEach(function(w){ add(w,{ type:'FOLLOWUP', value:{ cue:w }, prio:PRIO.DISCOURSE }); });
     Object.keys(O.METRIC_WORDS).forEach(function(m){ O.METRIC_WORDS[m].forEach(function(w){ if(tokTexts(w).length===1 && notSense(w)) add(w,{ type:'METRIC', value:{ metric:m, word:w }, prio:PRIO.COLOR }); }); });
     Object.keys(O.METRIC_POLARITY).forEach(function(w){ add(w,{ type:'METRIC', value:{ metric:O.METRIC_POLARITY[w][0], dir:O.METRIC_POLARITY[w][1], word:w }, prio:PRIO.COLOR }); });
-    NEG_WORDS.forEach(function(w){ add(w,{ type:'NEG', value:{ neg:true }, prio:PRIO.NEG }); });
+    /* v2-2B structural classes (word classes only; meaning is assigned by scope() from the span sequence) */
+    O.NEGATION.clear.forEach(function(w){ add(w,{ type:'NEG', value:{ neg:true, cls:'clear' }, prio:PRIO.NEG }); });
+    O.NEGATION.existential.forEach(function(w){ add(w,{ type:'NEG', value:{ neg:true, cls:'existential' }, prio:PRIO.NEG }); });
+    O.NEGATION.relax.forEach(function(w){ add(w,{ type:'RELAXNEG', value:{ cue:w }, prio:PRIO.NEG }); });
+    O.NEGATION.epistemic.forEach(function(w){ add(w,{ type:'EPISTEMIC', value:{ cue:w }, prio:PRIO.NEG }); });
+    O.QUANTIFIERS.forEach(function(w){ add(w,{ type:'QUANT', value:{ q:w }, prio:PRIO.NEG }); });
+    O.RELAX_AFTER.forEach(function(w){ add(w,{ type:'RELAXCUE', value:{ cue:w }, prio:PRIO.NEG }); });
+    Object.keys(O.ORDINALS).forEach(function(w){ add(w,{ type:'ORDINAL', value:{ n:O.ORDINALS[w] }, prio:PRIO.FEATURE }); });
+    O.LAST_WORDS.forEach(function(w){ add(w,{ type:'ORDLAST', value:{ word:w }, prio:PRIO.FEATURE }); });
+    ['other','results'].forEach(function(k){ O.REF_KIND[k].forEach(function(w){ add(w,{ type:'REF', value:{ ref:w, kind:k }, prio:PRIO.REF-1 }); }); });
+    O.SELECT_CUES.forEach(function(w){ add(w,{ type:'FOLLOWUP', value:{ cue:w, select:true }, prio:PRIO.DISCOURSE }); });
+    Object.keys(O.COMPARE_MORE).concat(['another']).forEach(function(w){ if(w!=='more') add(w,{ type:'FUNCTION', value:{ role:'comparative' }, prio:PRIO.FUNCTION }); });
     Object.keys(GENDER_WORDS).forEach(function(w){ add(w,{ type:'GENDER', value:{ g:GENDER_WORDS[w] }, prio:PRIO.GENDER }); });
     O.DISCOURSE.forEach(function(w){ if(notSense(w)) add(w,{ type:'DISCOURSE', value:{ id:w }, prio:PRIO.DISCOURSE }); });
     O.REFERENCE.forEach(function(w){ add(w,{ type:'REF', value:{ ref:w }, prio:PRIO.REF }); });
@@ -189,6 +206,8 @@
       for(var j=i;j<toks.length;j++){ node=node.c[toks[j].t]; if(!node) break; if(node.e){ var ce=node.e.filter(function(e){ return e.type==='CONNECTOR'||(e.type==='AMBIG'&&e.value==='dp'); })[0]; if(ce) best={ e:ce, end:j+1 }; } }
       if(best){ var id=best.e.type==='AMBIG'?'dp':best.e.value.id, ver=null;
         var vt=toks[best.end]; if(vt && vt.k==='num' && O.CONNECTORS[id] && (O.CONNECTORS[id].versions||[]).indexOf(vt.t)>=0){ ver=vt.t; best.end++; }
+        /* v2-2B: PCIe versions are canonical generations ("PCI-E3.0" = "Gen 3"; "PCIe Gen 4" = "4.0") */
+        if(id==='pcie'){ if(!ver && vt && vt.t==='gen' && toks[best.end+1] && toks[best.end+1].k==='num'){ ver='gen'+toks[best.end+1].t; best.end+=2; } else if(!ver && vt && vt.k==='num'){ ver=vt.t; best.end++; } ver=ver?O.canonVersion('pcie',ver):null; }
         out.push({ id:id, ver:ver, at:i, end:best.end }); i=best.end-1; }
     }
     return out;
@@ -237,9 +256,11 @@
     var A=F.attrs||{}, pv=A.ports&&A.ports.value;
     var nIn1=(lname.match(/(\d{1,2})[\s-]?in[\s-]?1\b/)||[])[1];
     var plugs=pair?pair.from.slice():uniq(main);
+    /* v2-2B: PCIe lane width from the name (only where the name carries PCIe) */
+    var lanes=null; if(uniq(main.concat(power)).indexOf('pcie')>=0) nt.forEach(function(t){ var lm=t.t.match(/^x(\d{1,2})$/); if(lanes==null && lm && O.LANE_WIDTHS.indexOf(+lm[1])>=0) lanes=+lm[1]; });
     return { code:F.code, model:F.model, family:F.type.family, plug:plugs[0]||null, plugs:plugs, subtype:F.type.subtype||null, name:raw, lname:lname, ntoks:nt.map(function(x){ return x.t; }),
       conns:{ main:uniq(main), power:uniq(power), all:uniq(main.concat(power)), feat:(A.connectors&&A.connectors.value||[]).filter(function(k){ return (A.connectors.named||[]).indexOf(k)<0; }) },
-      pair:pair, versions:versions, feats:feats, targets:uniq(targets), size:size,
+      pair:pair, versions:versions, lanes:lanes, feats:feats, targets:uniq(targets), size:size,
       hzRes:(A.video&&A.video.mentions||[]).filter(function(m){ return m.confirmed && m.hz; }).map(function(m){ return { r:m.r, hz:m.hz }; }),
       watts:A.watts?A.watts.value:null, mah:A.mah?A.mah.value:null, lengthM:A.lengthM?A.lengthM.value:null,
       ports:pv?{ total:pv.total!=null?pv.total:null, byKind:pv.byKind||null }:null, in1:nIn1?+nIn1:null, bays:A.nas&&A.nas.bays!=null?A.nas.bays:null,
@@ -247,6 +268,8 @@
       color:String(p.color||'').toLowerCase().replace(/grey/g,'gray'), srp:num(p.srp), dp:num(p.dp), dpVol:num(p.dp_volume), moq:num(p.moq),
       category:String(p.category||''), section:String(p.sheet_display||'') };
   }
+  /* every token of every NAME-guard class (VeroOntology.NAME_GUARD_CLASSES) */
+  function nameGuard(){ var O=ONT(), g={}; Object.keys(O.NAME_GUARD_CLASSES).forEach(function(k){ O.NAME_GUARD_CLASSES[k].forEach(function(w){ tokTexts(w).forEach(function(t){ g[t]=1; }); }); }); return g; }
   function catalog(facts,products){
     var key=facts&&facts.key; if(CAT && CAT_KEY===key && CAT.n===(products||[]).length) return CAT;
     var t0=now(), O=ONT(), L=LEX(); compileVocab();
@@ -261,7 +284,8 @@
     var V=compileVocab(), freq={};
     order.forEach(function(c){ if(!G[c]) return; uniq(G[c].ntoks).forEach(function(t){ freq[t]=(freq[t]||0)+1; }); });
     var generic={}; (L.nameGeneric||[]).concat(GENERIC_EN).forEach(function(w){ generic[w]=1; });
-    function isGeneric(t){ return generic[t] || V.single[t] || /^\d/.test(t) || t.length<3 || freq[t]>30 || models[t] || codes[t]; }
+    /* v2-2B NAME guard: stock / reference / discourse / function / quantifier / negator / ordinal / interface / lane words are never name tokens */
+    var GUARD=nameGuard(); function isGeneric(t){ return GUARD[t] || generic[t] || V.single[t] || /^\d/.test(t) || t.length<3 || freq[t]>30 || models[t] || codes[t]; }
     var phrases={}, distinct={};
     order.forEach(function(c){ var g=G[c]; if(!g) return; var tk=g.ntoks;
       for(var i=0;i<tk.length;i++){ if(isGeneric(tk[i]) || !/^[a-z][a-z0-9]*$/.test(tk[i])) continue; distinct[tk[i]]=1;
@@ -273,7 +297,9 @@
     var fuzzy={}; Object.keys(V.single).forEach(function(w){ if(w.length>=4 && /^[a-z]+$/.test(w)) fuzzy[w]='vocab'; });
     Object.keys(distinct).forEach(function(w){ if(w.length>=4) fuzzy[w]='name'; });
     var byFam={}; order.forEach(function(c){ var g=G[c]; if(g) (byFam[g.family]=byFam[g.family]||[]).push(c); });
-    CAT={ n:(products||[]).length, cat:cat, byCode:byCode, order:order, G:G, nameTrie:nameTrie, phrases:phrases, fuzzy:fuzzy, byFam:byFam, buildMs:Math.round(now()-t0) };
+    /* v2-2B: families of the products that carry each versioned-interface connector (data-derived) */
+    var connFam={}; order.forEach(function(c){ var g=G[c]; if(!g) return; g.conns.all.forEach(function(k){ if(O.interfaceOf(k)) (connFam[k]=connFam[k]||{})[g.family]=1; }); }); Object.keys(connFam).forEach(function(k){ connFam[k]=Object.keys(connFam[k]); });
+    CAT={ n:(products||[]).length, cat:cat, byCode:byCode, order:order, G:G, nameTrie:nameTrie, phrases:phrases, fuzzy:fuzzy, byFam:byFam, connFam:connFam, buildMs:Math.round(now()-t0) };
     CAT_KEY=key; return CAT;
   }
 
@@ -308,6 +334,9 @@
         Object.keys(O.CONNECTORS).forEach(function(id){ var cd=O.CONNECTORS[id]; if((cd.versions||[]).indexOf(n1.t)>=0 && cd.aliases.indexOf(t.t)>=0) cand(i,i+2,'CONNECTOR',{ id:id, ver:n1.t, versionSyntax:true }); }); }
       if(t.k==='word' && /^(cat)$/.test(t.t) && n1 && n1.k==='num'){ var sid='cat'+n1.t+(n2&&n2.t==='e'?'e':''); if(O.STANDARDS[sid]) cand(i,n2&&n2.t==='e'?i+3:i+2,'STANDARD',{ id:sid }); }
       if(/^(top|first|unang)$/.test(t.t) && n1 && n1.k==='num' && n1.v<=20){ cand(i,i+2,'LIMIT',{ n:n1.v }); }
+      /* v2-2B: a generation notation ("Gen 4", "gen4", "gen2x2"): raw until an interface is bound (BA1) */
+      if(t.t==='gen' && n1 && n1.k==='num' && /^\d$/.test(n1.t)) cand(i,i+2,'VERSION',{ raw:'gen'+n1.t });
+      if(/^gen\dx\d$/.test(t.t)) cand(i,i+1,'VERSION',{ raw:t.t });
       if(t.t==='₱' && n1 && n1.k==='num'){ var kk=n2&&n2.t==='k'; cand(i,kk?i+3:i+2,'PRICE',{ op:'=', v:n1.v*(kk?1000:1) }); }
       if(t.k!=='num') continue;
       var v=t.v;
@@ -349,6 +378,8 @@
     for(var i=0;i<toks.length;i++){
       var t=toks[i];
       if(t.k==='code'){ var codes=C.cat.codes[t.t]?[C.cat.codes[t.t]]:(C.cat.models[t.t]||[]); cands.push({ from:i, to:i+1, entries:[{ type:'ANCHOR', value:{ kind:C.cat.codes[t.t]?'sku':'model', key:t.t, codes:codes }, prio:PRIO.ANCHOR }] }); continue; }
+      /* v2-2B: a lane-width token ("x4", "x16"); scope() keeps it only in PCIe scope (BA7) */
+      var lm=t.k==='word' && t.t.match(/^x(\d{1,2})$/); if(lm && O.LANE_WIDTHS.indexOf(+lm[1])>=0) cands.push({ from:i, to:i+1, entries:[{ type:'LANES', value:{ n:+lm[1] }, prio:PRIO.COMPOSITE }] });
       trieMatches(V.trie,toks,i,true).forEach(function(m){ cands.push(m); });
       trieMatches(C.nameTrie,toks,i,false).forEach(function(m){ cands.push(m); });
       /* named device + its own model modifiers ("macbook air", "iphone 15 pro max") */
@@ -420,7 +451,7 @@
       if(s.type==='ANCHOR'||s.type==='NAME'){ var cs=s.type==='ANCHOR'?s.value.codes:s.value.codes; uniq(cs.map(function(c){ return C.G[c]&&C.G[c].family; })).forEach(function(f){ if(f) fams.push(f); }); } });
     fams=uniq(fams); return fams.length===1?fams[0]:null;
   }
-  var CONTENT_TYPES={ ANCHOR:1, NAME:1, DEVICE:1, DEVICECLASS:1, CONNECTOR:1, CONN_PAIR:1, PORTCOUNT:1, PORTROLE:1, NUMUNIT:1, PRICE:1, RES:1, RATIO:1, NUMBER:1, STANDARD:1, FAMILY:1, FORM:1, FEATURE:1, COLOR:1, FIELD:1, USECASE:1, INTENT:1, AMBIG:1, UNKNOWN:1 };
+  var CONTENT_TYPES={ ANCHOR:1, NAME:1, DEVICE:1, DEVICECLASS:1, CONNECTOR:1, CONN_PAIR:1, PORTCOUNT:1, PORTROLE:1, NUMUNIT:1, PRICE:1, RES:1, RATIO:1, NUMBER:1, STANDARD:1, FAMILY:1, FORM:1, FEATURE:1, COLOR:1, FIELD:1, USECASE:1, INTENT:1, AMBIG:1, UNKNOWN:1, RELAXSLOT:1, VERSION:1, LANES:1, QVALUE:1 };
   function resolveSenses(spans,toks,C,opts,force){
     var O=ONT(), types={}, decisions=[];
     /* role resolution: a word that names both a product family and a device class ("projector", "monitor", "car") is the
@@ -522,7 +553,6 @@
         /* connector + port role ("usb-c power port") */
         var r=spans[i+1]; if(r && r.type==='PORTROLE'){ r.value=Object.assign({},r.value,{ conn:a.value.id }); r.from=a.from; r.text=a.text+' '+r.text; r.children=[a.id]; out.push(r); i++; continue; }
       }
-      if(a.type==='NEG' && spans[i+1] && (spans[i+1].type==='FEATURE'||spans[i+1].type==='CONNECTOR'||spans[i+1].type==='FAMILY')){ var f=spans[i+1]; f.negated=true; f.from=a.from; f.text=a.text+' '+f.text; f.children=[a.id]; out.push(f); i++; continue; }
       if(a.type==='NUMBER' && spans[i+1] && spans[i+1].type==='THOUSAND'){ var th=spans[i+1]; var ns={ type:th.value.dim==='mah'?'NUMUNIT':'PRICE', value:th.value.dim==='mah'?{ unit:'mAh', dim:'mah', v:a.value.v*1000, raw:a.value.v }:{ op:'=', v:a.value.v*1000 },
           from:a.from, to:th.to, id:a.id, children:[a.id,th.id], conf:th.conf, candidates:th.candidates, selected:th.selected, margin:th.margin, senseState:th.senseState, term:'k' };
         ns.text=a.text+' '+th.text; ns.chars=[a.chars[0],th.chars[1]]; out.push(ns); i++; continue; }
@@ -534,6 +564,105 @@
   }
 
   /* =====================================================================================================
+     F2. v2-2B SCOPE (shadow): version notation, PCIe lane scope, bare generations, negation scope, RELAX.
+     Structural only: decided from the span sequence of THIS turn; never from a context, a result set or the catalogue.
+     Marks spans; buildFrame() binds them, turnFrame() projects them into the A5 contract.
+     ===================================================================================================== */
+  var VALUE_TYPES={ COLOR:1, FEATURE:1, CONNECTOR:1, FAMILY:1, FORM:1, NUMUNIT:1, PRICE:1, PORTCOUNT:1, STANDARD:1, CONN_PAIR:1, RES:1 };
+  var NEGATABLE={ COLOR:1, FEATURE:1, CONNECTOR:1, FAMILY:1, FORM:1 };   /* other governed values (numbers, prices, pairs) -> polarity null */
+  var SKIP_WORDS={ po:1, yung:1, ung:1, ang:1, ng:1, the:1, a:1, an:1, kayo:1, kayong:1, tayo:1, tayong:1, ninyo:1, nyo:1, niyo:1, mga:1, na:1, naman:1, ko:1 };
+  var RELATIVISER={ yung:1, ung:1, na:1, ng:1, with:1, w:1, may:1 };
+  var REL_SKIP={ may:1, with:1, one:1, the:1, yung:1, ung:1, ng:1, na:1, w:1, isang:1 };
+  var COUNT_WORDS={ ilan:1, ilang:1, 'how many':1, 'number of':1, 'count of':1 };
+  var STRUCT_SKIP={ FUNCTION:1, SYM:1, REF:1, DISCOURSE:1, FOLLOWUP:1, GENDER:1 };
+  var CLAUSE_WORDS={ pero:1, but:1, tapos:1, then:1 };
+  function scope(spans,toks,norm){
+    var O=ONT(), i, k;
+    /* clause boundary between two spans: punctuation in the normalized text, or a clause conjunction span between them.
+       Negation never crosses it ("hindi po, may white ba?" = "no - do you have white?") */
+    function cut(a,b){ if(!a||!b) return false; if(norm && a.chars && b.chars && /[,.;!]/.test(norm.slice(Math.min(a.chars[1],b.chars[0]),Math.max(a.chars[1],b.chars[0])))) return true;
+      var ia=spans.indexOf(a), ib=spans.indexOf(b), lo=Math.min(ia,ib), hi=Math.max(ia,ib); for(var kk=lo+1;kk<hi;kk++) if(CLAUSE_WORDS[spans[kk].text]) return true; return false; }
+    function drop(x){ x._merged=true; }
+    function absorb(s,n){ s.to=n.to; s.text=s.text+' '+n.text; if(s.chars && n.chars) s.chars=[s.chars[0],n.chars[1]]; s.children=(s.children||[]).concat([n.id]); drop(n); }
+    function nextIdx(i,skip){ for(var k=i+1;k<spans.length;k++){ var x=spans[k]; if(x._merged||x.type==='SYM') continue; if(skip && (x.type==='FUNCTION'||x.type==='REF') && SKIP_WORDS[x.text]) continue; return k; } return -1; }
+    function prevIdx(i){ for(var k=i-1;k>=0;k--){ var x=spans[k]; if(x._merged||x.type==='SYM') continue; return k; } return -1; }
+    function isContent(x){ return x && !x._merged && !STRUCT_SKIP[x.type] && x.type!=='NEG' && x.type!=='QUANT' && x.type!=='EPISTEMIC'; }
+    /* 1. connector + adjacent version notation: "usb-c 3.1", "pcie 4", "usb 3.2 gen 2", "pcie gen 4" (invalid notations are not absorbed) */
+    for(i=0;i<spans.length;i++){ var s=spans[i], ifc=s.type==='CONNECTOR'?O.interfaceOf(s.value.id):null; if(!ifc || s._merged) continue;
+      if(ifc==='pcie' && s.value.ver) s.value=Object.assign({},s.value,{ ver:O.canonVersion('pcie',s.value.ver) });
+      var n1=spans[i+1];
+      if(n1 && n1.type==='NUMBER' && !s.value.ver && !s.value.gen && n1.from===s.to){
+        var okv=ifc==='pcie'?O.canonVersion('pcie',n1.text):((O.CONNECTORS[s.value.id]&&(O.CONNECTORS[s.value.id].versions||[]).indexOf(n1.text)>=0)?n1.text:null);
+        if(okv){ s.value=Object.assign({},s.value,{ ver:okv }); absorb(s,n1); n1=spans[nextIdx(i,false)]; } }
+      if(n1 && n1.type==='VERSION' && !s.value.gen && n1.from===s.to){
+        var g=n1.value.raw.replace(/^gen/,''), cv2=ifc==='pcie'?(s.value.ver?null:O.canonVersion('pcie',n1.value.raw)):O.canonVersion(ifc,(s.value.ver||'')+'g'+g);
+        if(cv2){ s.value=Object.assign({},s.value,ifc==='pcie'?{ ver:cv2 }:{ gen:'g'+g }); absorb(s,n1); } } }
+    spans=spans.filter(function(x){ return !x._merged; });
+    var conns=spans.filter(function(x){ return x.type==='CONNECTOR' && O.interfaceOf(x.value.id); });
+    var pairIfs=[]; spans.forEach(function(x){ if(x.type==='CONN_PAIR') [x.value.from].concat(x.value.to).forEach(function(c){ var f=O.interfaceOf(c.id); if(f) pairIfs.push(f); }); });
+    var ifaces=uniq(conns.map(function(x){ return O.interfaceOf(x.value.id); }).concat(pairIfs));
+    /* 2. lane widths only in PCIe scope (BA7); a lane-only turn stays an unqualified lanes slot for the resolver (C1) */
+    var pcieScope=ifaces.indexOf('pcie')>=0;
+    spans.forEach(function(x){ if(x.type!=='LANES') return;
+      if(pcieScope) x.value=Object.assign({},x.value,{ iface:'pcie' });
+      else if(!spans.some(function(y){ return y!==x && isContent(y); })) x.value=Object.assign({},x.value,{ iface:null });
+      else { x.type='UNKNOWN'; x.value={ word:x.text }; } });
+    /* 3. bare generation ("Gen 4"): bind to the turn's single versioned interface; none -> raw (resolver binds, C2); several ->
+          AMBIGUOUS; impossible for the interface or conflicting with an explicit version -> UNRESOLVED */
+    spans.forEach(function(v){ if(v.type!=='VERSION') return;
+      if(ifaces.length>1){ v._amb=true; return; }
+      if(ifaces.length===1){ var f=ifaces[0], cs=conns.filter(function(x){ return O.interfaceOf(x.value.id)===f; });
+        if(!cs.length || cs.some(function(x){ return x.value.ver || x.value.gen; })){ v._unres=true; return; }
+        var cv=O.canonVersion(f,v.value.raw); if(!cv){ v._unres=true; return; }
+        cs[0].value=Object.assign({},cs[0].value,f==='pcie'?{ ver:cv }:{ gen:cv }); v._slot='constraint.part'; v.boundTo=cs[0].id; return; }
+      if(!Object.keys(O.INTERFACES).some(function(f){ return O.canonVersion(f,v.value.raw); })) v._unres=true; });
+    /* 4. negation scope (BA2: a governed value is never affirmed) */
+    for(i=0;i<spans.length;i++){ var e=spans[i];
+      if(e.type==='EPISTEMIC'){ e._slot='epistemic';
+        for(k=i+1;k<spans.length && k<=i+4;k++){ var ev=spans[k]; if(ev.type==='NEG'||ev.type==='EPISTEMIC'||cut(e,ev)) break; if(VALUE_TYPES[ev.type]){ ev.polNull=true; ev.negGov=e.id; } } continue; }
+      if(e.type!=='NEG') continue;
+      /* a bare "no" / "hindi po" closing its own clause is an answer word: it governs nothing in the next clause */
+      var nx0=spans[nextIdx(i,false)]; if(nx0 && cut(e,nx0)){ e._slot='discourse.answer'; continue; }
+      var q=nextIdx(i,false), qs=spans[q];
+      if(qs && qs.type==='FUNCTION' && O.QUESTION_PARTICLES.indexOf(qs.text)>=0){
+        if(e.value.cls==='existential'){ e._slot='intent.exist'; e.existQ=true; continue; }   /* "wala bang white?" = is there a white one */
+        e._slot='question.yesno'; var yv=spans[nextIdx(q,true)]; if(yv && VALUE_TYPES[yv.type]){ yv._yesNo=true; yv.negGov=e.id; } continue; }
+      var t=spans[nextIdx(i,true)];
+      /* relativised object: "ayaw ko ng MAY cable", "not THE ONE WITH hdmi", "huwag yung may cable" */
+      var ti=nextIdx(i,true); while(t && REL_SKIP[t.text] && /^(FUNCTION|REF|INTENT)$/.test(t.type)){ ti=nextIdx(ti,true); t=spans[ti]; }
+      if(!t || cut(e,t)) continue;
+      if(t.type==='INTENT' && t.value.id==='inventory'){ e._slot='intent.inventory'; continue; }   /* "walang stock" = stock wording */
+      if(!VALUE_TYPES[t.type]) continue;
+      e._slot='negation'; t.negGov=e.id;
+      if(!NEGATABLE[t.type]){ t.polNull=true; continue; }
+      if(e.value.cls==='existential'){ var p=spans[prevIdx(i)];
+        var rel=p && ((RELATIVISER[p.text] && (p.type==='FUNCTION'||p.type==='REF'||p.type==='INTENT')) || /^(FAMILY|FORM|NAME|ANCHOR|DEVICE|DEVICECLASS|FAMILY_ALIAS|FORM_ALIAS)$/.test(p.type));
+        if(rel) t.negated=true; else t.polNull=true; continue; }
+      t.negated=true; }
+    /* 4b. safety net (BA2): a negator whose scope stayed unresolved never lets a nearby value be affirmed -> polarity null */
+    spans.forEach(function(e,ix){ if(e.type!=='NEG' || e._slot) return;
+      for(var k2=ix+1;k2<spans.length && k2<=ix+4;k2++){ var v2=spans[k2]; if(v2.type==='NEG'||v2.type==='EPISTEMIC'||cut(e,v2)) break; if(VALUE_TYPES[v2.type] && !v2.negGov){ v2.polNull=true; v2.negGov=e.id; } } });
+    /* 5. RELAX: quantifier + slot noun, slot noun + "doesn't matter", "not needed" + slot noun / slot value */
+    function relaxSlotOf(x){ if(!x) return null;
+      if(x.type==='FIELD' && O.RELAX_FIELDS[x.value.id]) return O.RELAX_FIELDS[x.value.id];
+      if(x.type==='FEATURE') return 'feature:'+x.value.id; if(x.type==='CONNECTOR') return 'connector:'+x.value.id;
+      if(x.type==='STANDARD') return 'standard:'+x.value.id; if(x.type==='COLOR') return 'colour'; if(x.type==='FORM') return 'form';
+      if(x.type==='NUMUNIT'){ var nd={ watts:'num:watts', mah:'num:mah', length:'num:lengthM', speed:'num:gbps' }[x.value.dim]; if(nd) return nd; }
+      if(x.type==='PRICE') return 'price'; if(x.type==='PORTCOUNT') return 'ports'; return null; }
+    function relaxOn(cue,x,slot){ cue._slot='relax'; x.type='RELAXSLOT'; x.value={ relaxSlot:slot, was:x.value }; x._slot='relax.slot'; x.relaxBy=cue.id; }
+    for(i=0;i<spans.length;i++){ var c=spans[i];
+      if(c.type==='QUANT'){ k=i+1; while(k<spans.length && (spans[k].type==='SYM' || (spans[k].type==='FUNCTION' && !O.COMPARE_MORE[spans[k].text]) || spans[k].type==='REF' || (spans[k].type==='INTENT' && COUNT_WORDS[spans[k].text]))) k++;
+        var sl=spans[k] && spans[k].type==='FIELD' ? relaxSlotOf(spans[k]) : null;
+        if(sl){ for(var m=i+1;m<k;m++) if(spans[m].type==='INTENT'){ spans[m].type='RELAXPART'; spans[m]._slot='relax'; } relaxOn(c,spans[k],sl); continue; }
+        if(spans.some(function(y){ return y!==c && isContent(y); })) c._slot='grammar'; else c._amb=true; continue; }   /* "kahit ano" alone: no slot -> AMBIGUOUS */
+      if(c.type==='RELAXCUE'){ var pv=spans[prevIdx(i)], ps=relaxSlotOf(pv); if(ps) relaxOn(c,pv,ps); else c._unres=true; continue; }
+      /* "not needed" relaxes the value after it, or (nothing after) the value just before it in the same clause ("white not needed") */
+      if(c.type==='RELAXNEG'){ var nv=spans[nextIdx(i,true)], ns=nv && !cut(c,nv)?relaxSlotOf(nv):null, pv=spans[prevIdx(i)], ps=pv && !pv.negGov && !cut(pv,c)?relaxSlotOf(pv):null;
+        if(ns) relaxOn(c,nv,ns); else if(ps) relaxOn(c,pv,ps); else { c._unres=true; for(var k3=i+1;k3<spans.length && k3<=i+4;k3++){ var v3=spans[k3]; if(v3.type==='NEG'||v3.type==='EPISTEMIC'||cut(c,v3)) break; if(VALUE_TYPES[v3.type] && !v3.negGov){ v3.polNull=true; v3.negGov=c.id; } } } } }   /* never affirm a "not needed" value */
+    return spans;
+  }
+
+  /* =====================================================================================================
      G. SEMANTIC FRAME (structural intent, subject, field, constraints)
      ===================================================================================================== */
   var MEASURE_FIELD={ watts:1, mah:1, ports:1, colour:1, length:1, bays:1, speed:1 };
@@ -541,7 +670,7 @@
   function buildFrame(spans,toks,C,opts){
     var O=ONT(), L=LEX();
     var F={ intent:null, why:[], subject:null, field:null, fields:[], constraints:[], rank:null, compare:null, device:null, useCase:null, inventory:null,
-      discourse:[], refs:[], needsContext:false, interpretations:[], negDevice:[] };
+      discourse:[], refs:[], needsContext:false, interpretations:[], negDevice:[], relax:[] };
     function bind(s,slot){ s.slot=slot; }
     var by=function(t){ return spans.filter(function(s){ return s.type===t; }); };
     var anchors=by('ANCHOR'), names=by('NAME'), fams=by('FAMILY'), intents=by('INTENT'), fields=by('FIELD');
@@ -550,6 +679,14 @@
       if(s.type==='FUNCTION'||s.type==='SYM'||s.type==='GENDER'){ bind(s,s.value&&s.value.role==='target'?'device.target':'grammar'); }
       if(s.type==='DISCOURSE'){ F.discourse.push(s.value.id); bind(s,'discourse'); }
       if(s.type==='REF'){ F.refs.push(s.text); bind(s,'reference'); }
+      /* v2-2B structural spans (scope() decided their role) */
+      if(s._slot) bind(s,s._slot);
+      if(s.type==='ORDINAL'){ F.ordinal=s.value.n; F.refPronoun=true; bind(s,'reference.ordinal'); }
+      if(s.type==='REF' && s.value.kind==='other') F.refOther=true;
+      if(s.type==='RELAXSLOT') F.relax.push({ slot:s.value.relaxSlot, span:s.relaxBy });
+      if(s.type==='NEG' && s.existQ) F.existQ=true;
+      if(s._yesNo){ F.yesNo={ field:yesNoField(s), span:s.id }; s.type='QVALUE'; bind(s,'question.value'); }
+      if(s.type==='FOLLOWUP' && s.value.select) F.selectCue=true;
       if(s.type==='FOLLOWUP'){ F.followUp=s.value.cue; if(/^(alin|which|yung alin)\b/.test(s.value.cue) && /\b(dun|doon|diyan|dyan|those|there)\b/.test(s.value.cue)) F.selectCue=true; bind(s,'discourse.followup'); }
       if(s.type==='METRIC'){ F.metricWord=s.value.metric; if(s.value.dir) F.metricPref={ metric:s.value.metric, dir:s.value.dir, word:s.value.word }; bind(s,'metric'); }
       if(s.type==='EXTERNAL'){ F.external=(F.external||[]).concat([s.value.word]); bind(s,'external'); }
@@ -604,7 +741,7 @@
         var pn=spans[k-1]; if(pn && pn.type==='NUMBER'){ d.count=pn.value.v; bind(pn,'device.count'); }
         bind(s,'device');
         /* qualifiers of the device itself: "projector na walang wifi" */
-        for(var q=k+1;q<spans.length && q<=k+3;q++){ var qs=spans[q]; if(qs.type==='FEATURE' && qs.negated){ d.qualifiers=(d.qualifiers||[]).concat(['no '+O.FEATURES[qs.value.id].label]); bind(qs,'device.qualifier'); qs._deviceQual=true; } }
+        for(var q=k+1;q<spans.length && q<=k+3;q++){ var qs=spans[q]; if((qs.type==='FEATURE'||qs.type==='CONNECTOR') && qs.negated){ d.qualifiers=(d.qualifiers||[]).concat(['no '+(qs.type==='FEATURE'?O.FEATURES[qs.value.id].label:connLabel(qs.value))]); bind(qs,'device.qualifier'); qs._deviceQual=true; } }
       }
       if(s.type==='DEVICEMOD'){ bind(s,'device.mod'); }
     });
@@ -636,7 +773,7 @@
         case 'PORTCOUNT': F.constraints.push({ kind:'ports', n:s.value.n, in1:!!s.value.in1, role:fam==='charger'?'charging_output':(fam==='network_switch'?'rj45':'data_port'), span:s.id, hard:true, label:s.value.n+(s.value.in1?'-in-1':'-port') }); bind(s,'constraint'); break;
         case 'CONN_PAIR': F.constraints.push({ kind:'pair', from:s.value.from, to:s.value.to, multiport:fams.some(function(f){ return f.value.family==='hub_dock'; }), span:s.id, hard:true, label:connLabel(s.value.from)+' to '+s.value.to.map(connLabel).join(' + ') }); bind(s,'constraint');
           (s.children||[]).forEach(function(cid){ var cs=spans.filter(function(x){ return x.id===cid; })[0]; if(cs) bind(cs,'constraint.part'); }); break;
-        case 'CONNECTOR': if(s.negated){ F.constraints.push({ kind:'notConnector', id:s.value.id, span:s.id, hard:true, label:'no '+connLabel(s.value) }); bind(s,'constraint'); break; }
+        case 'CONNECTOR': if(s._deviceQual) break; if(s.negated){ F.constraints.push({ kind:'notConnector', id:s.value.id, span:s.id, hard:true, label:'no '+connLabel(s.value) }); bind(s,'constraint'); break; }
           var nxt=spans[spans.indexOf(s)+1], plugRole=!!(nxt && nxt.type==='FAMILY' && /^(hub_dock|card_reader)$/.test(nxt.value.family));
           F.constraints.push({ kind:'connector', id:s.value.id, ver:s.value.ver||null, count:s.value.count||null, role:plugRole?'plug':null, span:s.id, hard:true, label:(s.value.count?s.value.count+'× ':'')+connLabel(s.value) }); bind(s,'constraint'); break;
         case 'PORTROLE': F.constraints.push({ kind:'role', role:s.value.role, conn:s.value.conn||null, span:s.id, hard:true, label:(s.value.conn?connLabel({ id:s.value.conn })+' ':'')+O.PORT_ROLES[s.value.role].label }); bind(s,'constraint'); break;
@@ -648,6 +785,8 @@
           if(s.value.hz) F.constraints.push({ kind:'hz', v:s.value.hz, rank:s.value.rank, span:s.id, hard:false, label:s.value.hz+'Hz' }); bind(s,'constraint'); break;
         case 'RATIO': F.constraints.push({ kind:'nametext', re:'\\b'+s.value.a+' ?to ?'+s.value.b+'\\b', span:s.id, hard:true, label:s.value.a+' to '+s.value.b }); bind(s,'constraint'); break;
         case 'FORM': F.constraints.push({ kind:'form', form:s.value.form, span:s.id, hard:false, label:s.text }); bind(s,'constraint'); break;
+        case 'VERSION': if(s._unres || s._amb || s.boundTo) break; F.constraints.push({ kind:'version', iface:null, raw:s.value.raw, span:s.id, hard:true, label:s.text.replace(/^gen\s?/,'Gen ') }); bind(s,'constraint'); break;
+        case 'LANES': F.constraints.push({ kind:'lanes', n:s.value.n, iface:s.value.iface||null, span:s.id, hard:true, label:'x'+s.value.n }); bind(s,'constraint'); break;
         case 'NAMEMOD': F.constraints.push({ kind:'nametoken', word:s.value.word, span:s.id, hard:true, label:s.text }); bind(s,'constraint'); break;
         case 'QUALIFIER': F.constraints.push({ kind:'nametoken', word:s.value.word, span:s.id, hard:false, label:s.text }); bind(s,'constraint'); break;
         case 'USECASE':
@@ -656,6 +795,15 @@
       }
     });
     if(F.subject && F.subject.family==='lan_cable') F.constraints=F.constraints.filter(function(c){ return !(c.kind==='connector'&&c.id==='rj45'); });
+    /* v2-2B: polarity from scope(): a negated colour / form is an exclusion; a governed value with unclear scope (negated number,
+       bare "walang X", epistemic) is polarity null -> never evaluated as confirmed (BA2) */
+    var spanById={}; spans.forEach(function(x){ spanById[x.id]=x; });
+    F.constraints.forEach(function(c){ var sp=spanById[c.span]; if(!sp) return; if(sp.negGov) c.negGov=sp.negGov;
+      if(sp.polNull){ c.polNull=true; c.label='(unclear: '+c.label+')'; }
+      else if(sp.negated && (c.kind==='colour'||c.kind==='form')){ c.neg=true; c.label='not '+c.label; } });
+    /* v2-2B: a versioned interface whose catalogue products all sit in ONE family implies that family (data-derived, like a cable standard) */
+    if(!F.subject){ var ifc=spans.filter(function(x){ return x.type==='CONNECTOR' && !x.negated && !x.polNull && O.interfaceOf(x.value.id) && C.connFam[x.value.id] && C.connFam[x.value.id].length===1; })[0];
+      if(ifc){ F.subject={ kind:'family', family:C.connFam[ifc.value.id][0], subtype:null, text:ifc.text, via:'interface' }; } }
     /* device target for a product: named device = name evidence; class = hint */
     if(F.device) F.constraints.push({ kind:'device', device:F.device, span:null, hard:false, label:'for '+F.device.label, hint:F.device.kind==='class' });
     /* --- intent (structural) --- */
@@ -707,6 +855,7 @@
     else if(F.useCase || F.device){ F.intent='RECOMMEND'; F.why.push('use case / device only'); }
     else { F.intent='CLARIFY'; F.why.push('no subject, no constraint'); }
     if(F.selectCue && !anchors.length) F.needsContext=true;
+    if(!F.subject && (F.relax.length || F.ordinal || F.refOther || F.yesNo)) F.needsContext=true;
     if(F.intent==='FIND' && !F.subject && !defining && !intents.length && F.constraints.length){ F.needsContext=true; F.elliptical=true; F.why.push('modifier-only phrase -> refinement of an earlier turn'); }
     var resC=F.constraints.filter(function(c){ return c.kind==='res'; })[0]; F.constraints.forEach(function(c){ if(c.kind==='hz' && resC) c.rank=resC.rank; });
     if(!F.rank && F.metricPref && /^(FIND|EXIST|RECOMMEND)$/.test(F.intent)){ var mp=F.metricPref.metric; if(mp==='size'){ var ks2=(L.keySpecs||{})[F.subject&&F.subject.family]||[]; mp=ks2[0]==='mah'?'mah':ks2[0]==='watts'?'watts':ks2[0]==='lengthM'?'length':'price'; }
@@ -716,6 +865,8 @@
     if(has('rankMin')||has('rankMax')){ if(F.intent!=='RANK'){ var rs2=intents.filter(function(s){ return s.value.id==='rankMin'||s.value.id==='rankMax'; })[0]; F.rank={ metric:metricOf(spans,toks,false)||O.RANK_METRICS[rs2.value.word]||'price', dir:rs2.value.id==='rankMin'?'asc':'desc' }; } }
     return F;
   }
+  function yesNoField(s){ if(s.type==='COLOR') return 'colour'; if(s.type==='NUMUNIT') return s.value.dim==='watts'?'watts':s.value.dim==='mah'?'mah':s.value.dim==='length'?'length':'description';
+    if(s.type==='CONNECTOR'||s.type==='CONN_PAIR') return 'connector'; if(s.type==='PORTCOUNT') return 'ports'; if(s.type==='PRICE') return 'price'; return 'description'; }
   function opWord(op,price){ return op==='>='?'at least ':op==='>'?'over ':op==='<='?(price?'under ':'up to '):op==='<'?'under ':op==='~'?'around ':''; }
   function opNear(s,toks){ var after=toks.slice(s.to,s.to+3).map(function(x){ return x.t; }).join(' '), before=toks.slice(Math.max(0,s.from-2),s.from).map(function(x){ return x.t; }).join(' ');
     var k; for(k in MEASURE_OPS){ if((' '+after+' ').indexOf(' '+k+' ')>=0 || (' '+before+' ').indexOf(' '+k+' ')>=0) return MEASURE_OPS[k]; }
@@ -737,11 +888,13 @@
     var S={ BOUND:0, UNCONFIRMABLE:0, UNRESOLVED:0, AMBIGUOUS:0, UNUSED:0 }, meaningful=0, accounted=0, unresolved=[], ambiguous=[], silent=[];
     spans.forEach(function(s){
       if(s.type==='UNKNOWN'){ s.state='UNRESOLVED'; s.slot=null; }
+      else if(s._unres || s.type==='ORDLAST'){ s.state='UNRESOLVED'; s.slot=null; if(s.type==='ORDLAST') s.impact='high'; }   /* v2-2B: "last" has no contract yet; impossible / conflicting version */
+      else if(s._amb){ s.state='AMBIGUOUS'; s.impact='high'; }   /* v2-2B: no-slot quantifier, generation with several interfaces */
       else if(s.type==='AMBIG'){ s.state='AMBIGUOUS'; }
       else if(s.senseState==='AMBIGUOUS' && (s.impact==='high')){ s.state='AMBIGUOUS'; }
       else if(s.slot){ s.state=s.state==='UNCONFIRMABLE'?'UNCONFIRMABLE':'BOUND'; }
       else if(s.type==='NUMBER'){ s.state='UNRESOLVED'; }
-      else if(s.type==='NEG'||s.type==='THOUSAND'||s.type==='UNITWORD'||s.type==='COUNTWORD'){ s.state='UNRESOLVED'; }
+      else if(s.type==='NEG'||s.type==='THOUSAND'||s.type==='UNITWORD'||s.type==='COUNTWORD'||s.type==='RELAXCUE'||s.type==='RELAXNEG'||s.type==='QUANT'||s.type==='VERSION'){ s.state='UNRESOLVED'; }
       else { s.state='UNUSED'; }
       var isContent=!(s.type==='FUNCTION'||s.type==='SYM'||s.type==='GENDER'||s.type==='REF'||s.type==='DISCOURSE');
       if(isContent) meaningful+=(s.to-s.from);
@@ -767,7 +920,10 @@
   var CONF='CONFIRMED', UNK='UNKNOWN', CONTRA='CONTRADICTED';
   function evalC(g,c,C){
     var O=ONT();
+    if(c.polNull) return UNK;   /* v2-2B: unclear negation scope is never confirmed (BA2) */
     switch(c.kind){
+      case 'lanes': return g.lanes==null?UNK:(g.lanes===c.n?CONF:CONTRA);
+      case 'version': return UNK;   /* a generation with no interface cannot be evaluated */
       case 'family': return (g.family===c.family && (!c.subtype||g.subtype===c.subtype))?CONF:CONTRA;
       case 'notFamily': return g.family===c.family?CONTRA:CONF;
       case 'name': return c.codes.indexOf(g.code)>=0?CONF:CONTRA;
@@ -782,9 +938,9 @@
       case 'hz': { var re=new RegExp('\\b'+c.v+' ?hz\\b'); if(re.test(g.lname)) return CONF; if(g.hzRes.some(function(m){ return m.hz>=c.v && (!c.rank || m.r>=c.rank); })) return CONF; return g.hzRes.length?CONTRA:UNK; }
       case 'price': { if(g.srp==null) return UNK; if(c.op==='>=') return g.srp>=c.v?CONF:CONTRA; if(c.op==='~') return Math.abs(g.srp-c.v)<=c.v*0.25?CONF:CONTRA; return g.srp<=c.v?CONF:CONTRA; }
       case 'res': return g.res==null?UNK:(g.res>=c.rank?CONF:CONTRA);
-      case 'colour': return g.color?(g.color.indexOf(c.v)>=0?CONF:CONTRA):UNK;
+      case 'colour': { var cr=g.color?(g.color.indexOf(c.v)>=0?CONF:CONTRA):UNK; return c.neg?(cr===CONF?CONTRA:(cr===CONTRA?CONF:UNK)):cr; }
       case 'standard': { var sd=O.STANDARDS[c.id]; var hit=sd.aliases.some(function(a){ return new RegExp('\\b'+esc(a)+'\\b(?![a-z0-9])').test(g.lname); }); return hit?CONF:(g.family===sd.family?CONTRA:CONTRA); }
-      case 'form': { var fr=FORM_NAME_RE[c.form]; if(!fr) return UNK; if(fr.test(g.lname)) return CONF; if(c.form==='adapter' && /adapter|converter/i.test(g.category)) return CONF; if(c.form==='cable' && /\bcable\b/i.test(g.category)) return CONF; return CONTRA; }
+      case 'form': { var fr=FORM_NAME_RE[c.form]; if(!fr) return UNK; var fo=(fr.test(g.lname) || (c.form==='adapter' && /adapter|converter/i.test(g.category)) || (c.form==='cable' && /\bcable\b/i.test(g.category)))?CONF:CONTRA; return c.neg?(fo===CONF?CONTRA:CONF):fo; }
       case 'connector': {
         if(c.id==='usb'){ var any=/\busb\b|usb-?[abc]\b/.test(g.lname) || g.conns.all.some(function(k){ return /^usb|micro_usb/.test(k); }); return any?CONF:(g.conns.feat.some(function(k){ return /^usb/.test(k); })?UNK:CONTRA); }
         if(c.role==='plug' && g.plugs.length){ if(g.plugs.indexOf(c.id)<0 && !(c.id==='usb' && g.plugs.some(function(k){ return /^usb/.test(k); }))) return CONTRA; }
@@ -831,6 +987,7 @@
   function connAliasRe(id){ var O=ONT(); var a=(O.CONNECTORS[id]||{ aliases:[id] }).aliases.slice().sort(function(x,y){ return y.length-x.length; }); return '(?:'+a.map(esc).join('|')+')'; }
   var RELAX_ORDER=['colour','price','form','nametoken:soft','feature:soft','size','num:lengthM','hz','res','num:gbps','device','role','feature:hard','num:watts','num:mah','ports','connector','standard','nametext','pair','name','family'];
   function relaxKey(c){ if(c.kind==='num') return 'num:'+c.attr; if(c.kind==='feature') return 'feature:'+(c.hard?'hard':'soft'); if(c.kind==='nametoken') return 'nametoken:'+(c.hard?'hard':'soft'); return c.kind; }
+  function isExcl(c){ return !!(c.neg || c.kind==='notConnector' || c.kind==='notFamily'); }
   function baseCodes(F,C){
     var s=F.subject;
     if(s && s.codes) return s.codes.filter(function(c){ return C.G[c]; });
@@ -864,7 +1021,7 @@
     if(!F.subject && F.needsContext){ out.route='CONTEXT'; out.kind='needs-context'; out.notes.push('Reference to an earlier turn: context resolution is v2-2 (QueryPlan delta).'); if(F.intent==='INVENTORY') out.notes.push('Wala akong live inventory data; I can only confirm what is listed in the current pricelist.'); return fin(); }
     if(F.intent==='CLARIFY' || (F.intent==='RECOMMEND' && !F.subject && !cons.filter(function(c){ return c.kind!=='device'; }).length && !(F.device&&F.device.kind==='named'))){ out.route='CLARIFY'; out.kind='clarify'; out.notes.push(F.useCase?'Which product type for '+O.USE_CASES[F.useCase].label+'?':'Which product type or SKU?'); return fin(); }
     if(!F.subject && F.needsContext){ out.route='CONTEXT'; out.kind='needs-context'; out.notes.push('Reference to an earlier turn: context resolution is v2-2 (QueryPlan delta).'); return fin(); }
-    var unresolvedHard=P.ledger.unresolved.filter(function(u){ return u.kind==='name-like' || /FAMILY|NAME|FORM|ANCHOR/.test(u.adjacentTo); });
+    var unresolvedHard=P.ledger.unresolved.filter(function(u){ return u.kind==='name-like' || u.kind==='neg' || u.kind==='relaxneg' || /FAMILY|NAME|FORM|ANCHOR/.test(u.adjacentTo); });   /* v2-2B: an unresolved negator blocks a confident exact answer */
     var ambHigh=P.ledger.ambiguous;
     if(ambHigh.length){ out.route='CLARIFY'; out.kind='clarify'; out.notes.push('Ambiguous: '+ambHigh.map(function(a){ return '"'+a.text+'" ('+a.candidates.join(' / ')+')'; }).join('; ')); return fin(); }
     if(!F.subject && !cons.length && unresolvedHard.length){ out.kind='not-found'; out.route='LOCAL'; out.notes.push('Wala akong nakitang "'+unresolvedHard.map(function(u){ return u.text; }).join(' ')+'" sa pricelist names (unknown word, not inherited).'); return fin(); }
@@ -916,7 +1073,7 @@
     if(!chosen.length && cons.length){
       var order=cons.map(function(c,i){ return { c:c, i:i, r:RELAX_ORDER.indexOf(relaxKey(c)) }; }).sort(function(a,b){ return a.r-b.r; });
       for(var k=0;k<order.length && !chosen.length;k++){
-        var drop=order[k].c; if(drop.kind==='pair') continue;
+        var drop=order[k].c; if(drop.kind==='pair' || isExcl(drop)) continue;   /* v2-2B: an exclusion is never relaxed */
         var keep=cons.filter(function(c){ return c!==drop; });
         var rows=scoreSet(baseCodes(F,C),keep,C).filter(function(x){ return x.contra===0; });
         if(drop.kind==='num' && rows.length){ var near=rows.map(function(x){ var g=C.G[x.code], v=metricVal(g,drop.attr==='lengthM'?'length':drop.attr==='gbps'?'speed':drop.attr); return { code:x.code, d:v==null?Infinity:Math.abs(v-drop.v) }; }).filter(function(x){ return x.d<Infinity; });
@@ -931,6 +1088,8 @@
       if(wide.length){ chosen=wide; kind='closest'; out.notes.push('No exact match for '+cons.map(function(c){ return c.label; }).join(' + ')+'; closest options in '+(F.subject.text||'this line')+':'); }
     }
     if(!chosen.length && !cons.length && base.length){ chosen=base; kind='exact'; }
+    /* v2-2B EXCLUDE integrity: whatever ladder step produced the set, no product that carries an excluded value is proposed */
+    var excl=cons.filter(isExcl); if(excl.length && chosen.length){ var kept=chosen.filter(function(code){ return excl.every(function(c){ return evalC(C.G[code],c,C)!==CONTRA; }); }); if(kept.length<chosen.length) out.ladder.push({ step:'exclusion-filter', removed:chosen.length-kept.length }); chosen=kept; }
     if(!chosen.length){ kind='none'; out.ladder.push({ step:'none' }); out.notes.push('Wala tayong '+(lab([])||'match')+' sa current pricelist (checked: exact, alternative senses, unconfirmed, direction, relaxed, family).'); }
     /* coverage guard: an unresolved hard qualifier blocks a confident exact answer */
     if(kind==='exact' && unresolvedHard.length){ kind='partial'; out.notes.push('Hindi ko nabasa ang "'+unresolvedHard.map(function(u){ return u.text; }).join(' ')+'": showing matches without it.'); out.unconfirmed=out.unconfirmed.concat(unresolvedHard.map(function(u){ return u.text; })); }
@@ -1055,7 +1214,7 @@
     var head=String(text).split('|').map(function(x){ return x.trim(); }).map(function(seg){ var i=seg.indexOf(':'); return i>=0?seg.slice(0,i):(/^using\b/i.test(seg)?seg.replace(/^using\s*/i,''):seg); }).join(' . ');
     if(String(text).indexOf(':')<0 && !/^using\b/i.test(String(text)) && !opts.isLabel) return res;
     var norm=normalizeQ(head).replace(/(^|\. )\d+\s+(?:na\s+)?/g,'$1').replace(/≥\s?/g,'at least ').replace(/≤\s?/g,'up to ').replace(/>\s?(?=\d)/g,'over ').replace(/<\s?(?=\d)/g,'under ');
-    var toks=tokenize(norm,null), spans=recognize(norm,toks,C,{}); resolveSenses(spans,toks,C,{},null); spans=grammar(spans,toks);
+    var toks=tokenize(norm,null), spans=recognize(norm,toks,C,{}); resolveSenses(spans,toks,C,{},null); spans=scope(grammar(spans,toks),toks,norm);
     var claims=[], mixedHubDock=/\bhubs? (?:and|or|\/) dock|hub\/dock|hubs and docking stations|hubs? or docking/.test(norm);
     function opBefore(s){ var i=spans.indexOf(s), p=spans[i-1], n=spans[i+1]; if(n && n.type==='SYM' && n.value.sym==='+') return '>=';
       if(p && (p.type==='OPERATOR'||p.type==='INTENT'||p.type==='FUNCTION')){ var w=p.text; if(MEASURE_OPS[w]) return MEASURE_OPS[w]; if(PRICE_OPS[w]) return PRICE_OPS[w]; if(/^(over|above)$/.test(w)) return '>'; if(/^(under|below)$/.test(w)) return '<'; } return '='; }
@@ -1084,6 +1243,126 @@
   }
 
   /* =====================================================================================================
+     L. v2-2B TURN FRAME: projection of one parse into the frozen A5 contract consumed by VeroDiscourse (js/vero-discourse.js).
+     Reads ONLY this turn's parse (spans, frame, ledger). Never a SessionContext, a shown / candidate list, the catalogue result
+     set, prices, stock state or AI output. Closed-world keys:
+       { intent, subject, constraints, fields, flags, relax, ref, metric, rank, sameBut, ledger }
+     Contract rules applied here: C1 (ports / lanes unqualified unless THIS turn names a family / interface with a safe
+     qualifier), C2 (generation without interface -> slot 'version', interface null, raw notation), C3 (typed prices),
+     C4 (v2-1 field names mapped here), C6 (no forbidden keys: ledger carries span ids only, never text).
+     ===================================================================================================== */
+  /* port role a family named IN THE SAME TURN safely determines (B owns this; elliptical turns stay unqualified, C1) */
+  var PORT_ROLE_BY_FAMILY={ charger:'charging_output', power_bank:'charging_output', network_switch:'rj45', hub_dock:'data_port' };
+  var METRIC_OF_FIELD={ watts:'watts', mah:'mah', length:'length', ports:'ports', price:'price', srp:'price', dp:'price', speed:'speed' };
+  function metricName(m){ return m==='speed'?'gbps':m; }
+  function comparative(P){
+    var O=ONT(), sp=P.spans.filter(function(s){ return s.type!=='SYM'; }), norm=' '+P.norm+' ', base=null, cue=-1, i;
+    function speedPick(){ var k; for(k in O.SPEED_CUES){ if(O.SPEED_CUES[k].some(function(w){ return norm.indexOf(' '+w+' ')>=0; })) return k; } return null; }
+    for(i=0;i<sp.length && !base;i++){ var s=sp[i], tx=s.text, nx=sp[i+1];
+      if(O.JUDGEMENT_WORDS.indexOf(tx)>=0) return { judgement:true };
+      if(/^(alin mas|alin ang mas)$/.test(tx) && nx){
+        if(O.JUDGEMENT_AFTER.indexOf(nx.text)>=0) return { judgement:true };
+        if(nx.type==='METRIC'){ var pl=O.METRIC_POLARITY[nx.text]; base=pl?{ metric:pl[0], dir:pl[1] }:(nx.value.dir?{ metric:nx.value.metric, dir:nx.value.dir }:{ metric:nx.value.metric, dir:'desc' }); if(base.metric==='speed') base={ dir:base.dir, speed:true }; cue=i+1; } continue; }
+      if(O.COMPARATIVES[tx]){ base=O.COMPARATIVES[tx]; cue=i; continue; }
+      if(O.COMPARE_MORE[tx] && nx && ((nx.type==='FIELD' && METRIC_OF_FIELD[nx.value.id]) || nx.type==='METRIC')){
+        var mm=nx.type==='FIELD'?METRIC_OF_FIELD[nx.value.id]:nx.value.metric; base=mm==='speed'?{ dir:O.COMPARE_MORE[tx], speed:true }:{ metric:mm, dir:O.COMPARE_MORE[tx] }; cue=i+1; } }
+    if(!base) return null;
+    /* an explicit measure noun in the turn narrows a generic comparative ("mas mataas na wattage") */
+    var noun=null; sp.forEach(function(s,k){ if(noun || k<cue) return; if(s.type==='FIELD' && METRIC_OF_FIELD[s.value.id] && METRIC_OF_FIELD[s.value.id]!=='speed') noun=METRIC_OF_FIELD[s.value.id]; });
+    var out={ dir:base.dir };
+    if(base.metric) out.metric=base.metric;
+    else if(noun) out.metric=noun;
+    else if(base.speed){ var sk=speedPick(); if(sk) out.metric=sk; else out.candidates=['gbps','watts']; }
+    else out.candidates=base.candidates.slice();
+    out._noun=cue;   /* internal: index of the span used as the measure cue (removed before output) */
+    return out;
+  }
+  function turnFrame(P){
+    var O=ONT(), F=P.frame, C=P._C, spans=P.spans;
+    var T={ intent:F.intent, subject:null, constraints:[], fields:[], flags:{}, relax:[], ref:null, metric:null, rank:null, sameBut:false, ledger:[] };
+    /* subject: anchors (sku / model / product line) or the family named in this turn */
+    var S=F.subject, famOf=function(codes){ var f=uniq(codes.map(function(c){ return C.G[c]&&C.G[c].family; }).filter(Boolean)); return f.length===1?f[0]:null; };
+    if(S && (S.kind==='sku'||S.kind==='model'||S.kind==='anchors'||S.kind==='name')){
+      var an=spans.filter(function(s){ return s.type==='ANCHOR'; }).map(function(s){ return { kind:s.value.kind, codes:s.value.codes.slice() }; });
+      if(!an.length) an=[{ kind:'name', codes:S.codes.slice() }];
+      T.subject={ family:famOf(S.codes), anchors:an };
+    } else if(S && S.family){ T.subject={ family:S.family }; if(S.subtype) T.subject.subtype=S.subtype; }
+    var explicitFam=S && (S.kind==='family'||S.kind==='subtype') && S.via!=='interface' ? S.family : null;
+    /* constraints (C4 mapping); polarity: false = EXCLUDE, null = unclear scope; a governed value is never true (BA2) */
+    var ifs={};
+    function pol(c){ var p=c.polNull?null:((c.neg||c.kind==='notConnector'||c.kind==='notFamily')?false:true); return (p===true && c.negGov)?null:p; }
+    function add(kind,slot,value,c,x){ var o={ kind:kind, slot:slot, value:value, polarity:pol(c), hard:!!c.hard, source:{ span:c.span } }; if(x) Object.keys(x).forEach(function(k){ o[k]=x[k]; }); T.constraints.push(o); return o; }
+    F.constraints.forEach(function(c){
+      switch(c.kind){
+        case 'num': add('num','num:'+c.attr,c.v,c,{ op:c.op||'=' }); break;
+        case 'ports': add('ports',c.in1?'ports:in1':(explicitFam && PORT_ROLE_BY_FAMILY[explicitFam]?'ports:'+PORT_ROLE_BY_FAMILY[explicitFam]:'ports'),c.n,c,c.op?{ op:c.op }:null); break;
+        case 'connector': case 'notConnector': {
+          var f=O.interfaceOf(c.id), v={ id:c.id }; if(c.count) v.count=c.count; if(c.role) v.role=c.role;
+          var pc=pol(c); add('connector','connector:'+c.id,v,c,f && pc===true?{ interfaces:[f] }:null); if(f && pc===true) ifs[f]=1;   /* only an affirmed connector declares its interface */
+          var sp=spans.filter(function(s){ return s.id===c.span; })[0], gen=sp&&sp.value&&sp.value.gen;
+          var raw=c.id==='usb4'?'4':(f==='usb'?((c.ver||'')+(gen||'')):(c.ver||gen||null)), cv=f&&raw?O.canonVersion(f,raw):null;
+          if(cv) add('version','version:'+f,{ interface:f, generation:cv },c);
+          break; }
+        case 'pair': { var pf=pol(c)!==true?[]:uniq([c.from.id].concat(c.to.map(function(t){ return t.id; })).map(function(k){ return O.interfaceOf(k); }).filter(Boolean)); pf.forEach(function(x){ ifs[x]=1; });
+          add('pair','pair',{ from:c.from.id, to:c.to.map(function(t){ return t.id; }) },c,pf.length?{ interfaces:pf }:null); break; }
+        case 'feature': add('feature','feature:'+c.id,true,c); break;
+        case 'colour': add('colour','colour',c.v,c); break;
+        case 'standard': add('standard','standard:'+c.id,c.id,c); break;
+        case 'form': add('form','form',c.form,c); break;
+        case 'price': add('price','price',c.v,c,{ op:c.op, typed:true }); break;
+        case 'name': add('name','name:'+c.phrase.replace(/\s+/g,'_'),{ codes:c.codes.slice() },c); break;
+        case 'family': case 'notFamily': add('family','family',c.subtype?{ family:c.family, subtype:c.subtype }:{ family:c.family },c); break;
+        case 'component': add('component','component:'+c.family,c.family,c); break;
+        case 'role': add('role','role:'+c.role,c.conn?{ role:c.role, conn:c.conn }:{ role:c.role },c); break;
+        case 'res': add('res','res',c.rank,c); break;
+        case 'hz': add('hz','hz',c.v,c); break;
+        case 'size': add('size','size',c.v,c); break;
+        case 'nametoken': add('nametoken','nametoken:'+c.word.replace(/\s+/g,'_'),c.word,c); break;
+        case 'nametext': add('nametext','nametext',c.re,c); break;
+        case 'version': add('version','version',{ interface:null, generation:c.raw },c); break;   /* C2 + BA1: raw until bound */
+        case 'lanes': add('lanes',c.iface?'lanes:'+c.iface:'lanes',c.n,c); if(c.iface) ifs[c.iface]=1; break;
+        /* 'device' is a routing hint (named device / device class), never a product constraint: it stays in the ledger as BOUND */
+      } });
+    var ifl=Object.keys(ifs); if(T.subject && ifl.length===1) T.subject.interface=ifl[0];
+    /* fields, minus a measure noun used as the comparative's metric ("more ports") or a yes/no value */
+    var M=comparative(P);
+    T.fields=uniq(F.fields.filter(function(fid){ return !(M && M.metric && M.metric!=='price' && METRIC_OF_FIELD[fid]===M.metric); }));
+    if(F.yesNo && T.fields.indexOf(F.yesNo.field)<0) T.fields.push(F.yesNo.field);
+    /* RELAX (ports qualified only from a family named in this turn) */
+    F.relax.forEach(function(r){ var sl=r.slot==='ports' && explicitFam && PORT_ROLE_BY_FAMILY[explicitFam]?'ports:'+PORT_ROLE_BY_FAMILY[explicitFam]:r.slot; if(!T.relax.some(function(x){ return x.slot===sl; })) T.relax.push({ slot:sl, span:r.span }); });
+    /* comparative / judgement / sameBut (sameBut only with a METRIC comparative, BA8) */
+    if(M){ delete M._noun; T.metric=M; }
+    var sameCue=spans.some(function(s){ return s.type==='FOLLOWUP' && O.SAME_BUT.indexOf(s.value.cue)>=0; });
+    if(sameCue && M && !M.judgement && (M.metric || (M.candidates && M.candidates.length))) T.sameBut=true;
+    if(F.rank && F.rank.metric) T.rank={ metric:metricName(F.rank.metric), dir:F.rank.dir||'asc' };
+    /* structural reference (the resolver, not the parser, maps it onto shown / focus / comparison) */
+    var focusRef=spans.some(function(s){ return s.type==='REF' && O.REF_KIND.focus.indexOf(s.text)>=0; }), resRef=spans.some(function(s){ return s.type==='REF' && s.value.kind==='results'; });
+    /* a select cue the lexicon already lists as a plain follow-up ("alin dito") is still a select cue in the contract (projection only) */
+    var selCue=F.selectCue || spans.some(function(s){ return s.type==='FOLLOWUP' && O.SELECT_CUES.indexOf(s.value.cue)>=0; });
+    if(selCue) F=Object.assign({},F,{ selectCue:true });
+    if(F.ordinal) T.ref={ kind:'ordinal', n:F.ordinal };
+    else if(F.refOther) T.ref={ kind:'other' };
+    else if(F.selectCue || (resRef && F.refPronoun)) T.ref={ kind:'results' };
+    else if(focusRef && F.refPronoun) T.ref={ kind:'focus' };
+    else if(F.yesNo) T.ref={ kind:'focus' };
+    /* flags: booleans only (v2-1 keeps the follow-up cue text; the contract never carries text) */
+    ['needsContext','elliptical','refPronoun','selectCue','followUp'].forEach(function(k){ if(F[k]) T.flags[k]=true; });
+    /* intent */
+    if(T.sameBut) T.intent='ALTERNATIVE';
+    else if(F.yesNo) T.intent='ATTRIBUTE';
+    else if(F.existQ && (T.intent==='FIND'||T.intent==='CLARIFY')) T.intent='EXIST';
+    else if(T.intent==='CLARIFY' && (T.constraints.length || T.relax.length || T.ref || T.metric)) T.intent='FIND';
+    else if(T.intent==='ATTRIBUTE' && T.metric && !T.fields.length) T.intent='FIND';   /* the measure noun was the comparative's metric */
+    /* ledger: span ids + states only */
+    spans.forEach(function(s){ var l={ span:s.id, state:s.state };
+      if(s.state==='UNRESOLVED') l.nameShaped=!!(s.type==='UNKNOWN' && nameLike(s,spans));
+      if(s.state==='UNRESOLVED' && s.impact==='high') l.impact='high';
+      if(s.state==='AMBIGUOUS') l.impact=s.impact==='low'?'low':(s.impact==='medium'?'high':(s.impact||'high'));
+      T.ledger.push(l); });
+    return T;
+  }
+
+  /* =====================================================================================================
      K. PUBLIC API
      ===================================================================================================== */
   function parse(q,opts){
@@ -1093,7 +1372,7 @@
     var norm=normalizeQ(q), toks=tokenize(norm,C.cat);
     var spans=recognize(norm,toks,C,opts);
     var senses=resolveSenses(spans,toks,C,opts,opts._force||null);
-    spans=grammar(spans,toks);
+    spans=scope(grammar(spans,toks),toks,norm);
     var frame=buildFrame(spans,toks,C,opts);
     var P={ v:VERSION, q:q, norm:norm, tokens:toks.map(function(t){ return { t:t.t, k:t.k }; }), spans:spans, senses:senses, frame:frame, _C:C };
     P.ledger=ledger(spans,frame);
@@ -1110,11 +1389,11 @@
   function stripFrame(F){ var o={}; Object.keys(F).forEach(function(k){ if(k==='constraints') o[k]=F[k].map(function(c){ var x={}; Object.keys(c).forEach(function(z){ if(z!=='codes') x[z]=c[z]; }); if(c.codes) x.nCodes=c.codes.length; return x; }); else if(k==='subject' && F[k]){ o[k]=Object.assign({},F[k]); if(o[k].codes && o[k].codes.length>20){ o[k].nCodes=o[k].codes.length; o[k].codes=o[k].codes.slice(0,20); } } else o[k]=F[k]; }); return o; }
 
   var API={ version:VERSION, normalize:normalizeQ, tokenize:function(q,opts){ var C=opts&&opts.facts?catalog(opts.facts,opts.products):null; return tokenize(normalizeQ(q),C?C.cat:null); },
-    parse:parse, execute:function(P,opts){ P.proposal=execute(P,opts||{}); return P.proposal; }, run:run, report:report,
+    parse:parse, turnFrame:turnFrame, execute:function(P,opts){ P.proposal=execute(P,opts||{}); return P.proposal; }, run:run, report:report,
     catalog:catalog, resetCache:function(){ CAT=null; CAT_KEY=null; }, graphFor:function(code,opts){ var C=catalog(opts.facts,opts.products); return C.G[code]||null; },
     evalConstraint:function(code,c,opts){ var C=catalog(opts.facts,opts.products); return evalC(C.G[code],c,C); },
     buildLabel:function(codes,frame,opts){ return buildLabel(codes,frame,catalog(opts.facts,opts.products)); }, auditLabel:auditLabel,
-    dl1:dl1, _compileVocab:compileVocab, _altSenses:altSenses, STATES:['BOUND','UNCONFIRMABLE','UNRESOLVED','AMBIGUOUS'] };
+    dl1:dl1, _compileVocab:compileVocab, _nameGuard:nameGuard, _altSenses:altSenses, STATES:['BOUND','UNCONFIRMABLE','UNRESOLVED','AMBIGUOUS'] };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroParse=API;
 })(typeof window!=='undefined'?window:globalThis);

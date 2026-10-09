@@ -418,7 +418,7 @@ const run=(f,c,o)=>{ const r=R.resolve(f,c,OPTS(o)); if(!accountable(r,c,f)) thr
   const ints=['FIND','ATTRIBUTE','INVENTORY','ALTERNATIVE','SMALLTALK','NODATA','COMPARE'].filter(k=>!src.includes("F.intent='"+k+"'") && !src.includes("intent:'"+k+"'"));
   chk('V2 the intent names consumed by the contract exist in v2-1', !ints.length, ints);
   chk('V3 the ledger states consumed by the contract are the v2-1 states', eq(VP.STATES,['BOUND','UNCONFIRMABLE','UNRESOLVED','AMBIGUOUS']));
-  chk('V4 V2-2B still owes: relax / ref / metric / version / lanes / sameBut / choice / slot keys (not emitted by v2-1 yet; documented, not faked)', !/\brelax\s*:/.test(src) && !/\bsameBut\b/.test(src)); }
+  chk('V4 V2-2B emits relax / ref / metric / version / lanes / sameBut / slot keys through VeroParse.turnFrame (the parser owns the A5 projection)', typeof VP.turnFrame==='function' && /\brelax\s*:/.test(src) && /\bsameBut\b/.test(src)); }
 
 /* ================= W  regressions from the V2-2A VERO review (real v2-1 shapes + blocking D1–D5, C1, C2) ================= */
 { const c65=ctxOf({ cons:[W65], shown:S4, candidates:S4 });

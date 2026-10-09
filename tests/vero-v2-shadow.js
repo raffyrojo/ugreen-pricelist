@@ -9,6 +9,7 @@
      DIFF     SAME_OK / SAME_FAIL / V2_BETTER / V2_WORSE on gold (route + code check); constraints v2 bound that the current
               plan has no slot for ("current silent drop"); misleading-label and false-"wala" checks for both sides.
    Follow-up turns (contextFrom / seq position > 1) are COVERAGE-ONLY in v2-1: discourse/delta is v2-2.
+   V2-2B: S03 reads the gate SHADOW map (fail closed); RT1-RT6 ratchets and the EX1 EXCLUDE-integrity audit are gating.
    Shadow purity: engine answers are captured BEFORE vero-ontology / vero-parse are loaded and compared AFTER the run.
    Exit 1 on: purity failure, any silent span drop, any V2_WORSE turn, any v2 label-integrity violation, any v2 false
    "wala", any v2 inventory-safety failure. */
@@ -55,7 +56,28 @@ ITEMS.forEach(it=>{ const key=it.set+':'+it.id; const ctx=it.prev?{ lastField:la
 const AFTER=sigOf(runCurrent());
 chk('S01 shadow purity: current engine answers identical before/after v2 ('+ITEMS.length+' turns: type, codes, note, echo, stock note, route, candidates)', BEFORE===AFTER);
 chk('S02 shadow purity: products.json objects not mutated', JSON.stringify(ALL)===productsBefore);
-chk('S03 shadow purity: v2 files not referenced by index.html / vero-engine.js / vero.js', !/vero-parse|vero-ontology|VeroParse|VeroOntology/.test(fs.readFileSync(path.join(ROOT,'index.html'),'utf8')+fs.readFileSync(path.join(ROOT,'js','vero-engine.js'),'utf8')+fs.readFileSync(path.join(ROOT,'js','vero.js'),'utf8')));
+/* S03 (generalised, BA9): the dormant-module list is READ from the gate's single SHADOW map + ORDER (fail closed); same token
+   semantics as gate G23 (exact basenames without .js + exact-case globals, escaped) over index.html + all 7 load-order files */
+const GATE=fs.readFileSync(path.join(__dirname,'vero-asset-checks.py'),'utf8');
+function gateMaps(src){
+  const sh=src.split(/\r?\n/).filter(l=>/^\s*SHADOW\s*(=|\[|\.|\+)/.test(l)), or=src.split(/\r?\n/).filter(l=>/^\s*ORDER\s*(=|\[|\.|\+)/.test(l));
+  if(sh.length!==1 || or.length!==1) throw new Error('SHADOW / ORDER definitions: '+sh.length+' / '+or.length);
+  const sm=sh[0].match(/^SHADOW\s*=\s*\{([^{}]*)\}\s*(?:#.*)?$/), om=or[0].match(/^ORDER\s*=\s*\[([^\[\]]*)\]\s*(?:#.*)?$/); if(!sm||!om) throw new Error('not one-line literals');
+  const shadow=[], order=[]; const r1=sm[1].replace(/'([^'\\]+)'\s*:\s*'([^'\\]+)'\s*(?:,|$)/g,(m,a,b)=>{ shadow.push([a,b]); return ''; }), r2=om[1].replace(/'([^'\\]+)'\s*(?:,|$)/g,(m,a)=>{ order.push(a); return ''; });
+  if(r1.trim()||r2.trim()||!shadow.length) throw new Error('malformed entries');
+  if(order.length!==7 || new Set(order).size!==7) throw new Error('ORDER must list 7 distinct runtime files');
+  if(new Set(shadow.map(x=>x[0])).size!==shadow.length || new Set(shadow.map(x=>x[1])).size!==shadow.length) throw new Error('duplicate SHADOW entry');
+  shadow.forEach(([a,b])=>{ if(!/^js\/[\w-]+\.js$/.test(a)||!/^[A-Z][A-Za-z0-9]+$/.test(b)||!fs.existsSync(path.join(ROOT,a))) throw new Error('bad SHADOW entry '+a); });
+  order.forEach(a=>{ if(!fs.existsSync(path.join(ROOT,a))) throw new Error('ORDER file missing '+a); });
+  [['js/vero-ontology.js','VeroOntology'],['js/vero-parse.js','VeroParse'],['js/vero-discourse.js','VeroDiscourse']].forEach(k=>{ if(!shadow.some(x=>x[0]===k[0]&&x[1]===k[1])) throw new Error('known v2 module missing '+k[0]); });
+  return { shadow, order }; }
+let GM=null; try{ GM=gateMaps(GATE); }catch(e){ GM={ err:e.message }; }
+const G23T=GM.err?[]:[...new Set(GM.shadow.map(x=>path.basename(x[0]).slice(0,-3)).concat(GM.shadow.map(x=>x[1])))], G23R=new RegExp(G23T.map(t=>t.replace(/[.*+?^$\{}()|[\]\\]/g,'\\$&')).join('|')||'(?!)','g');
+const s03hits=GM.err?['('+GM.err+')']:['index.html'].concat(GM.order).reduce((a,f)=>a.concat((fs.readFileSync(path.join(ROOT,f),'utf8').match(G23R)||[]).map(m=>f+':'+m)),[]);
+chk('S03 shadow purity: gate SHADOW files/globals ('+G23T.join(', ')+') referenced by NO live file (index.html + '+(GM.order?GM.order.length:0)+' load-order scripts)', !GM.err && G23T.length>=6 && !s03hits.length, s03hits);
+const GL=GATE.split(/\r?\n/), iS=GL.findIndex(l=>/^SHADOW\s*=/.test(l)), iO=GL.findIndex(l=>/^ORDER\s*=/.test(l)), mut=(i,fn)=>GL.map((l,k)=>k===i?fn(l):l).join('\n');
+const S03MAL=[GL.filter((l,k)=>k!==iS).join('\n'),GL.concat([GL[iS]]).join('\n'),mut(iS,l=>l.replace(": 'VeroParse'"," 'VeroParse'")),mut(iS,l=>l.replace("'js/vero-parse.js'","'js/missing-x.js'")),mut(iS,l=>l.replace(/, 'js\/vero-discourse\.js': 'VeroDiscourse'/,'')),mut(iO,l=>l.replace(", 'js/vero.js'",'')),GL.filter((l,k)=>k!==iO).join('\n'),mut(iS,l=>l.replace('}',", 'js/vero-parse.js': 'VeroP2'}"))];
+chk('S03b extractor fails closed on every malformed gate copy ('+S03MAL.length+')', S03MAL.every(m=>{ try{ gateMaps(m); return false; }catch(e){ return true; } }));
 
 /* ---------- 3. gold ---------- */
 const nameOf=p=>String(p.product_name||'');
@@ -192,6 +214,27 @@ chk('G07 every sense decision is in the report (span, candidates, scores, margin
 chk('G08 every span has exactly one final state', ROWS.every(r=>r.v2.spans.every(s=>['BOUND','UNCONFIRMABLE','UNRESOLVED','AMBIGUOUS','UNUSED'].includes(s.state))));
 chk('G09 performance: v2 turn p95 <= 15 ms and catalog cold build <= 1500 ms (Node)', PERF.turnP95Ms<=15 && PERF.v2CatalogColdMs<=1500, JSON.stringify(PERF));
 
+/* ---------- V2-2B shadow RATCHETS (gating) ---------- */
+const PIN_BETTER=['B144:E07','HO3:T03','HO3:T07','HO3:T09','HO3:T11','HO3:T14','HO3:T19','HO3:T22','HO3:S1-1','HO3:S2-1','HO3:S5-1','HO3:S6-1'];
+const PIN_SAME_OK=['C03','M04','V02','D04','A02','A03','A04','T06','P07'];
+const PIN_CODES={ C03:['80401','80402','80403','80404','80405','45430','45432','45433','45434','45437'], M04:['80404','45433'], V02:['80404','45433'] };   /* exact v2 proposal codes at baseline 0df3212 (test expectations) */
+const rowOf=k=>ROWS.find(r=>r.set+':'+r.id===k);
+chk('RT1 V2_BETTER >= 12 and every pinned better turn is still V2_BETTER ('+A.V2_BETTER+')', A.V2_BETTER>=12 && PIN_BETTER.every(k=>rowOf(k)&&rowOf(k).category==='V2_BETTER'), PIN_BETTER.filter(k=>!rowOf(k)||rowOf(k).category!=='V2_BETTER'));
+chk('RT2 SAME_FAIL <= 1 ('+A.SAME_FAIL+')', A.SAME_FAIL<=1, JSON.stringify(ROWS.filter(r=>r.category==='SAME_FAIL').map(r=>r.set+':'+r.id)));
+chk('RT3 pinned scored turns stay SAME_OK: '+PIN_SAME_OK.join(' '), PIN_SAME_OK.every(id=>rowOf('B144:'+id).category==='SAME_OK'), PIN_SAME_OK.filter(id=>rowOf('B144:'+id).category!=='SAME_OK'));
+chk('RT4 C03 / M04 / V02 keep IDENTICAL proposal codes (HDMI 2.1 representation change is projection-only, BA6)', Object.keys(PIN_CODES).every(id=>JSON.stringify(rowOf('B144:'+id).v2.proposal.codes)===JSON.stringify(PIN_CODES[id])), Object.keys(PIN_CODES).map(id=>id+':'+rowOf('B144:'+id).v2.proposal.codes.join(',')));
+chk('RT5 coverage mean = 1 and bound coverage >= 0.988 ('+A.coverageMean+' / '+A.boundCoverageMean+')', A.coverageMean===1 && A.boundCoverageMean>=0.988);
+chk('RT6 inventory safety 15/15 and no new unresolved / ambiguous turns (<= 4 / <= 1)', A.inventory.v2Safe===15 && A.inventory.of===15 && A.turnsWithUnresolved<=4 && A.turnsWithAmbiguous<=1, JSON.stringify([A.inventory,A.turnsWithUnresolved,A.turnsWithAmbiguous]));
+/* ---------- EXCLUDE-integrity audit (gating) over every shadow turn + a generated exclusion matrix ---------- */
+const EXM=[]; ['charger','power bank','hub','hdmi cable','earphones'].forEach(f=>{ ['white','black','pink'].forEach(c=>EXM.push(f+' na hindi '+c,'not '+c+' '+f,f+' except '+c,'walang '+c+' '+f)); ['built-in cable','magsafe','hdmi','usb-c'].forEach(v=>EXM.push(f+' na walang '+v,f+' without '+v)); EXM.push('not 65w '+f,'hindi 20000mah '+f,f+' not over 1000 pesos','not sure kung 65w '+f,'dont need 65w '+f,f+' no need talaga','no need talaga 65w '+f); });
+const audit=[]; let polNullSeen=0, negSeen=0;
+ITEMS.map(it=>({ q:it.q, P:V2[it.set+':'+it.id] })).concat(EXM.map(q=>({ q, P:VP.run(q,{ facts:FACTS, products:PUB }) }))).forEach(({ q, P })=>{ const pr=P.proposal;
+  P.frame.constraints.forEach(c=>{ if(c.polNull){ polNullSeen++; if(pr.kind==='exact') audit.push(q+' :: polarity-null labelled exact'); }
+    const excluded=c.neg||c.kind==='notConnector'||c.kind==='notFamily'; if(!excluded) return; negSeen++;
+    const pos=Object.assign({},c,{ neg:false, kind:c.kind==='notConnector'?'connector':c.kind==='notFamily'?'family':c.kind });
+    (pr.codes||[]).forEach(code=>{ if(VP.evalConstraint(code,pos,{ facts:FACTS, products:PUB })==='CONFIRMED') audit.push(q+' :: proposed '+code+' carries the excluded '+c.label); }); });
+  if(P.ledger.unresolved.some(u=>u.kind==='neg'||u.kind==='relaxneg') && pr.kind==='exact') audit.push(q+' :: unresolved negator but exact'); });
+chk('EX1 EXCLUDE-integrity: no proposed product carries an excluded value; polarity null never exact; an unresolved negator never exact ('+(ITEMS.length+EXM.length)+' turns, '+negSeen+' exclusions, '+polNullSeen+' null-polarity constraints)', !audit.length && negSeen>=40 && polNullSeen>=10, audit.slice(0,6));
 console.log(JSON.stringify({ metrics:M, perf:PERF },null,1));
 if(arg('--json')) fs.writeFileSync(arg('--json'),JSON.stringify({ ranAt:new Date().toISOString(), note:'Development / regression sets only — no unbiased claim.', metrics:M, perf:PERF, rows:ROWS },null,1));
 if(arg('--md')){

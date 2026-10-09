@@ -5,6 +5,8 @@
    Product families, subtypes and family aliases are NOT repeated here: they are read from VeroLexicon at run time, so the
    ontology stays one source of truth with the live engine. No catalog codes, no SKU lists: every product edge is derived
    from products.json by vero-parse.js, so new SKUs take part automatically.
+   v2-2B adds structural word classes (interfaces + canonVersion, lanes, negation, quantifiers, ordinals, references,
+   comparatives, NAME-guard classes) so the parser can emit the A5 turn frame. Still shadow only.
    Not loaded by index.html; nothing here changes what users see.
    Browser: window.VeroOntology; Node: module.exports. */
 (function(root){
@@ -37,7 +39,9 @@
     m2:{ label:'M.2', aliases:['m.2','m2','ngff'], group:'storage' },
     sata:{ label:'SATA', aliases:['sata'], group:'storage' },
     thunderbolt:{ label:'Thunderbolt', aliases:['thunderbolt','tbt'], versions:['3','4','5'], group:'usb' },
-    usb4:{ label:'USB4', aliases:['usb4','usb 4'], group:'usb' }
+    usb4:{ label:'USB4', aliases:['usb4','usb 4'], group:'usb' },
+    /* v2-2B: PCIe is an expansion INTERFACE (never a product-line name); "pci-e" / "pci express" are normalized to "pcie" */
+    pcie:{ label:'PCIe', aliases:['pcie'], versions:['1.0','2.0','3.0','4.0','5.0','6.0'], group:'expansion' }
   };
   /* generic "usb" with a version and a trailing a / c ("usb 3.0 a", "usb3.2 c") resolves to usb_a / usb_c with that version */
   var USB_VERSIONED=/\busb\s?(2\.0|3\.0|3\.1|3\.2)\s?(a|c)\b/;
@@ -236,7 +240,7 @@
     'iba naman','ibang tanong','tanong lang','question','follow up','follow-up','also','tapos','then','hello','hi','hey','good morning','good afternoon','kumusta','kamusta',
     'help','sa help','kanina','ulit','pa more','one more','isa pa','vero','magandang umaga','magandang hapon','magandang gabi','good evening','how are you','musta','yo','hi there','hello there'];
   /* reference / focus words: point at a product already in the conversation or named in the same turn */
-  var REFERENCE=['ito','nito','iyan','yan','yun','yung','iyon','this','that','these','those','it','them','this one','that one','yung una','first one','second one','the first','the second','yon','un','nyan','niyan','nun','noon','dun','doon','diyan','dyan'];
+  var REFERENCE=['ito','nito','iyan','yan','yun','yung','iyon','this','that','these','those','it','them','this one','that one','yon','un','nyan','niyan','nun','noon','dun','doon','diyan','dyan'];
 
   /* ---------- sense table (ambiguous terms) ----------
      Each term lists senses; each sense has a prior and contextual signals with weights (positive or negative).
@@ -372,10 +376,119 @@
   var MEASURE_WORDS={ watts:'watts', watt:'watts', w:'watts', wattage:'watts', mah:'mah', capacity:'mah', ports:'ports', port:'ports', meters:'length', metro:'length', haba:'length', length:'length',
     colors:'colour', color:'colour', kulay:'colour', colours:'colour', bays:'bays', bay:'bays', gbps:'speed', speed:'speed' };
 
-  var API={ version:'v2-1', CONNECTORS:CONNECTORS, USB_VERSIONED:USB_VERSIONED, STANDARDS:STANDARDS, PORT_ROLES:PORT_ROLES, FEATURES:FEATURES,
+  /* =================================================================================================================
+     v2-2B additions (SHADOW ONLY): structural vocabulary the parser needs to EMIT the frozen A5 turn-frame contract
+     (see js/vero-discourse.js). Word classes only; no catalog codes, no product families, no benchmark phrasing.
+     ================================================================================================================= */
+  /* versioned interfaces: ONLY interfaces whose products carry a generation / version. A constraint's interfaces[] lists
+     only these ids. connectors = the connector ids (above) that belong to the interface. */
+  var INTERFACES={
+    pcie:{ label:'PCIe', connectors:['pcie'] },
+    usb:{ label:'USB', connectors:['usb','usb_a','usb_c','usb_b','micro_usb','usb4'] },
+    thunderbolt:{ label:'Thunderbolt', connectors:['thunderbolt'] },
+    hdmi:{ label:'HDMI', connectors:['hdmi','mini_hdmi','micro_hdmi'] },
+    dp:{ label:'DisplayPort', connectors:['dp','mini_dp'] }
+  };
+  function interfaceOf(connId){ var k; for(k in INTERFACES){ if(INTERFACES[k].connectors.indexOf(connId)>=0) return k; } return null; }
+  /* canonical generation of a version notation FOR ONE INTERFACE; null = impossible for that interface (-> UNRESOLVED).
+     Idempotent: canonVersion(i, canonVersion(i, x)) === canonVersion(i, x).
+       pcie         "Gen 4" = "4.0" = "4"  -> '4'   (gen 1..6)
+       usb          '1.0' '1.1' '2.0' '3.0' '3.1' '3.2' as written; "3.1 Gen 1" -> '3.1g1', "3.2 Gen 2x2" -> '3.2g2x2';
+                    bare "Gen 2" (no USB number) -> 'g2'; USB4 -> '4'. USB naming EQUIVALENCES are NOT merged here
+                    (see USB_NAMING: modelled only; an inferred match is labelled later, in V2-2C).
+       thunderbolt  '3' '4' '5' (no "Gen")      hdmi '1.3' '1.4' '2.0' '2.1'      dp '1.1' .. '2.1'
+     A bare "Gen N" with no interface keeps the raw notation 'genN' until an interface is bound (BA1). */
+  function canonVersion(iface,raw){
+    var r=String(raw==null?'':raw).toLowerCase().replace(/\s+/g,'').replace(/^v(?=\d)/,''), m;
+    if(!r) return null;
+    switch(iface){
+      case 'pcie': m=r.match(/^(?:gen)?([1-6])(?:\.0)?$/); return m?m[1]:null;
+      case 'usb':
+        if(/^(?:1\.0|1\.1|2\.0|3\.0|3\.1|3\.2)$/.test(r)) return r;
+        m=r.match(/^(3\.1|3\.2)?g(?:en)?(1|2|2x2)$/); if(m) return (m[1]==='3.1' && m[2]==='2x2')?null:(m[1]||'')+'g'+m[2];
+        if(/^4(?:\.0)?$/.test(r)) return '4';
+        return null;
+      case 'thunderbolt': m=r.match(/^([345])$/); return m?m[1]:null;
+      case 'hdmi': m=r.match(/^(1\.3|1\.4|2\.0|2\.1)[ab]?$/); return m?m[1]:(r==='2'?'2.0':null);
+      case 'dp': m=r.match(/^(1\.1|1\.2|1\.3|1\.4|2\.0|2\.1)a?$/); return m?m[1]:(r==='2'?'2.0':null);
+    }
+    return null;
+  }
+  /* static USB naming-equivalence table (marketing renames of the same signalling rate). MODELLED ONLY in V2-2B: the parser
+     never treats one name as another; V2-2C may use it to label an INFERRED match. USB4 and Thunderbolt are distinct. */
+  var USB_NAMING=[ { rate:'5Gbps', names:['3.0','3.1g1','3.2g1'] }, { rate:'10Gbps', names:['3.1g2','3.2g2'] }, { rate:'20Gbps', names:['3.2g2x2'] } ];
+  /* PCIe lane widths ("x4", "x16"): a separate slot, never a generation; parsed only in PCIe scope (or as an elliptical
+     lane-only turn that the resolver binds to an active lanes slot). */
+  var LANE_WIDTHS=[1,2,4,8,16];
+  /* negation classes.
+     clear        always negate the value they scope ("not white", "except white", "charger na hindi white")
+     existential  wala / walang / no: negate a RELATIVISED value ("yung walang cable", "charger na walang cable"); followed by
+                  ba / bang it is an existence question ("wala bang white?" = is there a white one?); bare it is ambiguous
+     relax        "not needed": remove that slot (RELAX), never an exclusion ("no need DisplayLink")
+     epistemic    the speaker is unsure; never an exclusion ("not sure kung 65W") */
+  var NEGATION={
+    clear:['not','hindi','di','without','except','maliban sa','other than','bukod sa','non','ayoko ng','ayaw ko ng','ayaw ng','ayaw','ayaw ko','ayoko','wag','huwag',
+      'dont want','do not want','dont like','hindi naman','di naman','hindi po'],
+    existential:['wala','walang','no','wala nang','wala ng'],
+    relax:['no need','no need for','no need na','hindi kailangan','di kailangan','hindi na kailangan','di na kailangan','hindi na need','di na need','dont need','do not need','not needed','not required',
+      'hindi ko kailangan','di ko kailangan','hindi ko po kailangan','hindi ko need','di ko need','di ko na need','hindi ko na kailangan'],
+    epistemic:['not sure','not sure if','not sure kung','hindi ko alam','di ko alam','hindi ko alam kung','hindi sigurado','di sigurado','hindi ako sure','di ako sure','i dont know','dont know','not certain']
+  };
+  /* question particles after a negator ("wala BA", "hindi BA") */
+  var QUESTION_PARTICLES=['ba','bang'];
+  /* quantifiers: with a slot noun they RELAX that slot ("kahit ilang ports", "any number of ports"); alone they are ambiguous */
+  var QUANTIFIERS=['kahit','kahit ano','kahit anong','kahit ilan','kahit ilang','kahit gaano','kahit na anong','any','any number of','any amount of','whatever','regardless of','basta'];
+  /* post-noun relax cues ("ports don't matter") */
+  var RELAX_AFTER=['dont matter','doesnt matter','does not matter','do not matter','not important','hindi importante','di importante','no preference'];
+  /* field concept -> the slot a RELAX of that field removes ('ports' stays unqualified unless the same turn names a family) */
+  var RELAX_FIELDS={ ports:'ports', length:'num:lengthM', colour:'colour', watts:'num:watts', mah:'num:mah', speed:'num:gbps', price:'price' };
+  /* ordinal references (1-based position in what was shown). "last" has NO from-end contract yet: it is UNRESOLVED, high impact. */
+  var ORDINALS={ first:1, '1st':1, una:1, unang:1, 'the first':1, 'first one':1, 'yung una':1, 'yung unang':1, ikauna:1,
+    second:2, '2nd':2, pangalawa:2, ikalawa:2, 'the second':2, 'second one':2, 'yung pangalawa':2,
+    third:3, '3rd':3, pangatlo:3, ikatlo:3, 'the third':3, 'third one':3, 'yung pangatlo':3,
+    fourth:4, '4th':4, pangapat:4, 'pang apat':4, ikaapat:4, fifth:5, '5th':5, panglima:5, ikalima:5 };
+  var LAST_WORDS=['last','huli','yung huli','the last','last one','the last one','yung last','pinakahuli'];
+  /* structural reference kinds (the parser never looks at what was shown; the resolver does) */
+  var REF_KIND={ other:['the other one','the other','other one','yung isa','ung isa'],
+    results:['those','these','them','mga yan','mga ito'],
+    focus:['ito','nito','iyan','yan','yun','iyon','this','that','it','this one','that one','yon','nyan','niyan','un'] };
+  /* select cues over the shown results ("which one is Gen 4?", "alin dito") */
+  var SELECT_CUES=['which one','which ones','alin dito','alin sa kanila','alin sa mga yan','alin sa mga ito','which of them'];
+  /* comparatives: cue -> metric / direction; candidates = several metrics fit (the resolver clarifies); speed = gbps or watts */
+  var COMPARATIVES={ cheaper:{ metric:'price', dir:'asc' }, 'mas mura':{ metric:'price', dir:'asc' }, 'mas murang':{ metric:'price', dir:'asc' },
+    'mas mahal':{ metric:'price', dir:'desc' }, 'more expensive':{ metric:'price', dir:'desc' }, pricier:{ metric:'price', dir:'desc' },
+    'mas mahaba':{ metric:'length', dir:'desc' }, longer:{ metric:'length', dir:'desc' }, 'mas maikli':{ metric:'length', dir:'asc' }, shorter:{ metric:'length', dir:'asc' },
+    'mas mabilis':{ dir:'desc', speed:true }, faster:{ dir:'desc', speed:true }, quicker:{ dir:'desc', speed:true },
+    'mas malakas':{ metric:'watts', dir:'desc' }, 'more powerful':{ metric:'watts', dir:'desc' },
+    'mas malaki':{ dir:'desc', candidates:['mah','length','watts'] }, bigger:{ dir:'desc', candidates:['mah','length','watts'] }, larger:{ dir:'desc', candidates:['mah','length','watts'] },
+    'mas maliit':{ dir:'asc', candidates:['mah','length','watts'] }, smaller:{ dir:'asc', candidates:['mah','length','watts'] },
+    'mas mataas':{ dir:'desc', candidates:['price','watts','mah'] }, higher:{ dir:'desc', candidates:['price','watts','mah'] },
+    'mas mababa':{ dir:'asc', candidates:['price','watts','mah'] }, lower:{ dir:'asc', candidates:['price','watts','mah'] } };
+  /* "more / less + measure noun" ("more ports", "mas maraming ports", "fewer ports") */
+  var COMPARE_MORE={ more:'desc', mas:'desc', less:'asc', fewer:'asc', 'mas kaunti':'asc', 'mas konti':'asc' };
+  /* evaluative comparatives with no catalogue metric -> judgement (never a metric) */
+  var JUDGEMENT_WORDS=['mas okay','mas ok','better','mas maganda','mas magandang','mas sulit','mas bagay','mas mabuti','which is better','alin mas ok'];
+  var JUDGEMENT_AFTER=['ok','okay','maganda','sulit','bagay'];   /* after "alin mas" */
+  var SPEED_CUES={ watts:['charging','charge','pang charge','magcharge','mag charge'], gbps:['transfer','data','gbps','internet'] };
+  /* "same but <comparative>" -> sameBut + metric; "same but <value>" is an ordinary elliptical constraint */
+  var SAME_BUT=['same but','same pero','pareho pero','parehas pero','ganun din pero','katulad pero','same lang pero'];
+  /* NAME guard: words of these classes are never product-line NAME spans, whatever the catalogue contains */
+  var NAME_GUARD_CLASSES={
+    stock:INTENT_CUES.inventory, reference:REFERENCE.concat(REF_KIND.other,REF_KIND.results,REF_KIND.focus), discourse:DISCOURSE,
+    function:FUNCTION_WORDS, quantifier:QUANTIFIERS.concat(RELAX_AFTER), negator:NEGATION.clear.concat(NEGATION.existential,NEGATION.relax,NEGATION.epistemic),
+    ordinal:Object.keys(ORDINALS).concat(LAST_WORDS),
+    /* interface names + single-token connector aliases of versioned interfaces ("mini" / "type" inside multi-word aliases are not guarded) */
+    interface:Object.keys(INTERFACES).concat(['gen','pcie','pci','express'],[].concat.apply([],Object.keys(INTERFACES).map(function(k){ return INTERFACES[k].connectors.map(function(c){ return CONNECTORS[c]?CONNECTORS[c].aliases:[]; }).reduce(function(a,b){ return a.concat(b); },[]); })).filter(function(a){ return /^[a-z0-9]+$/.test(a); })),
+    lane:LANE_WIDTHS.map(function(n){ return 'x'+n; }) };
+
+  var API={ version:'v2-2B', CONNECTORS:CONNECTORS, USB_VERSIONED:USB_VERSIONED, STANDARDS:STANDARDS, PORT_ROLES:PORT_ROLES, FEATURES:FEATURES,
     DEVICE_CLASSES:DEVICE_CLASSES, NAMED_DEVICES:NAMED_DEVICES, FIELDS:FIELDS, UNITS:UNITS, INTENT_CUES:INTENT_CUES, RANK_METRICS:RANK_METRICS,
     FUNCTION_WORDS:FUNCTION_WORDS, DISCOURSE:DISCOURSE, REFERENCE:REFERENCE, SENSES:SENSES, MARGIN_MIN:MARGIN_MIN, USE_CASES:USE_CASES,
-    METRIC_WORDS:METRIC_WORDS, MEASURE_WORDS:MEASURE_WORDS, METRIC_POLARITY:METRIC_POLARITY };
+    METRIC_WORDS:METRIC_WORDS, MEASURE_WORDS:MEASURE_WORDS, METRIC_POLARITY:METRIC_POLARITY,
+    INTERFACES:INTERFACES, interfaceOf:interfaceOf, canonVersion:canonVersion, USB_NAMING:USB_NAMING, LANE_WIDTHS:LANE_WIDTHS,
+    NEGATION:NEGATION, QUESTION_PARTICLES:QUESTION_PARTICLES, QUANTIFIERS:QUANTIFIERS, RELAX_AFTER:RELAX_AFTER, RELAX_FIELDS:RELAX_FIELDS,
+    ORDINALS:ORDINALS, LAST_WORDS:LAST_WORDS, REF_KIND:REF_KIND, SELECT_CUES:SELECT_CUES, COMPARATIVES:COMPARATIVES, COMPARE_MORE:COMPARE_MORE,
+    JUDGEMENT_WORDS:JUDGEMENT_WORDS, JUDGEMENT_AFTER:JUDGEMENT_AFTER, SPEED_CUES:SPEED_CUES, SAME_BUT:SAME_BUT, NAME_GUARD_CLASSES:NAME_GUARD_CLASSES };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroOntology=API;
 })(typeof window!=='undefined'?window:globalThis);

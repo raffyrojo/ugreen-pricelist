@@ -1,6 +1,6 @@
 """Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves now (default b4d7244: VERO p2r3a.3 live; v2 shadow files present but NOT loaded).
+  baseline_ref = the commit GitHub Pages serves now (default 0df3212: VERO p2r3a.3 runtime + dormant v2-2A; v2 shadow files present but NOT loaded).
   Always pass the baseline explicitly for a release; a CMS Publish moves main and makes any default stale.
   If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
 
@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'b4d7244'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '0df3212'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
@@ -27,8 +27,9 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # VERO v2-2A (baseline b4d7244): dormant discourse / QueryPlan-delta module + its tests; no runtime file changes
-                 'js/vero-discourse.js', 'tests/vero-v2-delta.test.js'}
+                 # VERO v2-2B (baseline 0df3212): dormant parser / ontology emit the frozen A5 turn frame (shadow only) + their tests;
+                 # vero-v2-delta.test.js only for its V4 contract-alignment check. js/vero-discourse.js stays byte-identical (G04b).
+                 'js/vero-parse.js', 'js/vero-ontology.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js', 'tests/vero-v2-delta.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}
 # ======================================================================================================
