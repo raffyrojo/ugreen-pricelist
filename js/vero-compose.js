@@ -125,10 +125,18 @@
       echo:plan.echo?T(lang,'using',{ x:plan.echo }):null };
     var I=plan.intent, rt=plan.route.route;
     if(plan.flags.stock) res.stockNote=T(lang,plan.flags.invQty?'stockQty':'stock');
-    var hi=plan.greeting?T(lang,'hiPrefix'):'';
+    var hi=plan.greeting?T(lang,'hiPrefix'):'', negSaid=false;
     function done(){
+      /* p2r3a.4 A: a null / undefined / empty code never reaches a card ("Here's ;", "no longer in this pricelist") */
+      var before=(res.codes||[]).length; res.codes=(res.codes||[]).filter(function(x){ return x!=null && String(x)!==''; });
+      if(res.codes.length<before && !res.codes.length && res.type==='lookup'){ res.type='clarify'; res.note=T(lang,'clarifyTarget'); }
       /* p2r3a.3: shown only because car items were the only matches ("car" not asked) — say so */
       if(R.carOnly && res.codes.length && res.note) res.note=res.note.replace(/:$/,'')+' ('+(lang==='tl'?'car chargers/accessories lahat ng tugmang items':'all matching items are car chargers/accessories')+')'+(/:$/.test(res.note)?':':'');
+      /* p2r3a.4 B: a negated phrase is never applied — say so on whatever answer is shown (never a silent "exclusion") */
+      if(plan.negated && plan.negated.length && !negSaid){ var nn=T(lang,'negNotApplied',{ x:plan.negated.map(function(n){ return n.phrase; }).join('”, “') });
+        if(!res.note) res.note=nn.charAt(0).toUpperCase()+nn.slice(1)+'.';
+        else if(/:$/.test(res.note)) res.note=res.note.replace(/:$/,'')+' ('+nn+'):';
+        else res.note=res.note.replace(/[.\s]+$/,'')+' ('+nn+').'; }
       if(hi && res.note) res.note=hi+res.note; return res; }
 
     if(I==='smalltalk'){ res.note=T(lang,plan.smalltalk); res.smalltalk=plan.smalltalk; return res; }
@@ -155,6 +163,8 @@
       if(amb.slot==='anchor'){ var un=plan.anchors.filter(function(a){ return !a.codes.length; }).map(function(a){ return a.raw.toUpperCase(); });
         res.type='text'; res.note=T(lang,'nameNotFound',{ x:un.join(', ') }); return done(); }
       if(I==='compare' || (amb.slot==='target' && plan.refs.some(function(r){ return r.kind==='all'; }))){ res.note=T(lang,'clarifyCompare'); return done(); }
+      if(amb.slot==='negation'){ res.note=T(lang,'clarifyNegFamily',{ x:amb.value }); negSaid=true; return done(); }
+      if(amb.slot==='target' && I==='alternative'){ res.note=T(lang,'clarifyAlternative'); return done(); }
       if(amb.slot==='target'){ res.note=T(lang,'clarifyTarget'); return done(); }
       if(amb.slot==='name'){ res.type='text'; res.note=T(lang,'nameNotFound',{ x:amb.value }); return done(); }
       if(amb.slot==='cable'){ var cq=plan.q.replace(/\b(?:with|may|meron|w\/)\s+((?:[a-z0-9-]+\s+)?)(?:cables?|kable)\b/i,'').replace(/\s+/g,' ').trim();
@@ -194,6 +204,7 @@
         else { res.type='lookup'; res.codes=[base]; res.note=T(lang,'cheaperNone',{ spec:specTxt }); }
         return done();
       }
+      if(base==null){ res.type='clarify'; res.codes=[]; res.note=T(lang,'clarifyAlternative'); return done(); }   /* p2r3a.4 A: never a null base */
       res.type='lookup'; res.codes=[base]; res.note=T(lang,'alternativePending',{ code:base }); return done();
     }
     if(I==='attribute'){

@@ -50,7 +50,7 @@
     return s;
   }
   /* "Nk" thousands (engine p2r2.1 rule): in a capacity context a 5k–60k value is mAh unless an explicit price cue is attached */
-  var K_PRICE_BEFORE=/(?:₱|budget(?:\s+(?:of|is|ko|ng))?|under|below|less than|lower than|cheaper than|up to|max(?:imum)?|hanggang|wala pang|within|not more than|price|presyo|srp|dp|magkano|worth|cost|costs)\s*$/;
+  var K_PRICE_BEFORE=/(?:₱|budget(?:\s+(?:of|is|ko|ng))?|under|below|less than|lower than|cheaper than|up to|max(?:imum)?|hanggang|wala pang|within|not more than|lalampas sa|lalagpas sa|hihigit sa|bababa sa|price|presyo|srp|dp|magkano|worth|cost|costs)\s*$/;
   function expandK(s,trace,capHint){
     var capCtx=capHint || /power bank|\bmah\b|\bcapacity\b|\bbattery\b/.test(s);
     return s.replace(/(\d+(?:\.\d+)?)\s?k\b(\s?mah\b)?/g,function(all,n,mah,off,str){
@@ -84,6 +84,14 @@
     L.taxonomy.families.forEach(function(f){ [f.label,f.plural].join(' / ').split(/\s*\/\s*|\s+and\s+/).forEach(function(t){ t=String(t||'').toLowerCase().trim(); if(!t||gen[t]||haveT[t]) return; haveT[t]=1;
       c.aliases.push({ term:t, to:f.id, rel:'same', strict:false, fallback:false, re:phraseRe(t), derived:true }); }); });
     c.aliases.sort(function(a,b){ return b.term.length-a.term.length; });
+    c.aliasWords={}; c.aliases.forEach(function(a){ if(NEG_WORD_RE.test(' '+a.term+' ')) return; a.term.split(/\s+/).forEach(function(w){ if(w.length>=3 && !NEG_STOP[w] && !NEG_FILL[w]) c.aliasWords[w]=1; }); });
+    c.aliasPrefix={}; c.phraseStart={}; c.typeStart={}; c.aliasTerm={};                       /* p2r3a.4 B: negated-term boundaries */
+    c.aliases.forEach(function(a){ c.aliasTerm[a.term.toLowerCase()]=1; c.aliasTerm[a.term.toLowerCase()+'s']=1; });
+    c.aliases.forEach(function(a){ var w=a.term.toLowerCase().split(/\s+/); for(var i=2;i<=w.length;i++) c.aliasPrefix[w.slice(0,i).join(' ')]=1; if(!NEG_WORD_RE.test(' '+a.term+' ')){ c.phraseStart[w[0]]=1; c.typeStart[w[0]]=1; } });
+    c.connStart={};
+    Object.keys(L.connectors).forEach(function(k){ L.connectors[k].forEach(function(w){ var cw=String(w).toLowerCase().split(/\s+/); c.phraseStart[cw[0]]=1; c.connStart[cw[0]]=1;
+      for(var i=2;i<=cw.length;i++) c.aliasPrefix[cw.slice(0,i).join(' ')]=1; }); });   /* "micro usb", "sd card" stay one negated term */
+    c.negAlias=c.aliases.filter(function(a){ return NEG_WORD_RE.test(' '+a.term+' '); }).map(function(a){ return phraseRe(a.term); });   /* p2r3a.4 B: "not a full dock" is a type alias */
     Object.keys(L.connectors).forEach(function(k){ L.connectors[k].forEach(function(w){ c.connectors.push({ k:k, w:w, re:new RegExp('(^|[^a-z0-9.])('+esc(w)+')(?=$|[^a-z0-9])','g') }); }); });
     c.connectors.sort(function(a,b){ return b.w.length-a.w.length; });
     Object.keys(L.attributes||{}).forEach(function(k){ L.attributes[k].forEach(function(w){ c.attrs.push({ k:k, w:w, re:phraseRe(w) }); }); });
@@ -208,11 +216,18 @@
   var GTW=/(?:more than|over|above|higher than|longer than|greater than|>)\s*₱?\s*$/;
   var SUF_GE=/^\s*(?:pataas|and up|and above|or more|or higher|or above|\+)/;
   var SUF_LE=/^\s*(?:pababa|or less|and below|or lower|and under)/;
+  /* p2r3a.4 B1: a negated comparator flips direction ("not more than 65W" = at most, "not less than 2m" = at least) */
+  var NEG_CMP='(?:\\bnot|\\bno|\\bnever|\\bisn\'?t|\\bhindi|\\bdi|\\bwag|\\bhuwag)(?:\\s+(?:po|ho|na|naman|dapat))?\\s+';
+  var NEG_LE=new RegExp(NEG_CMP+'(?:more than|over|above|higher than|longer than|greater than|lalampas sa|lalagpas sa|hihigit sa)\\s*₱?\\s*$');
+  var NEG_GE=new RegExp(NEG_CMP+'(?:less than|under|below|lower than|shorter than|bababa sa)\\s*₱?\\s*$');
   function opAt(s,off,len){
-    var pre=s.slice(Math.max(0,off-22),off), post=s.slice(off+len,off+len+14);
+    var pre=s.slice(Math.max(0,off-32),off), post=s.slice(off+len,off+len+14);
+    if(NEG_LE.test(pre)) return 'le'; if(NEG_GE.test(pre)) return 'ge';
     if(MAXW.test(pre)) return 'le'; if(GEW.test(pre)) return 'ge'; if(GTW.test(pre)) return 'gt';
     if(SUF_GE.test(post)) return 'ge'; if(SUF_LE.test(post)) return 'le'; return 'eq';
   }
+  /* p2r3a.4 C: words that make the NEXT number a version / generation / model number (generic grammar, no SKUs) */
+  var VERSION_PRE=/(?:^|[^a-z0-9])(?:gen(?:eration)?|usb(?:-c|-a)?(?:\s+\d(?:\.\d)?)?|pcie|thunderbolt|tb|bluetooth|bt|wi-?fi|iphone|ipad|galaxy|pixel|macbook(?:\s+(?:pro|air))?|sata|version|ver|v|ios|android|windows|win|qc|quick charge|pd|ps|airpods|watch|series|ddr)\s*$/;
   var RES_RANK={'720p':1,'1080p':2,'fhd':2,'2k':3,'1440p':3,'qhd':3,'4k':4,'uhd':4,'5k':5,'8k':6}, RES_LABEL={1:'720p',2:'1080p',3:'2K',4:'4K',5:'5K',6:'8K'};
   function decimalTail(s,i){ return i>=2 && s.charAt(i-1)==='.' && /\d/.test(s.charAt(i-2)); }
   function priceCtx(s,i,len){ var pre=s.slice(Math.max(0,i-16),i), post=s.slice(i+len,i+len+10);
@@ -220,10 +235,110 @@
   /* 'dp' = DisplayPort only next to video / connector words; otherwise the dealer-price field */
   function dpIsConnector(s){ return /\b(hdmi|usb-c|vga|dvi|mini|displayport)\b[^.]{0,14}\bdp\b|\bdp\b[^.]{0,14}\b(hdmi|vga|dvi|cable|adapter|converter|ports?|monitor|alt)\b|\bdp\s?1\.\d/.test(s); }
 
+  /* ======================= p2r3a.4 B: negation safety (phase 1) =======================
+     "<negator> [article] <product term>" ("walang hdmi", "not a charger", "except lightning", "hindi magsafe") is NEVER applied as a
+     positive filter. The phrase is cut from the text the slot extractors read and reported in X.negated; the exclusion itself is
+     not evaluated yet (no evidence model in p2r3a), so the answer says so. A phrase only counts when its term carries a product
+     meaning (type, form, connector, colour, flag, spec); comparators ("not more than 500"), relax ("no need", "hindi kailangan"),
+     questions ("hindi ba", "di ba", "wala ba"), stock ("walang stock"), courtesy ("walang anuman", "not sure") and a negation that
+     describes the user's DEVICE ("projector na walang wifi") are left untouched. Generic grammar only — no SKU or phrase patches. */
+  var NEG_WORDS='not|no|non|without|walang|wala pong|hindi|di|wag|huwag|except|maliban sa|maliban kay|other than|bukod sa|ayoko ng|ayoko sa|ayaw ko ng';
+  var NEG_WORD_RE=new RegExp('(?:^|[^a-z0-9])(?:'+NEG_WORDS+')(?=$|[^a-z0-9])');
+  /* negator, optional polite / discourse particle ("hindi po", "hindi naman"), optional article, then the rest of the clause */
+  var NEG_RE=new RegExp('(^|[\\s,(])('+NEG_WORDS+')(?:-|\\s+)(?:(?:po|ho|naman)\\s+)?(?:(?:a|an|the|any|na|ng|sa|ang|yung|ung|mga)\\s+)?([a-z0-9₱][^,;:]*)','g');
+  var NEG_GUARD=/^(?:more|less|over|above|below|under|higher|lower|greater|longer|shorter|lalampas|lalagpas|hihigit|bababa|need|needed|kailangan|sure|problem|problema|thanks|thank|yet|now|worries|idea|ba|bang|ko|mo|po|pa|naman|alam|rin|din|man|kasi|talaga|stock|stocks|available|anuman|gumagana|gagana|compatible|kasya|bagay|pwede|puwede|matter|important|mahalaga|ganun|ganon|lang)\b/;
+  var NEG_STOP={ pero:1, but:1, and:1, at:1, or:1, o:1, with:1, may:1, na:1, ng:1, sa:1, para:1, for:1, kasi:1, ba:1, po:1, lang:1, please:1, pls:1, kayo:1, nyo:1, ninyo:1, only:1,
+    naman:1, din:1, rin:1, then:1, tapos:1, pa:1, yung:1, ung:1, ang:1, is:1, are:1, kung:1, if:1, so:1, kaya:1, kundi:1, rather:1, instead:1,
+    /* the next negator starts its own negation ("hub no hdmi no vga" = two negations, never "no hdmi no" + VGA applied) */
+    not:1, no:1, non:1, without:1, walang:1, hindi:1, di:1, wag:1, huwag:1, except:1, nor:1, never:1, ni:1 };
+  var NEG_COORD={ or:1, at:1, and:1, nor:1, o:1, ni:1 };
+  var NEG_CUE={ alin:1, dun:1, doon:1, diyan:1, dyan:1, which:1, those:1, these:1, of:1, has:1, have:1, one:1, ones:1, from:1, there:1, sa:1, mga:1, ba:1,
+    /* pronoun-subject questions: "do you have one / anything / something without vga", "may isa ba na walang cable", "meron ba kayong isa" */
+    do:1, does:1, you:1, got:1, any:1, anything:1, something:1, that:1, is:1, are:1, it:1, meron:1, mayroon:1, kayong:1, kayo:1, isa:1, may:1, ka:1, bang:1 };   /* "walang hdmi at vga" / "without hdmi or vga": the coordinated feature is negated too */
+  var NEG_FILL={ a:1, an:1, the:1, na:1, ng:1, sa:1, ang:1, yung:1, ung:1, mga:1, po:1, lang:1, please:1, pls:1, naman:1, ',':1, '.':1, i:1, want:1, need:1, gusto:1, ko:1, ok:1, okay:1, sige:1 };
+  var FORM_WORD=/\b(cables?|adapters?|adaptors?|converters?|hubs?|docks?|chargers?|splitters?|switch(?:es|er)?|extenders?|enclosures?|readers?)\b/;
+  function negations(s,c,trace,raw){
+    var found=[], m, devHead=function(before){ var w=before.trim().split(/\s+/).filter(function(x){ return !/^(?:na|that|which|with|sa|ang|,)$/.test(x); }); var last=' '+(w.slice(-2).join(' '))+' ';
+      return c.devClass.some(function(x){ x.re.lastIndex=0; return x.re.test(last); }) || c.devBrand.some(function(x){ x.re.lastIndex=0; return x.re.test(last); }); };
+    var aliasSpans=[]; (c.negAlias||[]).forEach(function(re){ re.lastIndex=0; var a; while((a=re.exec(s))){ aliasSpans.push([a.index+a[1].length, a.index+a[0].length]); } });
+    var question=/\?\s*$/.test(String(raw||''));
+    /* a token that starts a NEW product phrase (type / form / connector word, or a number spec) ends the negated term, unless it
+       completes a known multi-word alias with the words already taken ("hdmi cable", "power bank") — so "not white 65w charger"
+       negates only "white" and keeps "65w charger" */
+    var startsNew=function(term,tok,next){ if(/^\d/.test(tok)) return true; var joined=term.concat([tok]).join(' ');
+      if((c.aliasPrefix||{})[joined]) return false;                                              /* "hdmi cable", "power bank", "micro usb", "sd card" */
+      if((c.aliasTerm||{})[term[term.length-1]+' '+tok]) return false;                            /* "walang sd card reader": the reader is part of what is negated */
+      if(FORM_WORD.test(tok) || (c.connStart||{})[tok] || (c.aliasTerm||{})[tok]) return true;     /* a connector / form / one-word product type */
+      return !!((c.typeStart||{})[tok] && next && (c.aliasPrefix||{})[tok+' '+next]);             /* the first word of a multi-word type that really follows */ };
+    /* an existence question / statement about stock ("kayo ba walang hub?", "sir, you guys have no hub?", "walang 65w charger?"):
+       only address, subject and particle words come before the negator */
+    var EXIST_LEAD=/^[\s,]*(?:(?:sir|maam|ma'am|boss|bro|sis|miss|hi|hello|hey|uy|so|eh|e|ok|okay|po|ho|ba|bang|naman|din|rin|kayo|kayong|ka|kami|ikaw|you|guys|y'all|yall|have|got|has|do|does|did|really|talaga)[\s,]+)*$/;
+    NEG_RE.lastIndex=0;
+    while((m=NEG_RE.exec(s))){
+      var at=m.index+m[1].length, neg=m[2], rest=m[3];
+      NEG_RE.lastIndex=at+neg.length;                                                              /* a skipped phrase never hides a later negation in the clause */
+      if(aliasSpans.some(function(sp){ return at>=sp[0] && at<sp[1]; })) continue;               /* a lexicon alias ("not a full dock") is a type, not a negation */
+      if(NEG_GUARD.test(rest)) continue;
+      var toks=rest.split(/\s+/).filter(Boolean), term=[];
+      for(var i=0;i<toks.length && term.length<3;i++){
+        if(term.length && term[term.length-1]==='to' && !NEG_STOP[toks[i]]){ term.push(toks[i]); continue; }   /* "walang usb-c to hdmi": the whole pair */
+        if(NEG_STOP[toks[i]] || (term.length && startsNew(term,toks[i],toks[i+1]))) break; term.push(toks[i]); }
+      if(term.length && term[term.length-1]==='to') term.pop();
+      if(!term.length) continue;
+      var before=s.slice(0,at);
+      var existQ=EXIST_LEAD.test(before) && (question || /\b(?:kayo|kayong|ka|kami|ikaw|you)\b/.test(before));
+      if(existQ && /^(?:walang|wala pong|no|not)$/.test(neg)) continue;                              /* existence question, not an exclusion */
+      if(/\b(?:i|we)\s+(?:have|got)\s*$/.test(before)) continue;                                     /* "i have no hdmi port": the user's own device */
+      if(neg==='no' && /^\d+$/.test(term[0])) continue;                                            /* "item no 5": a number, not a negation */
+      if(/\b(?:ko|mo|namin|natin|nila|niya|nya)\s*(?:na\s*)?$/.test(before)) continue;               /* "tv ko walang wifi": the user's own device */
+      if(devHead(before)) continue;                                                                /* the user's device lacks it, not the product */
+      if(/(?:^|\s)(?:sa|para sa|pang|for|for a|for an|for my|on|on a|to a|to my)\s+(?:[a-z0-9-]+\s+){1,2}(?:na\s+|that\s+(?:has\s+|is\s+)?|which\s+)?$/.test(before)) continue;   /* "... sa projector na walang wifi": describes that object */
+      var termText=term.join(' '), mini=extract(termText,c,[],{ noNeg:true }), T=resolveType(mini,c,[]), form=FORM_WORD.test(termText);
+      var meaning=!!(T || form || mini.connectors.length || mini.match.length || mini.filters.length || mini.standards.length || mini.ports.length ||
+        term.some(function(w){ return !!(c.aliasWords||{})[w] || !!(c.L.nameQualifiers||{})[w]; }));   /* a type qualifier ("car" of "car charger") or a name qualifier ("magnetic") */
+      if(!meaning) continue;
+      var typeTerm=T && mini.typeHits && mini.typeHits[0] ? mini.typeHits[0].a.term : null;
+      var typeWords=typeTerm?typeTerm.split(' '):[], other=term.filter(function(w){ return typeWords.indexOf(w)<0 && typeWords.indexOf(w.replace(/s$/,''))<0; });
+      var tStart=s.indexOf(termText, at+neg.length), tEnd=tStart+termText.length;                /* search AFTER the negator ("walang lan" ≠ the "lan" inside "walang") */
+      if(tStart<0) continue;
+      found.push({ phrase:s.slice(at,tEnd).trim(), neg:neg, term:termText, type:T, typeTerm:typeTerm, typeOnly:!!T && !other.length,
+        formOnly:!T && form && !other.filter(function(w){ return !FORM_WORD.test(w); }).length, start:at, end:tEnd, mini:mini });
+      /* coordination: "<neg> hdmi at|or|and|nor|ni vga" negates vga too. The coordinated item is a FEATURE (connector — one or two
+         words, e.g. "micro usb" —, colour, flag, resolution, port, standard, qualifier word). With "or / and / at / o" it stays
+         positive when it is a product type on its own ("… or charger"), completes a real product phrase with the next word
+         ("… or dp cable", "… or usb-c hub") or is a number spec ("… or 65w"); after "nor / ni" it is always negated. */
+      var k=term.length;
+      while(NEG_COORD[toks[k]] && toks[k+1] && !NEG_STOP[toks[k+1]]){
+        var strict=toks[k]==='nor' || toks[k]==='ni';
+        var two=toks[k+2] && !NEG_STOP[toks[k+2]] && !NEG_COORD[toks[k+2]] ? toks[k+1]+' '+toks[k+2] : null, twoMini=two?extract(two,c,[],{ noNeg:true }):null;
+        var useTwo=!!(twoMini && ((twoMini.connectors.length===1 && twoMini.connectors[0].len===two.length) || (c.aliasPrefix||{})[two]) && !(c.aliasTerm||{})[two]);
+        var cw=useTwo?two:toks[k+1], cMini=useTwo?twoMini:extract(cw,c,[],{ noNeg:true }), after=toks[k+(useTwo?3:2)]||'';
+        if(!cMini.connectors.length && after){ var ctxM=extract(cw+' '+after,c,[],{ noNeg:true });     /* "dp" is a connector only next to "cable / adapter …" */
+          if(ctxM.connectors.some(function(x){ return x.at<=cw.length+1; })) cMini=ctxM; }
+        if((c.aliasTerm||{})[cw] || FORM_WORD.test(cw)) break;
+        /* with "or / and" a connector + form word ("… or usb-c hub", "… or dp cable") or a known product phrase is a positive alternative */
+        if(!strict && (cMini.filters.length || (c.aliasPrefix||{})[cw+' '+after] || (c.aliasTerm||{})[cw+' '+after] || (FORM_WORD.test(after) && cMini.connectors.length))) break;
+        if(!(cMini.connectors.length || cMini.match.length || cMini.ports.length || cMini.standards.length || cMini.filters.length || cw.split(' ').some(function(w){ return (c.aliasWords||{})[w] || (c.L.nameQualifiers||{})[w]; }))) break;
+        var cStart=s.indexOf(' '+toks[k]+' '+cw, found[found.length-1].end); if(cStart<0) break;
+        var cEnd=cStart+1+toks[k].length+1+cw.length;
+        found.push({ phrase:neg+' '+cw, neg:neg, term:cw, type:null, typeTerm:null, typeOnly:false, formOnly:false, start:cStart, end:cEnd, mini:cMini });
+        k+=useTwo?3:2;
+      }
+      NEG_RE.lastIndex=found[found.length-1].end;
+    }
+    if(!found.length) return { s:s, list:[] };
+    var out=s; found.slice().reverse().forEach(function(n){ out=out.slice(0,n.start)+' '+out.slice(n.end); });
+    /* "not white charger" with no other product named: the product type stays the positive subject, only the qualifier is negated */
+    found.forEach(function(n){ if(n.type && !n.typeOnly && !resolveType({ t:out, ports:[] },c,[])){ out=out+' '+n.typeTerm+' '; n.keptType=true; } });
+    trace.push('negated (not applied): '+found.map(function(n){ return n.phrase; }).join(' | '));
+    return { s:out.replace(/\s+/g,' '), list:found };
+  }
+
   function extract(q,c,trace,o){
     o=o||{};
-    var raw=String(q==null?'':q), s0=normalize(raw), s=expandK(s0,trace,o.capHint);
-    var X={ raw:raw, norm:s.trim(), filters:[], match:[], connectors:[], pair:null, ports:[], unsupported:[], devices:{ classes:[], named:[] } };
+    var raw=String(q==null?'':q), s0=normalize(raw), s=expandK(s0,trace,o.capHint), sFull=s;
+    var NG=o.noNeg?{ s:s, list:[] }:negations(s,c,trace,raw); s=NG.s;
+    var X={ raw:raw, norm:sFull.trim(), negated:NG.list, filters:[], match:[], connectors:[], pair:null, ports:[], unsupported:[], devices:{ classes:[], named:[] } };
     /* p2r3a fix 6: a leading "ok / okay / sige" (and a topic-switch cue) is a discourse marker, not a judgement word */
     var sG=s.replace(/^\s*(?:o\s+)?(?:ok(?:ay)?|sige|cge|alright|ah|oh)(?:\s+po)?\s*,?\s+(?!(?:ba|na ba|lang ba|kaya|ito|yan|yun|yung|ang|sa)\b)/,' ');
     if(c.topicRe.test(' '+sG.trim()+' ')) sG=(' '+sG.trim()+' ').replace(c.topicRe,' ').replace(/^\s*[,:]\s*/,' ');
@@ -293,8 +408,14 @@
     var pm=t.replace(/\d+(?:\.\d+)?\s?(?:w(?:atts?)?|mah|m|meters?|metros?|metro|cm|mm|ports?|hz|gbps|g)\b/g,' ');
     var rng=pm.match(/₱?\s*(\d{2,6})\s*(?:-|to|hanggang)\s*₱?\s*(\d{2,6})(?!\d)/);
     if(rng && (/₱|between|price|budget|presyo/.test(pm))) X.filters.push({ attr:'price', op:'between', value:[+rng[1],+rng[2]], raw:rng[0].trim() });
-    else pm.replace(/(under|below|less than|lower than|cheaper than|up to|max(?:imum)?|hanggang|wala pang|budget(?: of| is| ko)?|within|not more than|above|over|more than|at least|min(?:imum)?)\s*₱?\s*(\d{2,6})(?![\d.])/g,function(m,w,n){
-      X.filters.push({ attr:'price', op:/above|over|more than/.test(w)?'gt':(/at least|min/.test(w)?'ge':'le'), value:+n, raw:m.trim() }); return m; });
+    /* p2r3a.4 B1: a negated comparator flips direction: "not more than / no more than / not over / not above / hindi lalampas sa" = at most,
+       "not less than / not below / not under / hindi bababa sa" = at least. "wala pang" stays "under". */
+    else pm.replace(/(?:\b(not|no|never|isn'?t|hindi|di|wag|huwag)(?:\s+(?:po|ho|na|naman|dapat))?\s+)?(under|below|less than|lower than|cheaper than|up to|max(?:imum)?|hanggang|wala pang|budget(?: of| is| ko)?|within|above|over|more than|higher than|at least|min(?:imum)?|lalampas sa|lalagpas sa|hihigit sa|bababa sa)\s*₱?\s*(\d{2,6})(?![\d.])/g,function(m,neg,w,n){
+      var tl=/lalampas|lalagpas|hihigit|bababa/.test(w);
+      if(tl && !neg) return m;                       /* a bare Taglish "lalampas sa N" (exceeds) is not a budget statement: no filter */
+      var op=/above|over|more than|higher than|lalampas|lalagpas|hihigit/.test(w)?'gt':(/at least|min/.test(w)?'ge':'le');
+      if(neg) op=(op==='le')?'ge':'le';
+      X.filters.push({ attr:'price', op:op, value:+n, raw:m.trim() }); return m; });
     /* ---- connectors: "A to B" pair, otherwise every named connector ---- */
     var cons=[];
     c.connectors.forEach(function(x){ if(x.k==='dp' && !dpConn && x.w==='dp') return; x.re.lastIndex=0; var m; while((m=x.re.exec(t))){ var at=m.index+m[1].length; if(!cons.some(function(o){ return at>=o.at && at<o.at+o.len; })) cons.push({ k:x.k, at:at, len:m[2].length }); } });
@@ -317,8 +438,12 @@
     X.standards=[]; c.standards.forEach(function(x){ if(x.re.test(t) && X.standards.indexOf(x.k)<0) X.standards.push(x.k); });
     if(X.standards.indexOf('cat6a')>=0) X.standards=X.standards.filter(function(k){ return k!=='cat6'; });
     /* a bare number with no unit (follow-up "how about 100?") */
-    var bn=t.replace(/(?:under|below|less than|up to|hanggang|budget|within|above|over|more than|at least|top|₱)\s*\d[\d.]*/g,' ').match(/(?:^|\s)(\d{1,4}(?:\.\d+)?)(?=\s|$)/);
+    var bnText=t.replace(/(?:under|below|less than|up to|hanggang|budget|within|above|over|more than|at least|top|lalampas sa|lalagpas sa|hihigit sa|bababa sa|₱)\s*\d[\d.]*/g,' '),
+        bn=bnText.match(/(?:^|\s)(\d{1,4}(?:\.\d+)?)(?=\s|$)/);
     X.bareNumber=bn?+bn[1]:null;
+    /* p2r3a.4 C: a number that is part of a version / model expression ("gen 4", "usb 3.2 gen 1", "bluetooth 5.3", "iphone 15",
+       "windows 11", "qc 3.0") is not a unit-less amount: it still signals a follow-up, but never becomes a price / length question */
+    X.numVersion=!!bn && VERSION_PRE.test(bnText.slice(0,bn.index+bn[0].length-bn[1].length));
     X.t=t;
     return X;
   }
@@ -393,6 +518,7 @@
       return /[A-Z]/.test(r.slice(1)) || (ix>0 && /^[A-Z]/.test(r)) || (/\d/.test(r)&&/[a-z]/i.test(r)); }).map(function(r){ return r.toLowerCase(); }); }
   function followUpOf(X,c,ctx,G,resolved,subject){
     var lp=ctx&&ctx.lastPlan; if(!lp) return null;
+    if(X.negFollow) return { follow:true, cue:true, unknown:[] };   /* p2r3a.4 B: "not white" after a search refines nothing, keeps the search */
     var t=X.t.replace(/\s+/g,' ').trim();
     if(c.topicRe.test(' '+t+' ')) return { follow:false, why:'topic cue' };
     if(resolved.length) return { follow:false, why:'new anchor' };
@@ -410,7 +536,9 @@
     Object.keys(c.L.colors).forEach(function(k){ c.L.colors[k].forEach(function(w){ known[w]=1; }); });
     Object.keys(c.L.attributes||{}).forEach(function(k){ c.L.attributes[k].forEach(function(p){ p.split(' ').forEach(function(w){ known[w]=1; }); }); });
     Object.keys(c.L.connectors).forEach(function(k){ c.L.connectors[k].forEach(function(p){ p.split(' ').forEach(function(w){ known[w]=1; }); }); });
-    ['gan','pd','magsafe','qi2','built-in','built','retractable','cable','charger','wireless','fast','black','white','second','first','third','una','pangalawa','pangatlo','ikalawa','hdmi','usb-c','usb-a','lightning','meters','meter','metro','long','capacity','wattage','price','budget','under','below','above','at','least','up','to','pataas','pababa','hanggang','or','and','₱'].forEach(function(w){ known[w]=1; });
+    ['gan','pd','magsafe','qi2','built-in','built','retractable','cable','charger','wireless','fast','black','white','second','first','third','una','pangalawa','pangatlo','ikalawa','hdmi','usb-c','usb-a','lightning','meters','meter','metro','long','capacity','wattage','price','budget','under','below','above','at','least','up','to','pataas','pababa','hanggang','or','and','₱',
+     /* p2r3a.4: negated comparators ("not more than 1500", "di lalampas sa 1500") are price words, not unknown words */
+     'not','no','never','hindi','di','wag','huwag','dapat','over','than','lalampas','lalagpas','hihigit','bababa','sa'].forEach(function(w){ known[w]=1; });
     if(hit) hit.a.term.split(' ').forEach(function(w){ known[w]=1; });
     var toks=t.split(' ').filter(Boolean), unknown=toks.filter(function(w){ return !known[w] && !/\d/.test(w) && w.length>1; });
     var slots=!!(X.filters.length||X.match.length||X.connectors.length||X.ports.length||X.standards.length||hit||X.bareNumber||G.comparative||G.rankMin||G.rankMax||
@@ -425,6 +553,25 @@
   }
   function pickAttrWords(X,c){ return allHits(c.attrs,X.t).map(function(h){ return h.x.k; }).filter(function(k){ return !(k==='dp' && X.dpConn); }); }
   function clone(o){ return o==null?o:JSON.parse(JSON.stringify(o)); }
+  /* p2r3a.4 B: a constraint the user NEGATED is never applied positively. This turn's negated phrase is already cut from the
+     text; here an INHERITED constraint that matches it is dropped ("white charger" → "not white" must not keep "white").
+     Constraints the user wrote positively in THIS turn (`own`) are never touched. */
+  function dropNegated(plan,negs,own,trace){
+    var dropped=[], mine=function(list,x){ return list.indexOf(x)>=0; };
+    negs.forEach(function(n){ var M=n.mini, tw=n.term.split(' ');
+      plan.match=plan.match.filter(function(m){ if(mine(own.match,m)) return true; var hit=M.match.some(function(x){ return x.k===m.k && JSON.stringify(x.v)===JSON.stringify(m.v); }) || (m.k==='nameword' && tw.indexOf(m.v)>=0);
+        if(hit) dropped.push(m.k); return !hit; });
+      plan.filters=plan.filters.filter(function(f){ if(mine(own.filters,f)) return true; var hit=M.filters.some(function(x){ return x.attr===f.attr && JSON.stringify(x.value)===JSON.stringify(f.value); }); if(hit) dropped.push(f.attr); return !hit; });
+      var nk=M.connectors.map(function(x){ return x.k; });
+      plan.connectors=plan.connectors.filter(function(k){ if(mine(own.connectors,k)) return true; var hit=nk.indexOf(k)>=0; if(hit) dropped.push('connector:'+k); return !hit; });
+      plan.ports=plan.ports.filter(function(p){ if(mine(own.ports,p)) return true; var hit=nk.some(function(k){ return portKindOf(k)===p.kind || (k==='tf'?'sd':k)===p.kind; }); if(hit) dropped.push('port:'+p.kind); return !hit; });
+      if(plan.pair && plan.pair!==own.pair && (nk.indexOf(plan.pair.from)>=0 || nk.indexOf(plan.pair.to)>=0)){ plan.pair=null; dropped.push('pair'); }
+      plan.standards=plan.standards.filter(function(k){ if(mine(own.standards,k)) return true; var hit=M.standards.indexOf(k)>=0; if(hit) dropped.push('standard:'+k); return !hit; });
+      if(n.type && n.type.subtype && plan.type && plan.type.via==='context' && plan.type.family===n.type.family && plan.type.subtype===n.type.subtype){
+        plan.type={ id:plan.type.family, family:plan.type.family, subtype:null, via:plan.type.via, term:null, confidence:plan.type.confidence||'medium' }; dropped.push('subtype:'+n.type.subtype); }
+    });
+    if(dropped.length) trace.push('negated → not applied: '+dropped.join(','));
+  }
   function mergeFollowUp(plan,lp,X,trace){
     var inh=[];
     if(!plan.type && lp.type){ plan.type=clone(lp.type); plan.type.via='context'; inh.push('type'); }
@@ -464,6 +611,27 @@
       plan.route={ route:ROUTES.LOCAL, rule:'R0 small talk', candidates:[] }; return finish(plan,t0);
     }
     if(st && st.greetingFirst) plan.greeting=true;
+
+    /* ---- p2r3a.4 B: negated phrases are reported, never applied. A message that is ONLY a negation:
+         a negated product TYPE ("not a charger", "hindi power bank") → ask what they want instead (no catalogue-wide exclusion,
+         no "wala", no invented family; the conversation context is kept); a negated qualifier with a conversation context
+         ("65w charger" → "not white") re-answers the last search with the "not applied" note; with no context → clarify. ---- */
+    plan.negated=X.negated.map(function(n){ return { phrase:n.phrase, term:n.term, typeOnly:!!(n.typeOnly||n.formOnly), keptType:!!n.keptType }; });
+    if(X.negated.length){
+      var refW={}; (c.L.language.reference||[]).forEach(function(p){ p.split(' ').forEach(function(w){ refW[w]=1; }); });
+      /* follow-up cue words ("how about …", "alin dun …", "which of those …") are not product content either */
+      var restW=X.t.replace(/[^a-z0-9.₱ -]+/g,' ').split(/\s+/).filter(function(w){ return w && !NEG_FILL[w] && !c.smallFill[w] && FU_KNOWN.indexOf(w)<0 && !refW[w] && !NEG_CUE[w]; });
+      if(!restW.length){
+        var famNeg=X.negated.filter(function(n){ return n.typeOnly||n.formOnly; })[0];
+        if(famNeg || !lp){
+          plan.intent='clarify'; plan.keepContext=true;
+          plan.ambiguity.push(famNeg?{ slot:'negation', reason:'only a negated product type', value:famNeg.term }:{ slot:'type', reason:'only a negated qualifier, no product' });
+          plan.result={ executor:'none', codes:[], mentioned:[], related:[], unknown:0, evidence:{}, notes:[], caveats:[] };
+          plan.route={ route:ROUTES.CLARIFY, rule:'R4 negation only', candidates:[] }; return finish(plan,t0);
+        }
+        X.negFollow=true; trace.push('negation-only follow-up → re-answer the last search');
+      }
+    }
 
     /* ---- anchors + context references ---- */
     plan.anchors=findAnchors(' '+X.t+' ',ai,trace);
@@ -532,7 +700,9 @@
 
     /* ---- p2r3a: follow-up (plan mutation) vs topic switch ---- */
     var fu=followUpOf(X,c,ctx,G,resolved,subject);
+    var own={ match:plan.match.slice(), filters:plan.filters.slice(), connectors:plan.connectors.slice(), ports:plan.ports.slice(), standards:plan.standards.slice(), pair:plan.pair };
     if(fu){ if(fu.follow){ plan.followUp=true; mergeFollowUp(plan,lp,X,trace); } else if(lp){ plan.topicSwitch=fu.why; trace.push('topic switch: '+fu.why); } }
+    if(X.negated.length && plan.followUp) dropNegated(plan,X.negated,own,trace);
 
     /* ---- intent (ordered rules; the anchor never consumes the intent) ---- */
     var attrs=pickAttr(X,c), rank=rankFrom(G,X,attrs), metric=metricOf(X,c,G);
@@ -578,7 +748,7 @@
         subject=[focus[0]]; I='alternative'; plan.subjectVia='focus';
       } else if(cheaperWord && !subject.length && !plan.refs.some(function(r){ return r.kind==='all'; })){
         I='rank'; rank={ by:'price', dir:'asc' }; plan.cheaperList=true; plan.limit=null;
-      } else if(X.bareNumber && !X.filters.length){
+      } else if(X.bareNumber && !X.numVersion && !X.filters.length){
         plan.ambiguity.push({ slot:'number', reason:'number with no unit', value:X.bareNumber });
       } else if((I==='list'||I==='clarify') && ctx.lastPlan.intent==='attribute' && ctx.lastPlan.attribute && ATTR_VAL[ctx.lastPlan.attribute] && !ctx.lastPlan.subjectBased && !subject.length){
         I='attribute'; specAttr=[ctx.lastPlan.attribute]; trace.push('follow-up keeps attribute '+ctx.lastPlan.attribute);
@@ -586,7 +756,7 @@
         I=ctx.lastPlan.intent==='exist'?'exist':ctx.lastPlan.intent;
         if(I==='rank' && !rank && ctx.lastPlan.sort){ plan.sort=clone(ctx.lastPlan.sort); plan.limit=ctx.lastPlan.limit; }
       }
-    } else if(X.bareNumber && !hasType && !hasSpec && !subject.length && I==='clarify'){
+    } else if(X.bareNumber && !X.numVersion && !hasType && !hasSpec && !subject.length && I==='clarify'){
       plan.ambiguity.push({ slot:'number', reason:'number with no unit', value:X.bareNumber });
     }
     /* fix-pack 2 #6: a named product + a named device + a fit/compatibility verb is a compatibility question (never a plain card) */
@@ -620,13 +790,20 @@
       else if((I==='count' && specAttr.length) || (nn && fieldOnly(nn,c))) plan.ambiguity.push({ slot:'type', reason:'field / measure with no product' });
       /* the per-noun negative is only honest when no published product NAME or CATEGORY carries the noun; a qualified catalogue
          noun ("products for macbook") is not a product type either — both clarify instead of a false "Wala tayong …" */
-      else if(nn && !catW && nnW.length<=3 && !inCatalogue(nnW,products)){ plan.unknownNoun=nn; trace.push('unknown noun: '+nn); }
+      else if(nn && !catW && nnW.length<=3 && !inCatalogue(nnW,products) && !X.negated.length){ plan.unknownNoun=nn; trace.push('unknown noun: '+nn); }   /* p2r3a.4 B: never a per-noun "wala" when something was negated */
       else plan.ambiguity.push({ slot:'type', reason:(I==='count'?'count':'existence')+' question with no product noun' });
     }
     /* p2r3a fix 2: "with cable" on a power bank / charger without built-in or retractable = unclear hard constraint → clarify */
     if(plan.type && (plan.type.family==='power_bank'||plan.type.family==='charger') && !plan.pair && !subject.length &&
        /\b(?:with|may|meron|w\/)\s+(?:[a-z0-9-]+\s+)?(?:cables?|kable)\b/.test(X.t) && !plan.match.some(function(m){ return m.k==='flag' && (m.v==='builtin'||m.v==='retractable'); }))
       plan.ambiguity.push({ slot:'cable', reason:'cable wording without built-in / retractable' });
+    /* p2r3a.4 A: an alternative needs ONE base product — the single focused item (of the asked type, if one is named);
+       otherwise ask which product. Never a null / empty base; the conversation context is kept. */
+    if(I==='alternative' && !subject.length){
+      var fb=ctx?(ctx.focus||[]).filter(function(x){ return !!idx.byCode[x]; }):[];
+      if(fb.length===1 && (!plan.type || idx.byCode[fb[0]].type.family===plan.type.family)){ subject=[fb[0]]; plan.subjectVia='focus'; trace.push('alternative → focused base '+fb[0]); }
+      else { plan.ambiguity.push({ slot:'target', reason:'alternative needs a base product' }); plan.keepContext=true; trace.push('alternative without a single base product → clarify'); }
+    }
     plan.intent=I;
     if(I==='attribute'){ plan.attribute=(subject.length?attrs.filter(function(a){ return a!=='sku'; })[0]:(specAttr[0]||'sku'))||attrs[0]; plan.attributes=uniq(attrs.filter(function(a){ return a!=='sku'; })); }
     if(I==='rank' && !plan.sort && rank){ plan.sort=[{ by:rank.by==='price'?plan.priceField:rank.by, dir:rank.dir }]; if(!plan.cheaperList) plan.limit=X.topN||1; }
@@ -1038,7 +1215,7 @@
       if(subject.length) return set(ROUTES.LOCAL,'R3 compat, single product (no second candidate) → local card + caveat');
       return set(ROUTES.CLARIFY,'R3 compat, no candidate');
     }
-    if(plan.ambiguity.some(function(a){ return a.slot==='target'||a.slot==='type'||a.slot==='number'||a.slot==='cable'||a.slot==='name'; }) && I!=='recommend') return set(ROUTES.CLARIFY,'R4 ambiguity');
+    if(plan.ambiguity.some(function(a){ return a.slot==='target'||a.slot==='type'||a.slot==='number'||a.slot==='cable'||a.slot==='name'||a.slot==='negation'; }) && I!=='recommend') return set(ROUTES.CLARIFY,'R4 ambiguity');
     if(['lookup','exist','count','list','rank','compare','attribute','alternative'].indexOf(I)>=0){
       if(I==='lookup' && !subject.length) return set(ROUTES.CLARIFY,'R4 unresolved anchor');
       return set(ROUTES.LOCAL,'R5 local intent');
@@ -1064,6 +1241,7 @@
   function nextContext(plan,prev){
     prev=prev||{};
     if(plan.intent==='smalltalk' || plan.intent==='help') return prev;          /* small talk never changes the context */
+    if(plan.keepContext) return prev;                                           /* p2r3a.4: a clarification (no base / negation only) keeps the last search */
     var ctx={ turn:(prev.turn||0)+1, focus:[], results:[], comparison:(prev.comparison||[]).slice(), lastPlan:null };
     var subj=plan.subject||[], res=(plan.result&&plan.result.codes)||[];
     if(plan.intent==='compare' && subj.length>=2){ ctx.comparison=subj.slice(0,4); }

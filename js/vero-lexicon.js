@@ -448,6 +448,9 @@
         clarifyClient:'Sure — what product or need does your client have? Charger, power bank, hub/dock, cable, NAS, or something else?',
         coach:'Sales coaching (hero SKUs, upsell, bundles, objection handling) isn’t available yet. I can show the product details, compare options or list cheaper ones from the pricelist.',
         alternativePending:'I can’t pick alternatives yet. Here’s {code}; try “same but cheaper” for cheaper options with the same key spec.',
+        clarifyAlternative:'Which product do you want alternatives for? Send the SKU or model, or tap a product card first.',
+        clarifyNegFamily:'Got it — not {x}. Which product type are you looking for instead?',
+        negNotApplied:'“{x}” isn’t applied yet — excluding products isn’t supported, so the list may still include them',
         help2:'Try a product type with a spec or budget, an item code, or “compare A and B”.'
       },
       tl: {
@@ -499,6 +502,9 @@
         clarifyClient:'Sige — anong product o need ng client mo? Charger, power bank, hub/dock, cable, NAS, o iba pa?',
         coach:'Wala pa ang sales coaching (hero SKUs, upsell, bundles, objection handling). Pwede kong ipakita ang product details, mag-compare, o maglista ng mas murang options mula sa pricelist.',
         alternativePending:'Hindi pa ako makapili ng alternatives. Heto ang {code}; subukan ang “same but cheaper” para sa mas murang options na pareho ang key spec.',
+        clarifyAlternative:'Para saang product ang hanap mong alternatives? Ibigay ang SKU o model, o i-tap muna ang isang product card.',
+        clarifyNegFamily:'Sige — hindi {x}. Anong product type ang hanap mo?',
+        negNotApplied:'hindi pa na-apply ang “{x}” — hindi pa suportado ang pag-exclude, kaya puwedeng kasama pa rin sila sa listahan',
         help2:'Subukan ang product type na may spec o budget, item code, o “compare A at B”.'
       }
     },
