@@ -667,6 +667,21 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
     const ch=run('cheapest usb 3.0 hub').proposal;
     chk('C1.R14 in a ranking, stated matches come before inferred ones ("cheapest usb 3.0 hub": an inferred 3.2 Gen 1 hub is never first)', ch.kind==='inferred' && JSON.stringify(ch.codes.slice(0,(ch.exactCodes||[]).length).sort())===JSON.stringify((ch.exactCodes||[]).slice().sort()), JSON.stringify([ch.codes.slice(0,4),ch.exactCodes&&ch.exactCodes.length]));
     chk('C1.R15 a version exclusion keeps the Gen in its label ("not USB 3.1 Gen 1")', /not USB 3\.1 Gen 1/.test((run('not usb 3.1 gen 1 cable').proposal.notStated||[]).join(' ')));
+    /* remote review (VERO N1): a negated FULL USB version must not also emit its absorbed Gen as an affirmed requirement */
+    const N1=[['hub not usb 3.2 gen 2','3.2g2'],['hindi usb 3.2 gen 1 hub','3.2g1'],['not usb 3.1 gen 1 cable','3.1g1'],['cable hindi usb 3.1 gen 2','3.1g2'],['hub except usb 3.2 gen 2','3.2g2']];
+    const n1b=N1.filter(([q,full])=>{ const T=TF(q), vs=T.constraints.filter(c=>c.kind==='version');
+      return validateA5(T).length || vs.some(c=>c.polarity===true) || !vs.some(c=>c.slot==='version:usb' && c.value.generation===full && c.polarity===false)
+        || T.constraints.some(c=>c.slot==='connector:usb4' || (c.value && c.value.generation==='4')) || !T.constraints.some(c=>c.slot==='connector:usb' && c.polarity===true); }).map(([q])=>q+' :: '+JSON.stringify(TF(q).constraints.map(c=>[c.slot,c.value&&c.value.generation,c.polarity])));
+    const n1x=VP.executeFrame(TF('hub not usb 3.2 gen 2'),OPTS);
+    chk('C1.R16 a negated full USB version ("hub not usb 3.2 gen 2", "hindi usb 3.2 gen 1 hub", "not usb 3.1 gen 1 cable", "cable hindi usb 3.1 gen 2", "hub except usb 3.2 gen 2") keeps ONLY the negated full version: no affirmed bare Gen, no USB4, base USB connector kept; the executor excludes the stated 3.2 Gen 2 hub and no longer degrades to partial', !n1b.length && n1x.kind!=='partial' && !n1x.codes.includes('35584'), n1b.concat([n1x.kind+' '+n1x.codes.includes('35584')]));
+    /* generic invariant: a negated version span never also yields a positive version constraint (same span or negator-governed span) */
+    const NV=['usb 3.2 gen 2','usb 3.2 gen 1','usb 3.1 gen 1','usb 3.1 gen 2','usb-c 3.2 gen 2','usb-c 3.1 gen 1','usb 3.0','usb 3.1','usb4','tb4','thunderbolt 4','hdmi 2.1','hdmi 2.0','dp 1.4','pcie gen 4','pcie 4.0','gen 1','gen 2'];
+    const NN=['not','hindi','without','walang','except','no','ayaw ng'], NF=['hub','cable','adapter','ssd enclosure','dock',''];
+    const nvq=[]; NF.forEach(f=>NN.forEach(n=>NV.forEach(v=>{ nvq.push((f+' '+n+' '+v).trim()); if(f) nvq.push(n+' '+v+' '+f); })));
+    const nvb=nvq.filter(q=>{ const P=VP.parse(q,OPTS), T=VP.turnFrame(P), vs=T.constraints.filter(c=>c.kind==='version');
+      return vs.some(c=>c.polarity===true && (vs.some(d=>d.polarity===false && d.source.span===c.source.span) || (P.spans.find(s=>s.id===c.source.span)||{}).negated)); });
+    const ctl=[['usb 3.2 gen 2 hub','3.2g2',true],['usb-c gen 1 cable','g1',true],['not usb4 cable','4',false],['thunderbolt 4 cable','4',true]].filter(([q,g,p])=>!TF(q).constraints.some(c=>c.kind==='version' && c.value.generation===g && c.polarity===p)).map(x=>x[0]);
+    chk('C1.R17 NEGATED VERSION INVARIANT ('+nvq.length+' negator x family x version phrasings): a negated version span never also emits a positive version constraint; affirmed and negated controls keep their polarity', !nvb.length && !ctl.length, nvb.slice(0,10).concat(ctl));
     const kb=run('cheapest keyboard built-in').proposal;
     chk('C1.R8 an inferred-only set over unrelated families with no subject clarifies (never 23 cross-family items)', kb.kind==='clarify' && !kb.codes.length, JSON.stringify([kb.kind,kb.codes.length])); }
   /* ---- discourse chain with the C1 parser output (structure only; context guards are C2) ---- */
@@ -704,6 +719,7 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
       ['later GEN token binding (R2-2)', "for(var gi=u3[0].end;gi<toks.length;gi++){", "for(var gi=toks.length;gi<toks.length;gi++){", M=>!/g1$/.test(Object.values(M.graphFor('50751',OPTS).versions).join(' '))],
       ['bare Gen matches a stated Gen (R3)', "var hg=(h.match(/g(\\d(?:x\\d)?)$/)||[])[1]; if(hg) return 'g'+hg===want?CONF:CONTRA;", "var hg=null;", M=>!(M.run('usb c gen2 cable',OPTS).proposal.codes||[]).includes('80150')],
       ['negated bare generation unresolved (R3)', "if(vb>=0 && (spans[vb].type==='NEG' || spans[vb].type==='RELAXNEG') && !cut(spans[vb],v)){ v._unres=true; v.impact='high'; return; }", "", M=>tf(M,'usb-c cable not gen 1').constraints.some(c=>/^version:/.test(c.slot) && c.polarity===true)],
+      ['negated full version emits no affirmed Gen (N1)', "if(cv && !c.affirmBase) add('version'", "if(cv) add('version'", M=>tf(M,'hub not usb 3.2 gen 2').constraints.some(c=>c.kind==='version' && c.polarity===true)],
       ['ranking puts stated before inferred (R3)', "(kind==='inferred'&&out.exactCodes?rankCodes(out.exactCodes,F.rank,C).concat(rankCodes(out.inferred||[],F.rank,C)):rankCodes(chosen,F.rank,C))", "rankCodes(chosen,F.rank,C)", M=>{ const p=M.run('cheapest usb 3.0 hub',OPTS).proposal; return (p.inferred||[]).includes(p.codes[0]); }],
       ['price cache refresh', "if(CAT.priceSig!==ps){ refreshPrices(CAT,products); CAT.priceSig=ps; }", "", M=>{ const P2=PUB.map(p=>Object.assign({},p)), O2={ facts:VF.build(P2), products:P2 }, fr={ subject:{ family:'charger' }, rank:{ metric:'price', dir:'asc' }, constraints:[] };
         const a=M.executeFrame(fr,O2).codes[0]; P2.find(p=>String(p.item_code)===a).srp='99999'; return M.executeFrame(fr,O2).codes[0]===a; }] ];

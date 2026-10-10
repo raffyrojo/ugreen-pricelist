@@ -1436,7 +1436,9 @@
           var pc=pol(c); add('connector','connector:'+c.id,v,c,f && pc===true?{ interfaces:[f] }:null); if(f && pc===true) ifs[f]=1;   /* only an affirmed connector declares its interface */
           var sp=spans.filter(function(s){ return s.id===c.span; })[0], gen=sp&&sp.value&&sp.value.gen;
           var raw=c.id==='usb4'?'4':(f==='usb'?((c.ver||'')+(gen||'')):(c.ver||gen||null)), cv=f&&raw?O.canonVersion(f,raw):null;
-          if(cv) add('version','version:'+f,{ interface:f, generation:cv },c);
+          /* V2-2C C1 (remote review N1): an affirmBase connector is the base of a NEGATED version ("hub not usb 3.2 gen 2"); its
+             version lives only in the notVersion constraint, so the span's absorbed Gen is never emitted again as a requirement */
+          if(cv && !c.affirmBase) add('version','version:'+f,{ interface:f, generation:cv },c);
           break; }
         case 'pair': { var pf=pol(c)!==true?[]:uniq([c.from.id].concat(c.to.map(function(t){ return t.id; })).map(function(k){ return O.interfaceOf(k); }).filter(Boolean)); pf.forEach(function(x){ ifs[x]=1; });
           add('pair','pair',{ from:c.from.id, to:c.to.map(function(t){ return t.id; }) },c,pf.length?{ interfaces:pf }:null); break; }

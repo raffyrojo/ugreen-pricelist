@@ -263,11 +263,12 @@ chk('RT5 coverage mean = 1 and bound coverage >= 0.988 ('+A.coverageMean+' / '+A
 chk('RT6 inventory safety 15/15 and no new unresolved / ambiguous turns (<= 4 / <= 1)', A.inventory.v2Safe===15 && A.inventory.of===15 && A.turnsWithUnresolved<=4 && A.turnsWithAmbiguous<=1, JSON.stringify([A.inventory,A.turnsWithUnresolved,A.turnsWithAmbiguous]));
 /* ---------- EXCLUDE-integrity audit (gating) over every shadow turn + a generated exclusion matrix ---------- */
 const EXM=[]; ['charger','power bank','hub','hdmi cable','earphones'].forEach(f=>{ ['white','black','pink'].forEach(c=>EXM.push(f+' na hindi '+c,'not '+c+' '+f,f+' except '+c,'walang '+c+' '+f)); ['built-in cable','magsafe','hdmi','usb-c'].forEach(v=>EXM.push(f+' na walang '+v,f+' without '+v)); EXM.push('not 65w '+f,'hindi 20000mah '+f,f+' not over 1000 pesos','not sure kung 65w '+f,'dont need 65w '+f,f+' no need talaga','no need talaga 65w '+f); });
+EXM.push('hub not usb 3.2 gen 2','hindi usb 3.2 gen 1 hub','not usb 3.1 gen 1 cable','cable hindi usb 3.1 gen 2','hub except usb 3.2 gen 2');   /* V2-2C C1 remote review N1: negated full USB versions */
 const audit=[]; let polNullSeen=0, negSeen=0;
 ITEMS.map(it=>({ q:it.q, P:V2[it.set+':'+it.id] })).concat(EXM.map(q=>({ q, P:VP.run(q,{ facts:FACTS, products:PUB }) }))).forEach(({ q, P })=>{ const pr=P.proposal;
   P.frame.constraints.forEach(c=>{ if(c.polNull){ polNullSeen++; if(pr.kind==='exact') audit.push(q+' :: polarity-null labelled exact'); }
-    const excluded=c.neg||c.kind==='notConnector'||c.kind==='notFamily'; if(!excluded) return; negSeen++;
-    const pos=Object.assign({},c,{ neg:false, kind:c.kind==='notConnector'?'connector':c.kind==='notFamily'?'family':c.kind });
+    const excluded=c.neg||c.kind==='notConnector'||c.kind==='notFamily'||c.kind==='notVersion'; if(!excluded) return; negSeen++;
+    const pos=c.kind==='notVersion'?{ kind:'ifaceVersion', iface:c.iface, gen:c.ver, label:c.label }:Object.assign({},c,{ neg:false, kind:c.kind==='notConnector'?'connector':c.kind==='notFamily'?'family':c.kind });
     (pr.codes||[]).forEach(code=>{ if(VP.evalConstraint(code,pos,{ facts:FACTS, products:PUB })==='CONFIRMED') audit.push(q+' :: proposed '+code+' carries the excluded '+c.label); }); });
   if(P.ledger.unresolved.some(u=>u.kind==='neg'||u.kind==='relaxneg') && pr.kind==='exact') audit.push(q+' :: unresolved negator but exact'); });
 chk('EX1 EXCLUDE-integrity: no proposed product carries an excluded value; polarity null never exact; an unresolved negator never exact ('+(ITEMS.length+EXM.length)+' turns, '+negSeen+' exclusions, '+polNullSeen+' null-polarity constraints)', !audit.length && negSeen>=40 && polNullSeen>=10, audit.slice(0,6));
