@@ -682,6 +682,36 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
       return vs.some(c=>c.polarity===true && (vs.some(d=>d.polarity===false && d.source.span===c.source.span) || (P.spans.find(s=>s.id===c.source.span)||{}).negated)); });
     const ctl=[['usb 3.2 gen 2 hub','3.2g2',true],['usb-c gen 1 cable','g1',true],['not usb4 cable','4',false],['thunderbolt 4 cable','4',true]].filter(([q,g,p])=>!TF(q).constraints.some(c=>c.kind==='version' && c.value.generation===g && c.polarity===p)).map(x=>x[0]);
     chk('C1.R17 NEGATED VERSION INVARIANT ('+nvq.length+' negator x family x version phrasings): a negated version span never also emits a positive version constraint; affirmed and negated controls keep their polarity', !nvb.length && !ctl.length, nvb.slice(0,10).concat(ctl));
+    /* ---- V2-2C G3: an INFERRED version never bypasses an explicit port count (evidence derived from the catalogue graph, no SKU list) ---- */
+    const EV=(c,x)=>VP.evalConstraint(c,Object.assign({ kind:'connector', ver:null, gen:null },x),OPTS), ok2=s=>s==='CONFIRMED'||s==='INFERRED';
+    const PUBC=PUB.map(p=>String(p.item_code)).filter(c=>G(c));
+    const usbc30=PUBC.filter(c=>G(c).versions.usb_c==='3.0'), bk=c=>G(c).ports&&G(c).ports.byKind;
+    const one=usbc30.filter(c=>bk(c)&&bk(c).usb_c===1), unk=usbc30.filter(c=>!bk(c)||bk(c).usb_c==null);
+    const g3b=[].concat(one.filter(c=>EV(c,{ id:'usb_c', count:1, gen:'g1' })!=='INFERRED').map(c=>c+' x1 sufficient not INFERRED'),
+      one.filter(c=>EV(c,{ id:'usb_c', count:2, gen:'g1' })!=='CONTRADICTED').map(c=>c+' x2 insufficient not CONTRADICTED'),
+      unk.filter(c=>ok2(EV(c,{ id:'usb_c', count:2, gen:'g1' }))).map(c=>c+' unstated count claimed'));
+    chk('C1.G3a count evidence for an inferred Gen (USB-C 3.0 => Gen 1): a stated sufficient count keeps INFERRED ('+one.length+'), a stated smaller count CONTRADICTS ('+one.length+'), an unstated count is never claimed ('+unk.length+')', one.length>0 && unk.length>0 && !g3b.length, g3b);
+    /* general invariant: a counted connector with a version is satisfied (CONF / INF) only if the same count WITHOUT the version is CONFIRMED */
+    const g3v=[]; let g3pos=0, g3neg=0;
+    PUBC.forEach(c=>['usb_c','usb_a'].forEach(id=>[1,2,3,4].forEach(n=>[{ gen:'g1' },{ gen:'g2' },{ ver:'3.0' },{ ver:'3.2', gen:'g1' }].forEach(w=>{
+      const s=EV(c,Object.assign({ id, count:n },w)), cnt=EV(c,{ id, count:n }), free=EV(c,Object.assign({ id },w));
+      if(ok2(s) && cnt!=='CONFIRMED') g3v.push(c+' '+id+' x'+n+' '+JSON.stringify(w)+' '+s+' / count '+cnt);
+      if(s==='INFERRED') g3pos++; if(free==='INFERRED' && cnt==='CONTRADICTED' && s==='CONTRADICTED') g3neg++; }))));
+    chk('C1.G3b INVARIANT: an INFERRED (or stated) Gen never lets a product bypass a confirmed explicit port count ('+PUBC.length+' products x usb-c / usb-a x 1-4 x 4 versions; '+g3pos+' sufficient inferred rows kept, '+g3neg+' insufficient inferred rows removed)', !g3v.length && g3pos>0 && g3neg>0, g3v.slice(0,8));
+    /* the frame executor reads the version from the COUNTED connector: every proposed exact / inferred row satisfies the count AND carries the version on that connector */
+    const g3x=[]; ['usb_c','usb_a'].forEach(id=>[1,2,3].forEach(n=>['g1','g2','3.0'].forEach(gv=>{ const vg=/^g/.test(gv)?{ gen:gv }:{ ver:gv };
+      const fr={ subject:{ family:'hub_dock' }, constraints:[A('connector','connector:'+id,{ id, count:n },true),A('version','version:usb',{ interface:'usb', generation:gv },true)] };
+      const e=VP.executeFrame(fr,OPTS); (e.kind==='exact'?e.codes:(e.exactCodes||[]).concat(e.inferred||[])).forEach(c=>{ if(EV(c,{ id, count:n })!=='CONFIRMED' || !ok2(EV(c,Object.assign({ id },vg)))) g3x.push(id+' x'+n+' '+gv+' :: '+c); }); })));
+    const g3q=['hub with 2 usb-c gen 1','hub with 2 usb c 3.2 gen 1'].map(q=>{ const p=run(q).proposal, e=VP.executeFrame(TF(q),OPTS); return { q, rows:[].concat(p.exactCodes||[],p.inferred||[],e.exactCodes||[],e.inferred||[],p.kind==='exact'?p.codes:[],e.kind==='exact'?e.codes:[]) }; });
+    const g3qb=g3q.filter(x=>x.rows.some(c=>EV(c,{ id:'usb_c', count:2 })!=='CONFIRMED' || !ok2(EV(c,{ id:'usb_c', gen:'g1' })))).map(x=>x.q+' :: '+x.rows.join(','));
+    /* a version stated on a DIFFERENT connector keeps its own scope (VERO review of G3: "usb-a 3.0 and 2 usb-c" must still find the hubs
+       with 2 stated USB-C ports and a USB-A 3.0 port) */
+    const XS=[['hub with usb-a 3.0 and 2 usb-c','usb_a',{ ver:'3.0' },'usb_c',2],['hub with 2 usb-c and usb-a 3.0','usb_a',{ ver:'3.0' },'usb_c',2],['docking station with usb-c 3.2 and 2 usb-a','usb_c',{ ver:'3.2' },'usb_a',2]];
+    const g3d=XS.map(([q,vid,vw,cid,n])=>{ const e=VP.executeFrame(TF(q),OPTS), got=new Set(e.kind==='exact'?e.codes:(e.exactCodes||[]));
+      const want=PUBC.filter(c=>G(c).family==='hub_dock' && EV(c,{ id:cid, count:n })==='CONFIRMED' && EV(c,Object.assign({ id:vid },vw))==='CONFIRMED');
+      return { q, want:want.length, miss:want.filter(c=>!got.has(c)) }; });
+    chk('C1.G3d a version stated on another connector is not bound to the counted one ("hub with usb-a 3.0 and 2 usb-c", "docking station with usb-c 3.2 and 2 usb-a"): every hub stating both is still an exact match', g3d.every(x=>x.want>0 && !x.miss.length), JSON.stringify(g3d));
+    chk('C1.G3c "hub with 2 usb-c gen 1": neither run() nor the frame executor proposes a row with fewer than 2 stated USB-C ports or whose Gen 1 is inferred from a DIFFERENT port (e.g. USB-A 3.0 beside USB-C 3.2 10G); the frame executor binds the version to the counted connector ('+g3x.length+' violations over 18 frames)', !g3qb.length && !g3x.length, g3qb.concat(g3x.slice(0,6)));
     const kb=run('cheapest keyboard built-in').proposal;
     chk('C1.R8 an inferred-only set over unrelated families with no subject clarifies (never 23 cross-family items)', kb.kind==='clarify' && !kb.codes.length, JSON.stringify([kb.kind,kb.codes.length])); }
   /* ---- discourse chain with the C1 parser output (structure only; context guards are C2) ---- */
@@ -719,6 +749,9 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
       ['later GEN token binding (R2-2)', "for(var gi=u3[0].end;gi<toks.length;gi++){", "for(var gi=toks.length;gi<toks.length;gi++){", M=>!/g1$/.test(Object.values(M.graphFor('50751',OPTS).versions).join(' '))],
       ['bare Gen matches a stated Gen (R3)', "var hg=(h.match(/g(\\d(?:x\\d)?)$/)||[])[1]; if(hg) return 'g'+hg===want?CONF:CONTRA;", "var hg=null;", M=>!(M.run('usb c gen2 cable',OPTS).proposal.codes||[]).includes('80150')],
       ['negated bare generation unresolved (R3)', "if(vb>=0 && (spans[vb].type==='NEG' || spans[vb].type==='RELAXNEG') && !cut(spans[vb],v)){ v._unres=true; v.impact='high'; return; }", "", M=>tf(M,'usb-c cable not gen 1').constraints.some(c=>/^version:/.test(c.slot) && c.polarity===true)],
+      ['inferred Gen re-checks the port count (G3)', "if((st===CONF||st===INF) && c.count && g.ports && g.ports.byKind && g.ports.byKind[c.id]!=null){ return g.ports.byKind[c.id]>=c.count?st:CONTRA; }\n        if((st===CONF||st===INF) && c.count){", "if(st===CONF && c.count && g.ports && g.ports.byKind && g.ports.byKind[c.id]!=null){ return g.ports.byKind[c.id]>=c.count?CONF:CONTRA; }\n        if(st===CONF && c.count){", M=>(M.run('hub with 2 usb-c gen 1',OPTS).proposal.inferred||[]).some(c=>VP.evalConstraint(c,{ kind:'connector', id:'usb_c', count:2, ver:null, gen:null },OPTS)!=='CONFIRMED')],
+      ['version bound to the counted connector (G3)', "if(cc.length===1) v.bind=cc[0].id; });", "});", M=>{ const e=M.executeFrame(M.turnFrame(M.parse('hub with 2 usb-c gen 1',OPTS)),OPTS); return (e.inferred||[]).some(c=>VP.evalConstraint(c,{ kind:'connector', id:'usb_c', gen:'g1', ver:null },OPTS)==='UNKNOWN'); }],
+      ['version binds only on the same span (G3 review)', " && srcOf[xi]===srcOf[vi]; });", "; });", M=>{ const e=M.executeFrame(M.turnFrame(M.parse('hub with usb-a 3.0 and 2 usb-c',OPTS)),OPTS); return e.kind!=='exact'; }],
       ['negated full version emits no affirmed Gen (N1)', "if(cv && !c.affirmBase) add('version'", "if(cv) add('version'", M=>tf(M,'hub not usb 3.2 gen 2').constraints.some(c=>c.kind==='version' && c.polarity===true)],
       ['ranking puts stated before inferred (R3)', "(kind==='inferred'&&out.exactCodes?rankCodes(out.exactCodes,F.rank,C).concat(rankCodes(out.inferred||[],F.rank,C)):rankCodes(chosen,F.rank,C))", "rankCodes(chosen,F.rank,C)", M=>{ const p=M.run('cheapest usb 3.0 hub',OPTS).proposal; return (p.inferred||[]).includes(p.codes[0]); }],
       ['price cache refresh', "if(CAT.priceSig!==ps){ refreshPrices(CAT,products); CAT.priceSig=ps; }", "", M=>{ const P2=PUB.map(p=>Object.assign({},p)), O2={ facts:VF.build(P2), products:P2 }, fr={ subject:{ family:'charger' }, rank:{ metric:'price', dir:'asc' }, constraints:[] };

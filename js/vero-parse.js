@@ -990,7 +990,7 @@
       case 'lanes': return g.lanes==null?UNK:(g.lanes===c.n?CONF:CONTRA);
       case 'version': return UNK;   /* a generation with no interface cannot be evaluated */
       case 'ifaceVersion': {   /* V2-2C C1: version:<interface> evaluated against graph versions */
-        var vs=ifaceVersions(g,c.iface); if(!vs.length) return UNK;
+        var vs=c.bind?(g.versions[c.bind]!=null?[g.versions[c.bind]]:[]):ifaceVersions(g,c.iface); if(!vs.length) return UNK;
         var st0=vs.map(function(v){ return versionState(c.iface,c.gen,v); }); return st0.indexOf(CONF)>=0?CONF:(st0.indexOf(INF)>=0?INF:(st0.indexOf(UNK)>=0?UNK:CONTRA)); }
       case 'notVersion': {   /* V2-2C C1 (#5): excluded version; the connector itself is a separate affirmed constraint */
         var nv=c.id&&g.versions[c.id]!=null?[g.versions[c.id]]:ifaceVersions(g,c.iface); if(!nv.length) return UNK;
@@ -1022,8 +1022,10 @@
         var inMain=g.conns.main.indexOf(c.id)>=0 || (g.pair && (g.pair.from.indexOf(c.id)>=0||g.pair.to.indexOf(c.id)>=0));
         var st=inMain?CONF:(g.conns.power.indexOf(c.id)>=0?CONTRA:UNK);
         if(st===CONF && (c.ver||c.gen)){ var gv=g.versions[c.id], ifv=O.interfaceOf(c.id), cw=connWant(c); if(gv && ifv && cw) st=versionState(ifv,cw,gv); else if(gv && c.ver && gv!==c.ver) st=CONTRA; else if(!gv) st=UNK; }
-        if(st===CONF && c.count && g.ports && g.ports.byKind && g.ports.byKind[c.id]!=null){ return g.ports.byKind[c.id]>=c.count?CONF:CONTRA; }
-        if(st===CONF && c.count){ var NW={ dual:2, double:2, twin:2, triple:3, quad:4 }, mm=g.lname.match(new RegExp('(\\d|dual|double|twin|triple|quad)\\s?[x*]?\\s?'+connAliasRe(c.id)+'\\b')); var cnt=mm?(NW[mm[1]]||+mm[1]):null;
+        /* V2-2C G3: an explicit count is re-checked for an INFERRED version too (a Gen inferred from USB 3.0 never bypasses "2 usb-c"):
+           a stated sufficient count keeps the state, a stated smaller count contradicts, an unstated count is UNKNOWN */
+        if((st===CONF||st===INF) && c.count && g.ports && g.ports.byKind && g.ports.byKind[c.id]!=null){ return g.ports.byKind[c.id]>=c.count?st:CONTRA; }
+        if((st===CONF||st===INF) && c.count){ var NW={ dual:2, double:2, twin:2, triple:3, quad:4 }, mm=g.lname.match(new RegExp('(\\d|dual|double|twin|triple|quad)\\s?[x*]?\\s?'+connAliasRe(c.id)+'\\b')); var cnt=mm?(NW[mm[1]]||+mm[1]):null;
           if(cnt!=null && cnt<c.count) st=CONTRA; else if(cnt==null) st=UNK; }
         return st; }
       /* V2-2C C1 (§7 rule 2): absence is not a confirmed "without"; a connector named in the name OR listed in the features
@@ -1555,7 +1557,14 @@
     opts=opts||{}; var t0=now(), O=ONT();
     var facts=opts.facts||(VF()&&VF().build(opts.products||[])), C=catalog(facts,opts.products||[]);
     var errs=[], cons=[];
-    (frame&&frame.constraints||[]).forEach(function(c,i){ var x=fromA5(c||{}); if(x) cons.push(x); else errs.push({ index:i, slot:c&&c.slot, why:'unsupported-kind' }); });
+    var srcOf=[];   /* V2-2C G3: the A5 source span of each mapped constraint (kept beside cons, never on the constraint itself) */
+    (frame&&frame.constraints||[]).forEach(function(c,i){ var x=fromA5(c||{}); if(x){ cons.push(x); srcOf.push(c&&c.source&&c.source.span||null); } else errs.push({ index:i, slot:c&&c.slot, why:'unsupported-kind' }); });
+    /* V2-2C G3: a required version stated ON a counted connector ("2 usb-c gen 1" = two Gen 1 USB-C ports) is read from that connector
+       only, so a Gen inferred from another port (USB-A 3.0) never stands in for it. Binding needs the SAME source span: a version
+       stated on a different connector ("usb-a 3.0 and 2 usb-c") keeps its own scope */
+    cons.forEach(function(v,vi){ if(v.kind!=='ifaceVersion' || v.polNull || !srcOf[vi]) return;
+      var cc=cons.filter(function(x,xi){ return x.kind==='connector' && x.count && !x.polNull && x.id!==v.iface && O.interfaceOf(x.id)===v.iface && srcOf[xi]===srcOf[vi]; });
+      if(cc.length===1) v.bind=cc[0].id; });
     var S=frame&&frame.subject||null, subj=null;
     if(S && S.anchors && S.anchors.length){ var ac=uniq([].concat.apply([],S.anchors.map(function(a){ return a.codes||[]; }))); subj={ kind:'anchors', codes:ac, text:'the selected item'+(ac.length>1?'s':'') }; }
     else if(S && S.family){ subj={ kind:S.subtype?'subtype':'family', family:S.family, subtype:S.subtype||null, text:S.family.replace(/_/g,' ') }; }

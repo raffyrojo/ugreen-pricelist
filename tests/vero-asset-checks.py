@@ -1,6 +1,6 @@
 """Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves now (default 16a827d: VERO p2r3a.4 runtime + dormant v2-2A / v2-2B; v2 shadow files present but NOT loaded).
+  baseline_ref = the commit GitHub Pages serves now (default ef8cfda: VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1; v2 shadow files present but NOT loaded).
   Always pass the baseline explicitly for a release; a CMS Publish moves main and makes any default stale.
   If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
 
@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '16a827d'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'ef8cfda'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
@@ -27,11 +27,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # VERO V2-2C C1 (baseline 16a827d), DORMANT parser / executor checkpoint: VeroParse.executeFrame (merged A5 frame over
-                 # the full catalogue, evidence CONFIRMED / INFERRED / UNKNOWN / CONTRADICTED, live prices), parser follow-ups, the
-                 # additive A5 amendment (flags.same, keep) and ontology concepts (DP Alt Mode, TB4 aliases, HDMI 2.2 token). Shadow files
-                 # only: js/vero-discourse.js stays byte-identical (G04b), no index.html / live ORDER file, no data, Worker or config change.
-                 'js/vero-parse.js', 'js/vero-ontology.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js'}
+                 # VERO V2-2C G3 (baseline ef8cfda), DORMANT executor fix: an explicit port count is re-checked when the version
+                 # evidence is INFERRED, and a required version is read from the single counted connector of its interface (a Gen
+                 # inferred from another port never stands in for it). Shadow parser + its test only: js/vero-ontology.js and
+                 # js/vero-discourse.js stay byte-identical, no index.html / live ORDER file, no data, Worker or config change.
+                 'js/vero-parse.js', 'tests/vero-v2-parse.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}
 # ======================================================================================================
