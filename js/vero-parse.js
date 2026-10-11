@@ -1553,18 +1553,36 @@
     if(pol===null){ o.polNull=true; lab='(unclear) '+lab; } else if(pol===false) lab='not '+lab;
     o.hard=c.hard!==undefined?!!c.hard:o.hard; o.label=lab; o.slot=sl; o.span=null; return o;
   }
-  function executeFrame(frame,opts){
-    opts=opts||{}; var t0=now(), O=ONT();
-    var facts=opts.facts||(VF()&&VF().build(opts.products||[])), C=catalog(facts,opts.products||[]);
-    var errs=[], cons=[];
+  /* V2-2C C2F: the executor constraint list of an A5 frame — the ONE mapping shared by executeFrame and evalFrameCodes.
+     provSpan: a constraint stored by VeroDiscourse has no source span but a provenance { turn, span }; span ids are per turn, so the
+     G3 same-span key is turn + span (evalFrameCodes only; executeFrame keeps reading source spans exactly as before) */
+  function mapFrame(frame,provSpan){
+    var O=ONT(), errs=[], cons=[];
     var srcOf=[];   /* V2-2C G3: the A5 source span of each mapped constraint (kept beside cons, never on the constraint itself) */
-    (frame&&frame.constraints||[]).forEach(function(c,i){ var x=fromA5(c||{}); if(x){ cons.push(x); srcOf.push(c&&c.source&&c.source.span||null); } else errs.push({ index:i, slot:c&&c.slot, why:'unsupported-kind' }); });
+    var srcKey=function(c){ if(c && c.source && c.source.span) return c.source.span; var p=provSpan && c && c.provenance; return p && p.span!=null && p.span!==''?'t'+p.turn+':'+p.span:null; };
+    (frame&&frame.constraints||[]).forEach(function(c,i){ var x=fromA5(c||{}); if(x){ cons.push(x); srcOf.push(srcKey(c)); } else errs.push({ index:i, slot:c&&c.slot, why:'unsupported-kind' }); });
     /* V2-2C G3: a required version stated ON a counted connector ("2 usb-c gen 1" = two Gen 1 USB-C ports) is read from that connector
        only, so a Gen inferred from another port (USB-A 3.0) never stands in for it. Binding needs the SAME source span: a version
        stated on a different connector ("usb-a 3.0 and 2 usb-c") keeps its own scope */
     cons.forEach(function(v,vi){ if(v.kind!=='ifaceVersion' || v.polNull || !srcOf[vi]) return;
       var cc=cons.filter(function(x,xi){ return x.kind==='connector' && x.count && !x.polNull && x.id!==v.iface && O.interfaceOf(x.id)===v.iface && srcOf[xi]===srcOf[vi]; });
       if(cc.length===1) v.bind=cc[0].id; });
+    return { cons:cons, errs:errs };
+  }
+  /* V2-2C C2F: per-code evaluation of a merged A5 frame on GIVEN codes only (a target inside an earlier result set): the same mapping,
+     G3 binding and evaluator as executeFrame; no catalogue search, no ranking, no ladder. states[code][i] is aligned with slots[i];
+     evidence[code][slot] is built exactly as executeFrame builds it. A code that is not in the published catalogue is left out. */
+  function evalFrameCodes(frame,codes,opts){
+    opts=opts||{}; var facts=opts.facts||(VF()&&VF().build(opts.products||[])), C=catalog(facts,opts.products||[]), mf=mapFrame(frame,true);
+    var out={ slots:mf.cons.map(function(c){ return { slot:c.slot, exclusion:isExcl(c), unclear:!!c.polNull }; }), states:{}, evidence:{}, frameErrors:mf.errs };
+    (codes||[]).forEach(function(code){ var g=C.G[code]; if(!g) return; var st=[], e={};
+      mf.cons.forEach(function(c){ var s=evalC(g,c,C); st.push(s); e[c.slot]=s; }); out.states[code]=st; out.evidence[code]=e; });
+    return out;
+  }
+  function executeFrame(frame,opts){
+    opts=opts||{}; var t0=now(), O=ONT();
+    var facts=opts.facts||(VF()&&VF().build(opts.products||[])), C=catalog(facts,opts.products||[]);
+    var mf=mapFrame(frame,false), errs=mf.errs, cons=mf.cons;
     var S=frame&&frame.subject||null, subj=null;
     if(S && S.anchors && S.anchors.length){ var ac=uniq([].concat.apply([],S.anchors.map(function(a){ return a.codes||[]; }))); subj={ kind:'anchors', codes:ac, text:'the selected item'+(ac.length>1?'s':'') }; }
     else if(S && S.family){ subj={ kind:S.subtype?'subtype':'family', family:S.family, subtype:S.subtype||null, text:S.family.replace(/_/g,' ') }; }
@@ -1607,7 +1625,7 @@
 
   var API={ version:VERSION, normalize:normalizeQ, tokenize:function(q,opts){ var C=opts&&opts.facts?catalog(opts.facts,opts.products):null; return tokenize(normalizeQ(q),C?C.cat:null); },
     parse:parse, turnFrame:turnFrame, execute:function(P,opts){ P.proposal=execute(P,opts||{}); return P.proposal; }, run:run, report:report,
-    executeFrame:executeFrame, PORT_ROLE_BY_FAMILY:PORT_ROLE_BY_FAMILY, EVIDENCE:['CONFIRMED','INFERRED','UNKNOWN','CONTRADICTED'],
+    executeFrame:executeFrame, evalFrameCodes:evalFrameCodes, PORT_ROLE_BY_FAMILY:PORT_ROLE_BY_FAMILY, EVIDENCE:['CONFIRMED','INFERRED','UNKNOWN','CONTRADICTED'],
     catalog:catalog, resetCache:function(){ CAT=null; CAT_KEY=null; }, graphFor:function(code,opts){ var C=catalog(opts.facts,opts.products); return C.G[code]||null; },
     evalConstraint:function(code,c,opts){ var C=catalog(opts.facts,opts.products); return evalC(C.G[code],c,C); },
     buildLabel:function(codes,frame,opts){ return buildLabel(codes,frame,catalog(opts.facts,opts.products)); }, auditLabel:auditLabel,

@@ -186,22 +186,27 @@
     var o=Object.assign(base,{ act:'CLARIFY', reason:reason, codes:[], shown:[], evidence:{} });
     if(options && options.length) o.options=options; else o.noOptions={ reason:noReason||reason };
     return o; }
-  function liveEvidence(codes,frame,opts){
-    var V=VP(), ev={}; var cons=arr(frame&&frame.constraints);
-    if(!cons.length) return ev;
-    codes.forEach(function(code){ var e={}; cons.forEach(function(c){ var x=fromA5Probe(c); if(x) e[c.slot]=V.evalConstraint(code,x,opts); }); ev[code]=e; });
-    return ev; }
-  /* a minimal A5 -> executor mapping for live evidence on target codes (the same kinds the executor maps) */
-  function fromA5Probe(c){
-    var v=c.value, sl=String(c.slot||''), pol=c.polarity;
-    switch(c.kind){
-      case 'num': return { kind:'num', attr:sl.split(':')[1], op:c.op||'=', v:v };
-      case 'connector': return pol===false?{ kind:'notConnector', id:v.id }:{ kind:'connector', id:v.id, ver:null, gen:null, count:v.count||null, role:v.role||null };
-      case 'version': return v&&v.interface?(pol===false?{ kind:'notVersion', id:null, iface:v.interface, ver:v.generation }:{ kind:'ifaceVersion', iface:v.interface, gen:v.generation }):null;
-      case 'feature': return { kind:'feature', id:sl.split(':')[1], neg:pol===false, hard:true };
-      case 'colour': return { kind:'colour', v:v, neg:pol===false };
-      case 'family': return pol===false?{ kind:'notFamily', family:v.family }:{ kind:'family', family:v.family, subtype:v.subtype||null };
-      default: return null; } }
+  /* V2-2C C2F: a target (rows of an earlier result set) is checked against the COMPLETE merged frame — the turn's new conditions and
+     the inherited ones — through the parser's shared evaluator (VeroParse.evalFrameCodes: the executor's own mapping, G3 binding and
+     evidence; no local mapping). Per row, the executor's rule for an exact / inferred row: any CONTRADICTED -> removed; a requirement
+     UNKNOWN -> never claimed (unconfirmed); an exclusion UNKNOWN -> kept, "not stated"; INFERRED -> kept, labelled. Order is kept and
+     nothing is added, so an ordinal never shifts. A condition the evaluator cannot map is not checked (as in executeFrame).
+     An evaluator that throws or returns an unusable result gives { error:true } (the caller fails closed; never the unfiltered set). */
+  function targetCheck(codes,frame,opts){
+    var cons=arr(frame&&frame.constraints), r={ match:codes.slice(), inferred:[], unconfirmed:[], contradicted:[], notStated:[], evidence:{}, slots:[] };
+    if(!cons.length) return r;
+    var T;
+    try{ T=VP().evalFrameCodes(frame,codes,opts); }catch(e){ return { error:true }; }
+    if(!isObj(T) || !Array.isArray(T.slots) || !isObj(T.states) || !isObj(T.evidence)
+      || codes.some(function(c){ return !Array.isArray(T.states[c]) || T.states[c].length!==T.slots.length; })) return { error:true };
+    r.match=[]; r.slots=T.slots.map(function(s){ return s.slot; });
+    codes.forEach(function(code){ var st=T.states[code];
+      var bad=st.indexOf(CONTRA)>=0, unk=false, inf=st.indexOf(INF)>=0, xunk=false;
+      st.forEach(function(s,i){ if(s===UNK){ if(T.slots[i].exclusion) xunk=true; else unk=true; } });
+      if(bad) r.contradicted.push(code);
+      else if(unk) r.unconfirmed.push(code);
+      else { r.match.push(code); r.evidence[code]=T.evidence[code]; if(inf) r.inferred.push(code); if(xunk) r.notStated.push(code); } });
+    return r; }
 
   /* ================================= step ================================= */
   function step(stateIn,frameIn,opts){
@@ -310,10 +315,26 @@
         notes.push({ code:'target.unavailable', codes:gone, states:gone.map(function(c){ return availability(c,W,null); }) });
         clarifyOutcome(out,'target-no-longer-listed',optionsOf('choice',okShown(ctx,shownState),'code'),'no-listed-items');
         return { outcome:out, state:state?keepState(state,opts):null }; }
-      out.codes=tcodes.slice(); out.shown=tcodes.slice(0,shownN); out.kind='target';
-      out.evidence=liveEvidence(tcodes,merged,opts);
+      /* V2-2C C2F: only rows that safely satisfy the complete merged frame are presented as the target */
+      var tc=targetCheck(tcodes,merged,opts);
+      if(tc.error){   /* the shared evaluator failed: fail closed (no unfiltered target, no catalogue search) */
+        notes.push({ code:'target.evalFailed' });
+        clarifyOutcome(out,'target-eval-failed',null,'target-eval-failed');
+        return { outcome:out, state:state?keepState(state,opts):null }; }
+      if(tc.contradicted.length || tc.unconfirmed.length) notes.push({ code:'target.filtered', slots:tc.slots, contradicted:tc.contradicted, unconfirmed:tc.unconfirmed });
+      if(!tc.match.length){   /* no safe target: fail closed — no catalogue search, no replacement item, no shifted ordinal, no "wala" */
+        clarifyOutcome(out,'target-no-safe-match',null,'no-confirmed-target');
+        return { outcome:out, state:state?keepState(state,opts):null }; }
+      if(tc.notStated.length) notes.push({ code:'target.notStated', codes:tc.notStated });
+      out.codes=tc.match.slice(); out.shown=tc.match.slice(0,shownN); out.kind='target';
+      out.evidence=tc.evidence;
+      if(tc.inferred.length){ out.inferred=tc.inferred.slice(); out.exactCodes=tc.match.filter(function(c){ return tc.inferred.indexOf(c)<0; }); }
       if(res.delta.stock) out.stock=true;
-      return { outcome:out, state:storeState(state,res,{ unresolved:unres, focus:res.focus },opts,id,W,notes) }; }
+      var tfocus=res.focus?arr(res.focus).filter(function(c){ return tc.match.indexOf(c)>=0; }):undefined;
+      /* NEW-C2F-1: after a FILTERED target answer the ordinal-facing `shown` is exactly the rows displayed, so a later "yung pangatlo"
+         indexes what the user saw; the full semantic result set (candidates) is kept unchanged. Unfiltered answers keep `shown` as is. */
+      var tshown=tc.match.length<tcodes.length?out.shown.slice():undefined;
+      return { outcome:out, state:storeState(state,res,{ unresolved:unres, focus:tfocus, shown:tshown },opts,id,W,notes) }; }
 
     /* -------- 5. execute the merged frame over the FULL current catalogue (live prices; re-execution after data change) -------- */
     if(RESULT_ACTS[act] && merged){

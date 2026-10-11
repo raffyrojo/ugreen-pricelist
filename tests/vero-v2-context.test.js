@@ -4,7 +4,7 @@
    from data/products.json at run time (no SKU lists); catalogue changes use in-memory clones only (nothing is written).
    CX.P purity · CX.S stored state · CX.T TTL / mode · CX.D catalogue identity / stale data · CX.L live prices · CX.R refine
    semantics · CX.O ordinals · CX.K same / keep · CX.E evidence · CX.A applicability · CX.M metric narrowing · CX.G guards ·
-   CX.MUT mutation kills */
+   CX.F C2F target-act constraint preservation · CX.MUT mutation kills */
 const fs=require('fs'), path=require('path'), crypto=require('crypto'), vm=require('vm');
 const ROOT=path.join(__dirname,'..');
 global.window={ PRICE_SETTINGS:{ indicatorDays:30 } };
@@ -265,6 +265,136 @@ function carryCase(){ const A=VC.applicability(base()); const fr=(fam,cons,flags
   const famLeak=outs.filter(o=>o.act==='SELECT' && o.codes.some(x=>!G(x)));
   chk('CX.G10 no outcome ever proposes a code that is not in the current published catalogue', !outs.some(o=>o.codes.some(x=>!G(x))) && !famLeak.length); }
 
+/* ================= CX.F V2-2C C2F target-act constraint preservation ================= */
+/* A target act (SELECT / STOCK_OF_CONTEXT / ATTRIBUTE_OF_FOCUS) presents only rows of the earlier result set that safely satisfy the
+   COMPLETE merged frame (the turn's new conditions and the inherited ones), judged by the parser's shared evaluator
+   (VeroParse.evalFrameCodes). Oracles below are derived from that evaluator and the catalogue, never from SKU lists. */
+const TGT={ SELECT:1, ATTRIBUTE_OF_FOCUS:1, STOCK_OF_CONTEXT:1 };
+const okRow=(st,slots)=>st.every((s,i)=>s==='CONFIRMED'||s==='INFERRED'||(s==='UNKNOWN'&&slots[i].exclusion));
+const safeOf=(codes,frame,po)=>{ const T=VP.evalFrameCodes(frame,codes,po||POPTS); return codes.filter(c=>T.states[c] && okRow(T.states[c],T.slots)); };
+const contraOf=(codes,frame)=>{ const T=VP.evalFrameCodes(frame,codes,POPTS); return codes.filter(c=>T.states[c] && T.states[c].includes('CONTRADICTED')); };
+/* the merged frame of a follow-up, straight from the unchanged discourse resolver (independent of the context layer's guards) */
+const mergedOf=(prev,q)=>{ const op=base({ now:prev.ctx.at+1000 }), A=VC.applicability(op); return D.resolve(TF(q),prev.ctx,{ now:op.now, mode:op.mode, ttlMs:VC.TTL_MS, applies:A.applies, families:A.families, qualify:A.qualify }); };
+/* every row a target act presents: never CONTRADICTED, a requirement never UNKNOWN, a subsequence of the earlier rows */
+function tgtAudit(o,frame,prevShown){ const bad=[]; if(!TGT[o.act]) return bad; const T=VP.evalFrameCodes(frame,o.shown,POPTS);
+  o.shown.forEach(c=>{ (T.states[c]||['(unlisted)']).forEach((s,i)=>{ if(s==='CONTRADICTED') bad.push(c+' CONTRADICTED on '+T.slots[i].slot); if(s==='UNKNOWN' && !T.slots[i].exclusion) bad.push(c+' UNKNOWN claimed on '+T.slots[i].slot); }); });
+  let k=0; o.codes.forEach(c=>{ const j=prevShown.indexOf(c); if(j<k) bad.push(c+' not an earlier row in order'); else k=j+1; });
+  return bad; }
+const noWala=o=>!/\bwala\b|we don.t have|hindi ko makita/i.test(JSON.stringify(o));
+const failClosed=o=>o.act==='CLARIFY' && o.reason==='target-no-safe-match' && !o.codes.length && !o.shown.length && !o.options && o.noOptions && o.noOptions.reason==='no-confirmed-target' && noWala(o);
+{ const SNAP=JSON.stringify(ALL);
+  /* 1. "65W charger" -> "alin dun yung may 3 ports?" */
+  const c1=chain(['65W charger','alin dun yung may 3 ports?']), p1=c1[0].outcome.shown, o1=c1[1].outcome, f1=c1[1].state.ctx.frame;
+  const s1=safeOf(p1,f1), x1=contraOf(p1,f1);
+  chk('CX.F1 "65W charger" -> "alin dun yung may 3 ports?": SELECT presents exactly the earlier rows that safely have 3 ports ('+s1.join(', ')+'), drops the CONTRADICTED ones ('+x1.join(', ')+') and names them in a note',
+    o1.act==='SELECT' && s1.length>0 && x1.length>0 && JSON.stringify(o1.codes)===JSON.stringify(s1) && !tgtAudit(o1,f1,p1).length && o1.codes.every(c=>o1.evidence[c]['ports:charging_output']==='CONFIRMED')
+    && o1.notes.some(n=>n.code==='target.filtered' && JSON.stringify(n.contradicted)===JSON.stringify(x1)), JSON.stringify([o1.act,o1.codes,s1,x1]));
+  /* 2. stock of the same target */
+  const c2=chain(['65W charger','may stock pa ba yung may 3 ports?']), o2=c2[1].outcome;
+  chk('CX.F2 "may stock pa ba yung may 3 ports?": STOCK_OF_CONTEXT applies the same target filter before the stock answer (stock flag kept, no stock state)',
+    o2.act==='STOCK_OF_CONTEXT' && o2.stock===true && JSON.stringify(o2.codes)===JSON.stringify(safeOf(c2[0].outcome.shown,c2[1].state.ctx.frame)) && JSON.stringify(o2.codes)===JSON.stringify(s1) && !tgtAudit(o2,c2[1].state.ctx.frame,c2[0].outcome.shown).length, JSON.stringify([o2.act,o2.codes]));
+  /* 3. "nvme to pcie adapter" -> "which one is Gen 4?" */
+  const c3=chain(['nvme to pcie adapter','which one is Gen 4?']), o3=c3[1].outcome, r3=mergedOf(c3[0].state,'which one is Gen 4?'), s3=safeOf(c3[0].outcome.shown,r3.mergedFrame);
+  const pcieContra=contraOf(c3[0].outcome.shown,Object.assign({},r3.mergedFrame,{ constraints:r3.mergedFrame.constraints.filter(c=>c.slot==='version:pcie') }));
+  chk('CX.F3 "which one is Gen 4?": no PCIe-version CONTRADICTED row ('+pcieContra.join(', ')+') is presented; with no safe row in the merged frame it fails closed (CLARIFY, no "wala", no new item)',
+    r3.act==='SELECT' && pcieContra.length>0 && o3.codes.every(c=>pcieContra.indexOf(c)<0) && (s3.length?JSON.stringify(o3.codes)===JSON.stringify(s3):failClosed(o3)), JSON.stringify([o3.act,o3.reason,o3.codes,s3]));
+  /* 4. ordinal + condition: never shifted */
+  const c4=chain(['65W charger','yung una na white']), o4=c4[1].outcome, p4=c4[0].outcome.shown;
+  chk('CX.F4a "yung una na white": the first row contradicts white -> CLARIFY; never another row; the context is kept (focus not moved)',
+    contraOf([p4[0]],mergedOf(c4[0].state,'yung una na white').mergedFrame).length===1 && failClosed(o4) && JSON.stringify(c4[1].state.ctx.focus)===JSON.stringify(c4[0].state.ctx.focus) && JSON.stringify(c4[1].state.ctx.shown)===JSON.stringify(p4), JSON.stringify([o4.act,o4.codes]));
+  const c4b=chain(['65W charger','yung una na may 3 ports']), o4b=c4b[1].outcome;
+  chk('CX.F4b control: "yung una na may 3 ports" keeps the first row when it safely has 3 ports', o4b.act==='SELECT' && JSON.stringify(o4b.codes)===JSON.stringify([p4[0]]) && JSON.stringify(c4b[1].state.ctx.focus)===JSON.stringify([p4[0]]), JSON.stringify([o4b.act,o4b.codes]));
+  const nBad=p1.indexOf(x1[0])+1, fr4=JSON.parse(JSON.stringify(TF('yung una na may 3 ports'))); fr4.ref.n=nBad;
+  const o4c=VC.step(c1[0].state,fr4,base({ now:c1[0].state.ctx.at+1000 })).outcome;
+  chk('CX.F4c ordinal never shifts: "#'+nBad+' with 3 ports" ('+x1[0]+' has fewer) -> CLARIFY, never a neighbouring row that has 3 ports', failClosed(o4c), JSON.stringify([o4c.act,o4c.codes]));
+  /* 5. inherited condition */
+  const c5=chain(['65W charger','white lang','magkano yun?']), o5=c5[2].outcome, r5=mergedOf(c5[1].state,'magkano yun?');
+  chk('CX.F5a "65W charger" -> "white lang" -> "magkano yun?": the inherited white applies; the closest rows ('+c5[1].outcome.shown.length+', all CONTRADICTED on colour) are not re-presented -> CLARIFY, never the prior set',
+    r5.act==='ATTRIBUTE_OF_FOCUS' && r5.mergedFrame.constraints.some(c=>c.slot==='colour') && contraOf(c5[1].outcome.shown,r5.mergedFrame).length===c5[1].outcome.shown.length && failClosed(o5), JSON.stringify([o5.act,o5.codes]));
+  const c5b=chain(['65W charger','yung may 3 ports lang','magkano yun?']), o5b=c5b[2].outcome;
+  chk('CX.F5b control: an inherited condition the rows satisfy ("yung may 3 ports lang" -> "magkano yun?") still answers, every row safe on the inherited slots',
+    o5b.act==='ATTRIBUTE_OF_FOCUS' && o5b.codes.length>0 && !tgtAudit(o5b,c5b[2].state.ctx.frame,c5b[1].outcome.shown).length, JSON.stringify([o5b.act,o5b.codes]));
+  /* 6. UNKNOWN rows are not claimed and stay UNKNOWN */
+  const c6=chain(['power bank 10000mah','in stock ba yung may built-in cable?']), o6=c6[1].outcome, f6=c6[1].state.ctx.frame, p6=c6[0].outcome.shown;
+  const T6=VP.evalFrameCodes(f6,p6,POPTS), bi=T6.slots.findIndex(s=>s.slot==='feature:builtin'), unk6=p6.filter(c=>T6.states[c][bi]==='UNKNOWN');
+  const n6=o6.notes.find(n=>n.code==='target.filtered')||{};
+  chk('CX.F6 "in stock ba yung may built-in cable?": '+unk6.length+' rows with UNKNOWN built-in are not claimed (named as unconfirmed, still UNKNOWN — never CONTRADICTED); only CONFIRMED / INFERRED rows ('+o6.codes.join(', ')+')',
+    o6.act==='STOCK_OF_CONTEXT' && unk6.length>0 && o6.codes.length>0 && o6.codes.every(c=>unk6.indexOf(c)<0) && JSON.stringify(n6.unconfirmed)===JSON.stringify(unk6) && (n6.contradicted||[]).every(c=>unk6.indexOf(c)<0)
+    && o6.codes.every(c=>/^(CONFIRMED|INFERRED)$/.test(o6.evidence[c]['feature:builtin'])) && !tgtAudit(o6,f6,p6).length, JSON.stringify([o6.codes,unk6,n6]));
+  /* 7. G3 binding inside SELECT */
+  const c7=chain(['hub','alin dun yung may 2 usb-c gen 1?']), o7=c7[1].outcome, p7=c7[0].outcome.shown, r7=mergedOf(c7[0].state,'alin dun yung may 2 usb-c gen 1?');
+  const unbound=Object.assign({},r7.mergedFrame,{ constraints:r7.mergedFrame.constraints.map(c=>{ const x=JSON.parse(JSON.stringify(c)); delete x.provenance; return x; }) });
+  const g3rows=safeOf(p7,unbound).filter(c=>safeOf(p7,r7.mergedFrame).indexOf(c)<0);
+  chk('CX.F7 G3 inside SELECT: "hub" -> "alin dun yung may 2 usb-c gen 1?" never selects a hub whose Gen is only on another connector ('+g3rows.join(', ')+': 2 USB-C, Gen 1 inferred from USB-A)',
+    r7.act==='SELECT' && g3rows.length>0 && o7.codes.every(c=>g3rows.indexOf(c)<0) && (o7.codes.length?!tgtAudit(o7,c7[1].state.ctx.frame,p7).length:failClosed(o7)), JSON.stringify([o7.act,o7.codes,g3rows]));
+  /* 8 + sweep: target acts over real catalogue chains */
+  const FIRST=['65W charger','100W charger','charger','power bank 10000mah','power bank','usb c hub','hub','usb 3.0 hub','hdmi cable','usb c cable','nvme to pcie adapter','ssd enclosure','earbuds','webcam','mouse','car charger','usb c to hdmi','network switch','laptop stand','card reader'];
+  const FOLLOW=['alin dun yung white?','alin dun yung black?','alin dun yung may 3 ports?','alin dun yung may 2 ports?','may stock pa ba yung white?','in stock ba yung may built-in cable?','yung una','yung pangalawa','yung una na white','yung una na may 3 ports','which one is Gen 4?','alin dun yung 2m?','alin dun yung 100w?','alin dun yung may usb-c?','alin dun yung may hdmi?','magkano yun?','in stock ba?'];
+  const MID=['white lang','yung may 3 ports lang','yung 2m','hindi black'];
+  let nT=0, nFC=0, nFilt=0; const bad=[], evBad=[], fcBad=[], ordBad=[];
+  const audit=(r,prev,tag)=>{ const o=r.outcome; if(o.reason==='target-no-safe-match'){ nFC++; if(!failClosed(o)) fcBad.push(tag); return; } if(!TGT[o.act]) return; nT++;
+    if(o.notes.some(n=>n.code==='target.filtered')) nFilt++;
+    tgtAudit(o,r.state.ctx.frame,prev.ctx.shown).forEach(b=>bad.push(tag+' :: '+b));
+    const T=VP.evalFrameCodes(r.state.ctx.frame,o.codes,POPTS); o.codes.forEach(c=>{ const want=T.slots.length?JSON.stringify(T.evidence[c]):undefined; if(JSON.stringify(o.evidence[c])!==want) evBad.push(tag+' :: '+c); });
+    if(o.target && o.target.kind==='ordinal' && JSON.stringify(o.codes)!==JSON.stringify([prev.ctx.shown[o.target.n-1]])) ordBad.push(tag); };
+  FIRST.forEach(a=>{ FOLLOW.forEach(b=>{ const c=chain([a,b]); if(c[0].state) audit(c[1],c[0].state,a+' -> '+b); });
+    MID.forEach(m=>['magkano yun?','yung una','in stock ba?','alin dun yung white?'].forEach(b=>{ const c=chain([a,m,b]); if(c[1].state) audit(c[2],c[1].state,a+' -> '+m+' -> '+b); })); });
+  chk('CX.F8 no safe target fails closed: every "target-no-safe-match" ('+nFC+') is a CLARIFY with noOptions, no codes, no options, no "wala" / catalogue search', nFC>0 && !fcBad.length, fcBad.slice(0,4));
+  chk('CX.F9 sweep ('+FIRST.length+' searches x '+(FOLLOW.length+MID.length*4)+' follow-ups; '+nT+' target answers, '+nFilt+' filtered): no presented row is CONTRADICTED or UNKNOWN on a requirement of the merged frame, and rows stay earlier rows in order', nT>200 && nFilt>20 && !bad.length, bad.slice(0,6));
+  chk('CX.F10 target evidence is exactly the shared evaluator\'s (every mapped slot incl. ports / form / name; UNKNOWN stays UNKNOWN, nothing rewritten)', !evBad.length, evBad.slice(0,4));
+  chk('CX.F11 ordinals never shift: every ordinal target answer is exactly the row at that position', !ordBad.length, ordBad.slice(0,4));
+  chk('CX.F12 purity: no catalogue mutation across the C2F chains', JSON.stringify(ALL)===SNAP);
+  const IDX=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
+  chk('CX.F13 dormant: index.html loads neither vero-context.js nor vero-parse.js and names neither VeroContext nor evalFrameCodes', !/vero-context|vero-parse|VeroContext|evalFrameCodes/.test(IDX)); }
+/* NEW-C2F-1: after a filtered target answer, ordinals index the rows actually displayed */
+const evalBreak=fr=>{ const x=JSON.parse(JSON.stringify(fr)); x.constraints.push({ kind:'connector', slot:'connector:hdmi', value:null, polarity:true, hard:true, source:{ span:'s9' } }); return x; };
+{ const c=chain(['65W charger','alin dun yung hindi purple?']), p=c[0].state, o=c[1].outcome, st=c[1].state, filtered=p.ctx.shown.filter(x=>o.codes.indexOf(x)<0);
+  chk('CX.F15 a filtered target answer stores exactly the displayed rows as `shown` ('+o.shown.join(', ')+'; filtered out '+filtered.join(', ')+')',
+    o.act==='SELECT' && filtered.length>0 && JSON.stringify(st.ctx.shown)===JSON.stringify(o.shown) && JSON.stringify(st.meta.shownFam)===JSON.stringify(o.shown.map(x=>G(x).family)), JSON.stringify([st.ctx.shown,o.shown]));
+  const big=chain(['charger','alin dun yung black?']), bp=big[0].state, bs=big[1].state, bo=big[1].outcome;
+  chk('CX.F16 the full semantic result set is not replaced by the visible subset (candidates unchanged: '+p.ctx.candidates.length+' codes; "charger" -> "black": '+bp.ctx.candidates.length+' candidates kept, shown '+bp.ctx.shown.length+' -> '+bs.ctx.shown.length+')',
+    JSON.stringify(st.ctx.candidates)===JSON.stringify(p.ctx.candidates) && filtered.every(x=>st.ctx.candidates.indexOf(x)>=0)
+    && bp.ctx.candidates.length>bp.ctx.shown.length && JSON.stringify(bs.ctx.candidates)===JSON.stringify(bp.ctx.candidates) && JSON.stringify(bs.ctx.shown)===JSON.stringify(bo.shown) && bo.shown.length<bp.ctx.shown.length, JSON.stringify([bp.ctx.candidates.length,bp.ctx.shown.length,bs.ctx.shown.length,bo.shown.length]));
+  const ord=[]; for(let n=1;n<=p.ctx.shown.length;n++){ const fr=JSON.parse(JSON.stringify(TF('yung una'))); fr.ref.n=n; ord.push(VC.step(st,fr,base({ now:st.ctx.at+1000 })).outcome); }
+  chk('CX.F17 a later ordinal resolves against the displayed order ("yung pangatlo" -> '+o.shown[2]+'); n beyond the displayed list never reaches a filtered-out row',
+    last(chain(['65W charger','alin dun yung hindi purple?','yung pangatlo'])).outcome.codes[0]===o.shown[2] && ord.every((x,i)=>i<o.shown.length?(x.act==='SELECT' && JSON.stringify(x.codes)===JSON.stringify([o.shown[i]])):(x.act==='CLARIFY' && !x.codes.length))
+    && !ord.some(x=>x.codes.some(cd=>filtered.indexOf(cd)>=0)), JSON.stringify(ord.map(x=>[x.act,x.codes])));
+  const u=chain(['65W charger','alin dun yung may 3 ports?']), u2=chain(['65W charger','yung una']);
+  chk('CX.F18 shown is only replaced after filtering: an unfiltered target keeps the earlier shown, a fail-closed turn keeps it too (no invented list, no shifted ordinal)',
+    JSON.stringify(u2[1].state.ctx.shown)===JSON.stringify(u2[0].state.ctx.shown) && JSON.stringify(u[1].state.ctx.shown)===JSON.stringify(u[1].outcome.shown)
+    && (()=>{ const f=chain(['65W charger','alin dun yung white?','yung pangalawa']); return f[1].outcome.reason==='target-no-safe-match' && JSON.stringify(f[1].state.ctx.shown)===JSON.stringify(f[0].state.ctx.shown) && JSON.stringify(f[2].outcome.codes)===JSON.stringify([f[0].state.ctx.shown[1]]); })()); }
+/* QA hardening: exclusion UNKNOWN kept as "not stated"; INFERRED labelled; evaluator failure fails closed */
+{ const c=chain(['65W charger','alin dun yung walang hdmi?']), o=c[1].outcome, p=c[0].state.ctx.shown, r=mergedOf(c[0].state,'alin dun yung walang hdmi?'), T=VP.evalFrameCodes(r.mergedFrame,p,POPTS);
+  const xi=T.slots.findIndex(s=>s.slot==='connector:hdmi'), unkX=p.filter(x=>T.states[x][xi]==='UNKNOWN' && T.states[x].every((s,i)=>i===xi||s==='CONFIRMED'));
+  const n1=o.notes.find(n=>n.code==='target.notStated')||{}, nf=o.notes.find(n=>n.code==='target.filtered')||{ unconfirmed:[] };
+  chk('CX.F19 exclusion UNKNOWN ("walang hdmi" on chargers that never state HDMI): '+unkX.length+' rows are kept, listed in target.notStated, never in target.filtered.unconfirmed, evidence stays UNKNOWN',
+    xi>=0 && T.slots[xi].exclusion===true && unkX.length>0 && unkX.every(x=>o.codes.indexOf(x)>=0 && o.evidence[x]['connector:hdmi']==='UNKNOWN') && JSON.stringify(n1.codes)===JSON.stringify(o.codes.filter(x=>unkX.indexOf(x)>=0)) && !unkX.some(x=>nf.unconfirmed.indexOf(x)>=0), JSON.stringify([o.act,o.codes,n1,nf]));
+  const c2=chain(['charger','in stock ba yung may built-in cable?']), o2=c2[1].outcome, infRows=o2.codes.filter(x=>Object.values(o2.evidence[x]).indexOf('INFERRED')>=0);
+  chk('CX.F20 INFERRED rows are labelled: outcome.inferred = rows with INFERRED evidence ('+infRows.join(', ')+'), exactCodes = the rest, never promoted',
+    infRows.length>0 && JSON.stringify(o2.inferred)===JSON.stringify(infRows) && JSON.stringify(o2.exactCodes)===JSON.stringify(o2.codes.filter(x=>infRows.indexOf(x)<0)) && o2.codes.every(x=>Object.values(o2.evidence[x]).every(s=>s==='CONFIRMED'||s==='INFERRED')), JSON.stringify([o2.codes,o2.inferred,o2.exactCodes]));
+  const s0=chain(['65W charger'])[0].state, fr=evalBreak(TF('alin dun yung may 3 ports?')), op=base({ now:s0.ctx.at+1000 });
+  let thrown=null, r1=null; try{ r1=VC.step(s0,fr,op); }catch(e){ thrown=e; }
+  const realVP=window.VeroParse, outs=[];
+  [()=>{ throw new Error('boom'); }, ()=>({}), ()=>({ slots:[], states:{}, evidence:{} })].forEach(fn=>{ window.VeroParse=Object.assign({},realVP,{ evalFrameCodes:fn }); try{ outs.push(VC.step(s0,TF('alin dun yung may 3 ports?'),op)); }catch(e){ outs.push({ thrown:e.message }); } });
+  window.VeroParse=realVP;
+  const okFail=x=>x && x.outcome && x.outcome.act==='CLARIFY' && x.outcome.reason==='target-eval-failed' && !x.outcome.codes.length && !x.outcome.options && x.outcome.noOptions && x.outcome.notes.some(n=>n.code==='target.evalFailed') && JSON.stringify(x.state.ctx.shown)===JSON.stringify(s0.ctx.shown) && noWala(x.outcome);
+  chk('CX.F21 evaluator failure fails closed: a throwing evaluation (malformed stored condition) and a stubbed throw / unusable result all give CLARIFY target-eval-failed — no exception, no unfiltered prior set, no catalogue search, context kept',
+    !thrown && okFail(r1) && outs.every(okFail), JSON.stringify([thrown&&thrown.message,r1&&r1.outcome.reason].concat(outs.map(x=>x.thrown||x.outcome.reason)))); }
+/*C2F-FP-BEGIN*/
+const C2F_PAIRS=[['65W charger','alin dun yung may 3 ports?'],['65W charger','white lang'],['65W charger','may stock pa ba yung may 3 ports?'],['nvme to pcie adapter','which one is Gen 4?'],
+  ['hub','alin dun yung may 2 usb-c gen 1?'],['usb hub','alin dun yung may 2 usb-c gen 2?'],['power bank 10000mah','yung may built-in cable'],['power bank 10000mah','in stock ba yung may built-in cable?'],
+  ['usb c hub','yung may HDMI at ethernet'],['hdmi cable','yung 2m'],['100W charger 4 ports','kahit ilang ports'],['65W charger','hindi black'],['usb 3.0 hub','yung may usb-c'],
+  ['65W charger','how about 100W?'],['power bank','yung mas malaking capacity'],['usb c cable','mas mahaba'],['ssd enclosure','mas mabilis'],['hdmi cable','mas mura'],['65W charger','yung una na white'],
+  ['charger','not a charger'],['usb c hub','alin dun yung may 2 usb-c gen 2?'],['hub','hub with 2 usb-c gen 1'],['power bank 10000mah','e yung 20000mah?']];
+function c2fMergedFingerprint(VPm,VCm,Dm,tf,mk){ const h=require('crypto').createHash('sha256');
+  C2F_PAIRS.forEach(([a,b],i)=>{ const op=mk(1e12+i*1e7), s=VCm.step(null,tf(a),op).state; if(!s){ h.update(a+'|'+b+'|nostate\n'); return; }
+    const op2=mk(op.now+1000), A=VCm.applicability(op2), r=Dm.resolve(tf(b),s.ctx,{ now:op2.now, mode:op2.mode, ttlMs:VCm.TTL_MS, applies:A.applies, families:A.families, qualify:A.qualify });
+    const e=r.mergedFrame?VPm.executeFrame(r.mergedFrame,op2):null; const x=e?Object.assign({},e):null; if(x) delete x.ms; h.update(a+'|'+b+'|'+r.act+'|'+JSON.stringify(x)+'\n'); });
+  return h.digest('hex'); }
+/*C2F-FP-END*/
+{ const fp=c2fMergedFingerprint(VP,VC,D,TF,n=>base({ now:n }));
+  chk('CX.F14 executeFrame output on merged (stored, provenance-carrying) frames byte-identical to 99dd595 over '+C2F_PAIRS.length+' chains (sha256 '+fp.slice(0,12)+'…)', fp==='f7cf6c8b1ce333d1ed182627a31cf74894d2d96065ae8037b6fb5a9fbb5edb6d', fp); }
+
 /* ================= CX.MUT mutation kills ================= */
 { const mutant=(from,to)=>{ const pairs=Array.isArray(from)?from:[[from,to]]; let src=CTX_SRC;
     pairs.forEach(([a,b])=>{ if(src.split(a).length!==2) throw new Error('mutation anchor not unique: '+a.slice(0,60)); src=src.replace(a,()=>b); });
@@ -297,6 +427,23 @@ function carryCase(){ const A=VC.applicability(base()); const fr=(fam,cons,flags
     ['prior-empty guard removed', "if(state && state.meta.resultState!=='ok'){", "if(false){", M=>{ const e=JSON.parse(JSON.stringify(s0)); e.meta.resultState='empty'; return last(run(M,[{ q:'yung pangalawa', state:e, now:s0.ctx.at+1000 }])).outcome.reason!=='prior-result-empty'; }],
     ['executor flood guard removed', "      if(ex.kind==='clarify'){", "      if(false){", M=>{ const r=run(M,[{ frame:{ intent:'FIND', subject:null, constraints:[{ kind:'feature', slot:'feature:dp_alt', value:true, polarity:true, hard:true, source:{ span:'s0' } }], fields:[], flags:{}, relax:[], ref:null, metric:null, rank:null, sameBut:false, ledger:[] } }]); return last(r).outcome.reason!=='needs-family'; }],
     ['subject-less multi-family guard removed', "        if(famsHit.length>1){", "        if(false){", M=>{ const r=run(M,[{ frame:{ intent:'FIND', subject:null, constraints:[{ kind:'colour', slot:'colour', value:'white', polarity:true, hard:true, source:{ span:'s0' } }], fields:[], flags:{}, relax:[], ref:null, metric:null, rank:null, sameBut:false, ledger:[] } }]); return last(r).outcome.reason!=='needs-family'; }] ];
+  /* V2-2C C2F mutants (target-act constraint preservation) */
+  const f1=M=>last(run(M,['65W charger','alin dun yung may 3 ports?'])).outcome;
+  const s1=last(chain(['65W charger','alin dun yung may 3 ports?'])).outcome.codes;
+  MUT.push(
+    ['C2F pass-through target branch restored', "      var tc=targetCheck(tcodes,merged,opts);", "      var tc={ match:tcodes.slice(), inferred:[], unconfirmed:[], contradicted:[], notStated:[], evidence:{}, slots:[] };", M=>JSON.stringify(f1(M).codes)!==JSON.stringify(s1)],
+    ['C2F incomplete local mapping (old fromA5Probe kinds only)', "try{ T=VP().evalFrameCodes(frame,codes,opts); }", "try{ T=VP().evalFrameCodes(Object.assign({},frame,{ constraints:cons.filter(function(c){ return /^(num|connector|version|feature|colour|family)$/.test(c.kind); }) }),codes,opts); }", M=>JSON.stringify(f1(M).codes)!==JSON.stringify(s1) || !('ports:charging_output' in (f1(M).evidence[s1[0]]||{}))],
+    ['C2F UNKNOWN treated as a match', "      else if(unk) r.unconfirmed.push(code);", "      else if(false) r.unconfirmed.push(code);", M=>{ const o=last(run(M,['power bank 10000mah','in stock ba yung may built-in cable?'])).outcome; return o.codes.some(c=>(o.evidence[c]||{})['feature:builtin']==='UNKNOWN'); }],
+    ['C2F CONTRADICTED rows let through', "      if(bad) r.contradicted.push(code);", "      if(false) r.contradicted.push(code);", M=>last(run(M,['65W charger','white lang','magkano yun?'])).outcome.act!=='CLARIFY'],
+    ['C2F ordinal shifted to a safe neighbour', "      if(!tc.match.length){   /* no safe target", "      if(!tc.match.length && tk==='ordinal' && ctx){ tc.match=ctx.shown.filter(function(c){ return tc.contradicted.indexOf(c)<0 && tc.unconfirmed.indexOf(c)<0; }).slice(0,1); tc.evidence={}; }\n      if(!tc.match.length){   /* no safe target",
+      M=>{ const st=last(run(M,['65W charger'])).state, fr=JSON.parse(JSON.stringify(TF('yung una na may 3 ports'))); fr.ref.n=st.ctx.shown.indexOf(contraOf(st.ctx.shown,mergedOf(st,'yung una na may 3 ports').mergedFrame)[0])+1; return fr.ref.n>0 && M.step(st,fr,base({ now:st.ctx.at+1000 })).outcome.act!=='CLARIFY'; }],
+    ['C2F-1 stale pre-filter shown kept after a filtered target', "var tshown=tc.match.length<tcodes.length?out.shown.slice():undefined;", "var tshown=undefined;", M=>{ const r=run(M,['65W charger','alin dun yung hindi purple?','yung pangatlo']); return r[2].outcome.codes[0]!==r[1].outcome.shown[2]; }],
+    ['C2F exclusion UNKNOWN treated as unconfirmed', "if(T.slots[i].exclusion) xunk=true; else unk=true;", "unk=true;", M=>{ const r=run(M,['65W charger','alin dun yung walang hdmi?']); return r[1].outcome.act!=='SELECT' || r[1].outcome.codes.length!==r[0].outcome.shown.length; }],
+    ['C2F target.notStated note dropped', "if(tc.notStated.length) notes.push(", "if(false) notes.push(", M=>!last(run(M,['65W charger','alin dun yung walang hdmi?'])).outcome.notes.some(n=>n.code==='target.notStated')],
+    ['C2F inferred / exactCodes labels dropped', "if(tc.inferred.length){ out.inferred=", "if(false){ out.inferred=", M=>!last(run(M,['charger','in stock ba yung may built-in cable?'])).outcome.inferred],
+    ['C2F evaluator throw not caught', "try{ T=VP().evalFrameCodes(frame,codes,opts); }catch(e){ return { error:true }; }", "T=VP().evalFrameCodes(frame,codes,opts);", M=>{ const st=last(run(M,['65W charger'])).state; try{ return M.step(st,evalBreak(TF('alin dun yung may 3 ports?')),base({ now:st.ctx.at+1000 })).outcome.reason!=='target-eval-failed'; }catch(e){ return true; } }],
+    ['C2F unusable evaluator result accepted', "|| codes.some(function(c){ return !Array.isArray(T.states[c]) || T.states[c].length!==T.slots.length; })) return { error:true };", ") return { error:true };", M=>{ const st=last(run(M,['65W charger'])).state, orig=VP.evalFrameCodes; VP.evalFrameCodes=()=>({ slots:[], states:{}, evidence:{} });
+      try{ return M.step(st,TF('alin dun yung may 3 ports?'),base({ now:st.ctx.at+1000 })).outcome.reason!=='target-eval-failed'; }catch(e){ return true; } finally{ VP.evalFrameCodes=orig; } }]);
   const survived=MUT.filter(([n,f,t,kill])=>{ try{ return !kill(mutant(f,t)); }catch(e){ return 'error '+e.message; } }).map(x=>x[0]);
   chk('CX.MUT mutation kills: every C2 rule is load-bearing ('+MUT.length+' mutants of vero-context.js, each detected)', !survived.length, survived); }
 

@@ -9,7 +9,8 @@
    V2-2B: A5 validator · R RELAX · X EXCLUDE · O ordinals/references · V version/interface/lanes · K comparatives ·
           NG name guard · H end-to-end chains through VeroDiscourse · I robustness + contract-drift pin
    V2-2C C1: C1.P parser follow-ups · C1.A additive A5 amendment (flags.same, keep) · C1.O ontology concepts · C1.E frame executor +
-          evidence / USB matrices + price-cache fixture · C1.H discourse chain · C1.MUT mutation kills */
+          evidence / USB matrices + price-cache fixture · C1.H discourse chain · C1.MUT mutation kills
+   V2-2C C2F: C2F.X shared evaluator (evalFrameCodes) consistency, frozen executeFrame fingerprint, G3 binding through provenance · C2F.MUT */
 const fs=require('fs'), path=require('path');
 const ROOT=path.join(__dirname,'..');
 global.window={ PRICE_SETTINGS:{ indicatorDays:30 } };
@@ -759,6 +760,69 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
     const survived=MUT.filter(([n,f,t,kill])=>{ try{ return !kill(mutant(f,t)); }catch(e){ return 'error '+e.message; } }).map(x=>x[0]);
     chk('C1.MUT mutation kills: every C1 rule is load-bearing ('+MUT.length+' mutants of vero-parse.js, each detected)', !survived.length, survived); }
 }
+
+/* ================= C2F shared evaluator (evalFrameCodes) ================= */
+/*C2F-FP-BEGIN*/
+const C2F_SINGLE=['65W charger','65w charger 3 ports','100W charger 4 ports','charger white','charger not white','car charger','gan charger 65w','charger with built-in cable',
+  'power bank 10000mah','power bank with built-in cable','power bank 20000mah 2 ports','power bank under 2000','usb c hub','usb-c hub with hdmi and ethernet','hub with 2 usb-c gen 1',
+  'hub with 1 usb-c gen 1','hub with usb-a 3.0 and 2 usb-c','hub with 2 usb-c 3.0','usb 3.2 gen 2 hub','usb 3.0 hub','hub not usb 3.2 gen 2','hub na walang hdmi','hub with sd card reader',
+  'usb c hub 7 in 1','hdmi cable','hdmi cable 2m','hdmi 2.1 cable','hdmi cable not hdmi 2.1','4k hdmi cable','8k hdmi cable','usb c cable','usb c to usb c 100w 2m','usb c cable white',
+  'usb 3.1 gen 1 cable','not usb 3.1 gen 1 cable','retractable cable','nvme to pcie adapter','pcie expansion card','pcie x16','pcie 4.0','ssd enclosure','m.2 nvme enclosure 10gbps',
+  '2.5 inch hdd enclosure','hdmi to vga adapter','usb c to hdmi','usb-c to dp alt mode','displayport cable','thunderbolt 4 cable','usb4 cable','usb c to ethernet','network switch 8 ports',
+  'docking station','dock with 3 monitors','card reader','audio cable 3.5mm','3.5mm to rca','charger under 1000','cable not more than 500','cheapest charger','most expensive hub',
+  'kvm switch','hdmi switch','hdmi splitter','usb extension cable','otg adapter','lightning cable','magsafe charger','wireless charger','webcam','mouse','keyboard','earbuds',
+  'bluetooth receiver','phone holder magnetic','laptop stand'];
+function c2fExecFingerprint(VPm,opts){ const h=require('crypto').createHash('sha256');
+  C2F_SINGLE.forEach(q=>{ const e=VPm.executeFrame(VPm.turnFrame(VPm.parse(q,opts)),opts); const x=Object.assign({},e); delete x.ms; h.update(q+'\u0000'+JSON.stringify(x)+'\n'); });
+  return h.digest('hex'); }
+/*C2F-FP-END*/
+{ /* X1 the helper reads exactly what the executor reads: same mapping, same evaluator, same evidence per proposed code */
+  const mism=[]; let rows=0;
+  C2F_SINGLE.forEach(q=>{ const fr=TF(q), e=VP.executeFrame(fr,OPTS), T=VP.evalFrameCodes(fr,e.codes||[],OPTS);
+    (e.codes||[]).forEach(c=>{ rows++; if(JSON.stringify(T.evidence[c])!==JSON.stringify(e.evidence[c])) mism.push(q+' :: '+c); if(!T.states[c] || T.states[c].length!==T.slots.length) mism.push(q+' :: '+c+' states/slots misaligned'); }); });
+  chk('C2F.X1 evalFrameCodes evidence equals executeFrame evidence for every proposed code ('+C2F_SINGLE.length+' frames, '+rows+' rows)', rows>500 && !mism.length, mism.slice(0,5));
+  /* X2 executeFrame is unchanged: frozen fingerprint of its full output over the corpus, computed on the pre-C2F parser at 99dd595 */
+  const fp=c2fExecFingerprint(VP,OPTS);
+  chk('C2F.X2 executeFrame output byte-identical to 99dd595 over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='dae251312a9b384eea7f6ef8498c282bd17b45f644a645464ebfcedfd1d4a053', fp);
+  /* X3 G3 same-span binding survives the discourse store (source span -> provenance { turn, span }); never across turns */
+  const fr=TF('hub with 2 usb-c gen 1'), hubs=famCodes('hub_dock');
+  const asStored=(f,turnOf)=>Object.assign({},f,{ constraints:f.constraints.map(c=>{ const x=JSON.parse(JSON.stringify(c)); delete x.source; x.provenance={ turn:turnOf(c), span:c.source&&c.source.span, act:'SELECT' }; return x; }) });
+  const fm=asStored(fr,()=>2), fx=asStored(fr,c=>c.kind==='connector'?1:2), fu=Object.assign({},fr,{ constraints:fr.constraints.map(c=>{ const x=JSON.parse(JSON.stringify(c)); delete x.source; return x; }) });
+  const S=f=>JSON.stringify(VP.evalFrameCodes(f,hubs,OPTS).states);
+  const Tb=VP.evalFrameCodes(fm,hubs,OPTS), Tu=VP.evalFrameCodes(fu,hubs,OPTS);
+  const vi=Tb.slots.findIndex(s=>s.slot==='version:usb'), binds=hubs.filter(c=>Tb.states[c] && Tu.states[c] && Tb.states[c][vi]!==Tu.states[c][vi]);
+  chk('C2F.X3a G3 binding is preserved through provenance: a stored "2 usb-c gen 1" frame evaluates every hub exactly like the source-span frame ('+hubs.length+' hubs)', S(fm)===S(fr) && S(fr)!==S(fu), JSON.stringify(binds.slice(0,4)));
+  const claim=s=>s==='CONFIRMED'||s==='INFERRED', lost=binds.filter(c=>claim(Tu.states[c][vi]) && !claim(Tb.states[c][vi]));
+  chk('C2F.X3b binding matters: '+lost.length+' hubs (e.g. '+lost.slice(0,3).join(', ')+') would take the Gen from another port unbound and are not claimable bound; binding never makes a row more claimable',
+    lost.length>0 && binds.every(c=>!(claim(Tb.states[c][vi]) && !claim(Tu.states[c][vi]))), JSON.stringify(binds.slice(0,6).map(c=>[c,Tu.states[c][vi],Tb.states[c][vi]])));
+  chk('C2F.X3c no binding across turns (the same span id in another turn is another span)', S(fx)===S(fu));
+  chk('C2F.X3d executeFrame semantics unchanged: it still reads source spans only (a stored frame executes like the unbound one)', JSON.stringify(Object.assign({},VP.executeFrame(fm,OPTS),{ ms:0 }))===JSON.stringify(Object.assign({},VP.executeFrame(fu,OPTS),{ ms:0 })));
+  /* X4 only the supplied codes, no catalogue search, no ranking, no mutation of the frame or the catalogue */
+  const snap=JSON.stringify(PUB), ff=JSON.parse(JSON.stringify(TF('65w charger 3 ports'))); (function fz(o){ if(o&&typeof o==='object'){ Object.freeze(o); Object.values(o).forEach(fz); } })(ff);
+  const pick2=famCodes('charger').slice(0,3), T4=VP.evalFrameCodes(ff,pick2.concat(['NOT-A-CODE']).reverse(),OPTS);
+  chk('C2F.X4 evaluates only the supplied listed codes (unknown code left out), never searches, never mutates the frame or the catalogue', JSON.stringify(Object.keys(T4.states).sort())===JSON.stringify(pick2.slice().sort()) && JSON.stringify(PUB)===snap && T4.slots.length===ff.constraints.length);
+  /* X5 live prices: a price condition reads the price at evaluation time (no cached price) */
+  const P2=PUB.map(p=>Object.assign({},p)), O2={ facts:VF.build(P2), products:P2 }, pc=famCodes('charger').find(c=>+byCode[c].srp>0), lim=+byCode[pc].srp;
+  const pf={ subject:{ family:'charger' }, constraints:[{ kind:'price', slot:'price', op:'<=', value:lim, polarity:true, hard:true, source:{ span:'s0' } }] };
+  const before=VP.evalFrameCodes(pf,[pc],O2).states[pc][0]; P2.find(p=>String(p.item_code)===pc).srp=String(lim+1000); const after=VP.evalFrameCodes(pf,[pc],O2).states[pc][0];
+  chk('C2F.X5 live prices: '+pc+' at ₱'+lim+' is CONFIRMED for "<= ₱'+lim+'", CONTRADICTED once its price rises (same catalogue object, no stale cache)', before==='CONFIRMED' && after==='CONTRADICTED', before+' -> '+after);
+  /* X6 the exclusion flag, checked independently of the evaluator: from the A5 frame itself (polarity false), per mapped slot */
+  const XQ=['hub na walang hdmi','charger not white','not usb 3.1 gen 1 cable','hdmi cable not hdmi 2.1','power bank na walang built-in cable','65w charger 3 ports','usb c hub with hdmi'];
+  const xBad=[]; let nEx=0;
+  XQ.forEach(q=>{ const f=TF(q), T=VP.evalFrameCodes(f,[],OPTS); if(T.frameErrors.length) { xBad.push(q+' frameErrors'); return; }
+    if(T.slots.length!==f.constraints.length) { xBad.push(q+' slots misaligned'); return; }
+    f.constraints.forEach((c,i)=>{ const want=c.polarity===false; if(want) nEx++; if(T.slots[i].slot!==c.slot || T.slots[i].exclusion!==want) xBad.push(q+' :: '+c.slot+' exclusion '+T.slots[i].exclusion+' (frame polarity '+c.polarity+')'); }); });
+  chk('C2F.X6 exclusion flag = negated condition in the A5 frame, for every slot ('+XQ.length+' frames, '+nEx+' exclusions, positives never flagged)', nEx>=4 && !xBad.length, xBad.slice(0,4));
+  /* C2F.MUT */
+  const vm=require('vm'), PSRC=fs.readFileSync(path.join(ROOT,'js','vero-parse.js'),'utf8');
+  const mutant=(from,to)=>{ if(PSRC.split(from).length!==2) throw new Error('mutation anchor not unique: '+from.slice(0,50)); const sb={ module:{ exports:{} }, window:{ VeroOntology:O, VeroLexicon:window.VeroLexicon, VeroFacts:VF }, performance, console }; vm.runInNewContext(PSRC.replace(from,()=>to),sb); return sb.module.exports; };
+  const MUT=[
+    ['evalFrameCodes ignores provenance spans (G3 lost in context)', "var p=provSpan && c && c.provenance;", "var p=null;", M=>JSON.stringify(M.evalFrameCodes(fm,hubs,OPTS).states)!==S(fr)],
+    ['executeFrame reads provenance (semantics changed)', "var mf=mapFrame(frame,false),", "var mf=mapFrame(frame,true),", M=>JSON.stringify(Object.assign({},M.executeFrame(fm,OPTS),{ ms:0 }))!==JSON.stringify(Object.assign({},M.executeFrame(fu,OPTS),{ ms:0 }))],
+    ['exclusion flag lost in evalFrameCodes slots', "exclusion:isExcl(c), unclear:", "exclusion:false, unclear:", M=>XQ.some(q=>{ const f=TF(q), T=M.evalFrameCodes(f,[],OPTS); return f.constraints.some((c,i)=>T.slots[i] && T.slots[i].exclusion!==(c.polarity===false)); })],
+    ['evalFrameCodes with its own partial mapping (no ports)', "var s=evalC(g,c,C); st.push(s); e[c.slot]=s;", "var s=c.kind==='ports'?'UNKNOWN':evalC(g,c,C); st.push(s); e[c.slot]=s;", M=>{ const f=TF('65w charger 3 ports'), e=VP.executeFrame(f,OPTS); return e.codes.some(c=>JSON.stringify(M.evalFrameCodes(f,[c],OPTS).evidence[c])!==JSON.stringify(e.evidence[c])); }] ];
+  const survived=MUT.filter(([n,f,t,kill])=>{ try{ return !kill(mutant(f,t)); }catch(e){ return 'error '+e.message; } }).map(x=>x[0]);
+  chk('C2F.MUT mutation kills: shared-evaluator rules are load-bearing ('+MUT.length+' mutants of vero-parse.js, each detected)', !survived.length, survived); }
 
 /* ================= I  robustness + contract drift ================= */
 { const odd=['','   ','???','12345','₱','😀 charger','a'.repeat(400),'usb-c to to to hdmi','2 2 2 2 port port','ano ba yan hahaha','to','with with may may','dp dp dp','k k k','0w 0mah 0m','-5m cable','99999999999 mah power bank','hdmi to','to hdmi','"quoted" cable','x'.repeat(30)+' 65w',
