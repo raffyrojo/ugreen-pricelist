@@ -36,7 +36,7 @@ const SMALL=['hi','hello','can you help me?','can you really help me with my que
 const ua=SMALL.map(q=>one(q));
 chk('UA greeting/help: warm local answer, 0 catalog results, 0 Worker routes, never "No products match" ('+SMALL.length+')',
   ua.every(x=>x.r.plan&&x.r.plan.intent==='smalltalk'&&!(x.r.codes||[]).length&&x.a.route==='local'&&!x.a.candidates.length&&!NOMATCH.test(x.r.note)&&x.r.note.length>10), ua.map(txt).join(' || '));
-chk('UA "why is your name VERO?" uses the approved wording (no acronym / origin story)', /VERO is the name of your UGREEN Product & Sales Assistant — built to help you find the right product faster and answer product questions with confidence\./.test(ua[4].r.note), ua[4].r.note);
+chk('UA "why is your name VERO?" (backward-compatible cue) uses the approved UNO wording (no acronym / origin story)', /UNO is the name of your UGREEN Product and Sales Assistant — built to help you find the right product faster and answer product questions with confidence\./.test(ua[4].r.note), ua[4].r.note);
 const ub=chat(['do we have a wall charger 160w?','how about 140w?']);
 const wall140=PUB.filter(p=>fam(p.item_code)==='charger'&&sub(p.item_code)==='wall'&&W(p.item_code)===140).map(p=>String(p.item_code));
 chk('UB follow-up: "how about 140w?" inherits wall charger, replaces 160W -> 140W, shows "Using: wall charger · 140W", never returns a 140W cable',

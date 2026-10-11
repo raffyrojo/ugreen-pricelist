@@ -360,16 +360,19 @@
     /* ---------------- p2r3a conversation vocabulary (f3) ---------------- */
     /* small talk: answered locally only when the WHOLE message is small talk (no product signal) */
     smalltalk: {
-      greeting:['hi','hello','hey','hi there','hello there','good morning','good afternoon','good evening','magandang umaga','magandang hapon','magandang gabi','kumusta','kamusta','musta','yo'],
+      greeting:['hi uno','hello uno','hey uno','hi','hello','hey','hi there','hello there','good morning','good afternoon','good evening','magandang umaga','magandang hapon','magandang gabi','kumusta','kamusta','musta','yo'],
       howAreYou:['how are you','how are you doing','kumusta ka','kamusta ka','musta ka','how is it going'],
       help:['can you help me','can you really help me','can you really help me with my questions','can you help','help me','help','what can you do','ano kaya mong gawin','ano pwede mong gawin','pwede mo ba akong tulungan','tulungan mo ako','paano ka gamitin','how do i use you','what do you do'],
-      identity:['who are you','what are you','ano ka','sino ka','are you a bot','are you ai'],
-      nameWhy:['why is your name vero','why vero','what does vero mean','ano ibig sabihin ng vero','bakit vero','bakit vero pangalan mo'],
-      thanks:['thank you','thanks','thank you very much','thanks a lot','salamat','maraming salamat','ty','tnx','thx'],
-      bye:['bye','goodbye','see you','paalam','ok bye','sige bye']
+      identity:['who is uno','who are you uno','sino si uno','sino ka uno','who are you','what are you','ano ka','sino ka','are you a bot','are you ai'],
+      nameWhy:['why is your name uno','why uno','what does uno mean','ano ibig sabihin ng uno','bakit uno','bakit uno pangalan mo','why is your name vero','why vero','what does vero mean','ano ibig sabihin ng vero','bakit vero','bakit vero pangalan mo'],
+      thanks:['thank you uno','thanks uno','salamat uno','thank you','thanks','thank you very much','thanks a lot','salamat','maraming salamat','ty','tnx','thx'],
+      bye:['bye uno','bye','goodbye','see you','paalam','ok bye','sige bye']
     },
     /* words that may sit around small talk without making it a product question */
     smalltalkFiller:['po','vero','sir','maam','miss','please','pls','naman','lang','talaga','again','ulit','so','ok','okay','sige','ah','oh','and','at','with','my','questions','question','me','mo','ko','ka','you','your','ba','na','nga','din','rin','really'],
+    /* assistant-name words used in the small-talk cues above that are ALSO UGREEN product names ("Uno" cables / hub): kept out of
+       the planner's known-word vocabulary, so "uno", "uno cable", "uno hub" stay product searches exactly as before */
+    assistantNameWords:['uno'],
     /* a turn that starts with one of these continues the previous question (plan mutation) */
     followUpCues:['yung alin dun','alin dun','alin doon','alin diyan','alin dyan','alin dito','which one there','which ones there','which of those','which of these','how about','what about','how bout','what if','paano kung','e yung','eh yung','e kung','eh kung','yung mas','same but','same pero','pareho pero','ganun din pero','ano naman','e di','sa','eh','e','and','pero','then','tapos','ok','okay','sige'],
     /* inventory / stock-like wording: VERO has NO live inventory data. These only add the inventory caveat and switch the reply to
@@ -400,11 +403,11 @@
     /* reply templates — {x} filled at runtime. en = English, tl = Taglish (used when the user writes Taglish). */
     replies: {
       en: {
-        greeting:'Hi! I’m VERO, your UGREEN Product & Sales Assistant. Ask me about any UGREEN product — price, specs, or what we carry.',
+        greeting:'Hi! I’m UNO, your UGREEN Product and Sales Assistant. Ask me about any UGREEN product — price, specs, or what we carry.',
         howAreYou:'Doing great, thanks for asking! What product can I help you find today?',
         help:'Yes, I can help! I can find products, check SRP and DP, compare SKUs, show recent price changes, and answer spec questions from the pricelist. Just type a product type with a spec or budget, an item code or model, or “compare” with two item codes.',
-        identity:'I’m VERO, your UGREEN Product & Sales Assistant. I answer from the current pricelist so you can quote with confidence.',
-        nameWhy:'VERO is the name of your UGREEN Product & Sales Assistant — built to help you find the right product faster and answer product questions with confidence.',
+        identity:'I’m UNO, your UGREEN Product and Sales Assistant. I answer from the current pricelist so you can quote with confidence.',
+        nameWhy:'UNO is the name of your UGREEN Product and Sales Assistant — built to help you find the right product faster and answer product questions with confidence.',
         thanks:'You’re welcome! Anything else you need?',
         bye:'Anytime — good luck with the sale!',
         hiPrefix:'Hi! ',
@@ -454,11 +457,11 @@
         help2:'Try a product type with a spec or budget, an item code, or “compare A and B”.'
       },
       tl: {
-        greeting:'Hi! Ako si VERO, ang UGREEN Product & Sales Assistant mo. Tanong ka lang tungkol sa kahit anong UGREEN product — presyo, specs, o kung ano ang meron tayo.',
+        greeting:'Hi! Ako si UNO, ang UGREEN Product and Sales Assistant mo. Tanong ka lang tungkol sa kahit anong UGREEN product — presyo, specs, o kung ano ang meron tayo.',
         howAreYou:'Okay naman, salamat sa pagtanong! Anong product ang hanapin natin?',
         help:'Oo naman! Kaya kong maghanap ng product, mag-check ng SRP at DP, mag-compare ng SKU, magpakita ng price changes, at sumagot sa spec questions mula sa pricelist. I-type lang ang product type na may spec o budget, item code o model, o “compare” at dalawang item code.',
-        identity:'Ako si VERO, ang UGREEN Product & Sales Assistant natin. Sumasagot ako mula sa current pricelist para kampante ka sa quote mo.',
-        nameWhy:'VERO ang UGREEN Product & Sales Assistant natin — ginawa para mas mabilis kang makahanap ng tamang product at masagot ang product questions mo.',
+        identity:'Ako si UNO, ang UGREEN Product and Sales Assistant natin. Sumasagot ako mula sa current pricelist para kampante ka sa quote mo.',
+        nameWhy:'UNO ang UGREEN Product and Sales Assistant natin — ginawa para mas mabilis kang makahanap ng tamang product at masagot ang product questions mo.',
         thanks:'Walang anuman! May iba ka pa bang kailangan?',
         bye:'Sige! Good luck sa benta!',
         hiPrefix:'Hi! ',

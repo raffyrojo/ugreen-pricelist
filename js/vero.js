@@ -10,7 +10,7 @@
   if(CFG.enabled===false) return;
 
   var ASSET='assets/vero/';
-  var GREETING='Hi! I\u2019m VERO. I can help you find, compare, and understand UGREEN products.';
+  var GREETING='Hi! I\u2019m UNO. I can help you find, compare, and understand UGREEN products.';
   var PAGE=6, MAX_CMP=4;
 
   var S={ open:false, msgs:[], modeKey:null, cmp:[], built:false, aiHist:[], ctx:null };
@@ -29,9 +29,9 @@
   var AI_MSG={
     verify:'I couldn\u2019t verify the external compatibility details right now.',
     extOff:'External verification is unavailable right now.',
-    down:'VERO AI is temporarily unavailable. Local product search is still available.',
-    limit:'You\u2019ve reached the VERO AI limit for now. Please try again a little later.',
-    slow:'VERO AI took too long to answer.',
+    down:'UNO AI is temporarily unavailable. Local product search is still available.',
+    limit:'You\u2019ve reached the UNO AI limit for now. Please try again a little later.',
+    slow:'UNO AI took too long to answer.',
     few:'I need at least two matching products to work with. Try describing the product type.'
   };
   /* ---- AI access gate (swappable policy component) ----
@@ -43,11 +43,11 @@
        submit(m, value) -> obtains a session (today: POST /session with the code) */
   var AI_GATE={
     text:{
-      intro:'This question needs VERO AI. AI access is currently available to authorized sales users.',
+      intro:'This question needs UNO AI. AI access is currently available to authorized sales users.',
       action:'Sales AI Access',
-      note:'Enter your VERO access code.',
-      invalid:'Invalid or inactive VERO access code.',
-      expired:'Your VERO AI session has expired. Enter your access code again.',
+      note:'Enter your Sales AI access code.',
+      invalid:'Invalid or inactive Sales AI access code.',
+      expired:'Your UNO AI session has expired. Enter your access code again.',
       busy:'Too many attempts. Please try again in 15 minutes.'
     },
     intro:function(m){
@@ -57,7 +57,7 @@
     form:function(m){
       return (m.gateErr?'':'<p class="vero-note vero-gate-note">'+e(m.gateMsg||AI_GATE.text.note)+'</p>')+
         (m.gateErr?'<p class="vero-ai-err">'+e(m.gateErr)+'</p>':'')+
-        '<div class="vero-unlock"><input type="password" autocomplete="off" spellcheck="false" maxlength="40" aria-label="VERO access code" placeholder="VERO access code" data-unlock="'+m.idx+'">'+
+        '<div class="vero-unlock"><input type="password" autocomplete="off" spellcheck="false" maxlength="40" aria-label="Sales AI access code" placeholder="Sales AI access code" data-unlock="'+m.idx+'">'+
         '<button type="button" class="vero-btn vero-btn-sm" data-act="unlock" data-idx="'+m.idx+'"'+(m.busy?' disabled':'')+'>'+(m.busy?'Checking\u2026':'Continue')+'</button></div>';
     },
     open:function(m){ m.gateOpen=true; m.gateErr=null; m.gateMsg=null; },
@@ -133,7 +133,7 @@
     var out='', av='default';
     if(m.state==='loading'){
       av='thinking';
-      out='<p class="vero-note vero-ai-wait"><span class="vero-dots" aria-hidden="true"><i></i><i></i><i></i></span>'+(m.route==='web'?'VERO AI is checking official sources\u2026':'VERO AI is thinking\u2026')+'</p>';
+      out='<p class="vero-note vero-ai-wait"><span class="vero-dots" aria-hidden="true"><i></i><i></i><i></i></span>'+(m.route==='web'?'UNO AI is checking official sources\u2026':'UNO AI is thinking\u2026')+'</p>';
     } else if(m.state==='gate'){
       av='default';
       out=m.gateOpen?AI_GATE.form(m):AI_GATE.intro(m);
@@ -142,7 +142,7 @@
       out='<p class="vero-note">'+e(aiErrText(m.err,m.route))+'</p>'+(aiRetryable(m.err)?'<button type="button" class="vero-more vero-retry" data-act="retryai" data-idx="'+m.idx+'">Retry</button>':'');
     } else if(m.state==='done'){
       var d=m.data, web=d.route==='web'&&d.sources&&d.sources.length;
-      out='<div class="vero-ai-meta"><span class="vero-ai-badge">VERO AI</span><span>'+(web?'Verified with official sources':'Based on UGREEN Pricelist data')+'</span></div>';
+      out='<div class="vero-ai-meta"><span class="vero-ai-badge">UNO AI</span><span>'+(web?'Verified with official sources':'Based on UGREEN Pricelist data')+'</span></div>';
       out+='<p class="vero-ai-reply">'+e(d.reply)+'</p>';
       if(d.confidence==='low') out+='<p class="vero-ai-warn">Low confidence \u2014 please verify before quoting.</p>';
       if(d.picks.length){
@@ -165,7 +165,7 @@
   function renderDisc(){
     var d=$('vero-disc'); if(!d) return;
     var sess=aiForUser()?aiSession():null;
-    d.innerHTML='Answers come from the current UGREEN pricelist.'+(sess?' <span class="vero-ai-on">VERO AI on</span> \u00B7 <button type="button" class="vero-link vero-signout" data-act="aisignout">Sign out</button>':'');
+    d.innerHTML='Answers come from the current UGREEN pricelist.'+(sess?' <span class="vero-ai-on">UNO AI on</span> \u00B7 <button type="button" class="vero-link vero-signout" data-act="aisignout">Sign out</button>':'');
   }
 
   /* ---------- small utils ---------- */
@@ -320,7 +320,7 @@
     if(r.chips&&r.chips.length&&r.type!=='clarify') out+=chipsHtml(m,r);                     /* p2r3a: facet / suggestion chips on any answer */
     if(r.echo) out='<p class="vero-echo">'+e(r.echo)+'</p>'+out;                           /* p2r3a: context transparency ("Using: …") */
     if(r.stockNote){ out+='<p class="vero-fine">'+e(r.stockNote)+'</p>'; }   /* p2r1/p2r2: no inventory data -> never imply stock */
-    if(m.offer){ out+='<button type="button" class="vero-chip vero-askai" data-act="askai" data-idx="'+m.idx+'">\u2726 Ask VERO AI</button>'; }
+    if(m.offer){ out+='<button type="button" class="vero-chip vero-askai" data-act="askai" data-idx="'+m.idx+'">\u2726 Ask UNO AI</button>'; }
     if(r.needsAI && !aiForUser() && r.type!=='compare'){
       out+='<p class="vero-fine vero-soon">Personalised recommendations and compatibility checks are coming soon. For now I\u2019m showing matching products from the pricelist.</p>';
     }
@@ -481,10 +481,10 @@
     if(S.built) return; S.built=true;
     var fab=document.createElement('button');
     fab.type='button'; fab.id='vero-fab'; fab.className='vero-fab';
-    fab.setAttribute('aria-label','Open VERO, AI Product & Sales Assistant');
+    fab.setAttribute('aria-label','Open UNO, UGREEN Product and Sales Assistant');
     fab.setAttribute('aria-controls','vero-drawer'); fab.setAttribute('aria-expanded','false');
-    fab.title='Ask VERO';
-    fab.innerHTML='<img src="'+ASSET+'vero-icon.webp" width="56" height="56" alt="" decoding="async" onerror="this.parentNode.classList.add(\'vero-fab-fb\');this.remove();">'+FALLBACK+'<span class="vero-fab-tip">Ask VERO</span>';
+    fab.title='Ask UNO';
+    fab.innerHTML='<img src="'+ASSET+'vero-icon.webp" width="56" height="56" alt="" decoding="async" onerror="this.parentNode.classList.add(\'vero-fab-fb\');this.remove();">'+FALLBACK+'<span class="vero-fab-tip">Ask UNO</span>';
     fab.addEventListener('click',function(){ S.open?close():open(); });
 
     var d=document.createElement('section');
@@ -492,13 +492,13 @@
     d.setAttribute('role','dialog'); d.setAttribute('aria-modal','false'); d.setAttribute('aria-labelledby','vero-title');
     d.innerHTML=
       '<div class="vero-head">'+avatar('icon','vero-av-md')+
-        '<div class="vero-head-t"><div id="vero-title" class="vero-title">VERO <span class="vero-spark" aria-hidden="true">\u2726</span></div>'+
-        '<div class="vero-sub">AI Product &amp; Sales Assistant</div></div>'+
-        '<button type="button" class="vero-x" data-act="close" aria-label="Close VERO">'+ICON.x+'</button></div>'+
+        '<div class="vero-head-t"><div id="vero-title" class="vero-title">UNO <span class="vero-spark" aria-hidden="true">\u2726</span></div>'+
+        '<div class="vero-sub">UGREEN Product and Sales Assistant</div></div>'+
+        '<button type="button" class="vero-x" data-act="close" aria-label="Close UNO">'+ICON.x+'</button></div>'+
       '<div class="vero-log" id="vero-log" role="log" aria-live="polite"></div>'+
       '<div class="vero-cmpbar" id="vero-cmpbar" hidden></div>'+
       '<div class="vero-foot">'+
-        '<div class="vero-inrow"><input id="vero-input" type="text" maxlength="200" autocomplete="off" aria-label="Ask VERO" placeholder="Ask about a product, price, or spec\u2026">'+
+        '<div class="vero-inrow"><input id="vero-input" type="text" maxlength="200" autocomplete="off" aria-label="Ask UNO" placeholder="Ask about a product, price, or spec\u2026">'+
         '<button type="button" class="vero-send" data-act="send" aria-label="Send">'+ICON.send+'</button></div>'+
         '<div class="vero-disc" id="vero-disc">Answers come from the current UGREEN pricelist.</div>'+
       '</div>';

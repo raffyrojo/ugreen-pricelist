@@ -93,7 +93,7 @@ with sync_playwright() as pw:
     chk('A17b after 15 minutes idle the context is gone (no "Using:")', i['echo'] is None, i)
     # AI-routed questions in the public view: gate, no request
     g = ask(pg, 'MacBook Air dual display, ano pwede?', 700)
-    chk('B02 public view: an AI/WEB-routed question shows the Sales AI gate and sends nothing', re.search(r'Sales AI Access|needs VERO AI', g['text']) is not None, g['text'][:160])
+    chk('B02 public view: an AI/WEB-routed question shows the Sales AI gate and sends nothing', re.search(r'Sales AI Access|needs UNO AI', g['text']) is not None, g['text'][:160])
     chk('A22/B03 zero Worker / OpenAI requests during the whole local session', not st['net'], st['net'][:3])
     chk('B04 no page errors and no Local Brain fallback warnings', not st['err'], st['err'][:3])
     desk = pg.evaluate(TIMING, TQ)

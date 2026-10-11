@@ -123,6 +123,7 @@
     Object.keys((L.devices||{}).classes||{}).forEach(function(k){ L.devices.classes[k].forEach(addW); }); Object.keys((L.devices||{}).brands||{}).forEach(function(k){ L.devices.brands[k].forEach(addW); });
     [L.smalltalkFiller,L.followUpCues,L.topicSwitchCues,L.inventoryWords,L.external,L.taglishMarkers,L.nameGeneric,L.genericLabels,Object.keys(L.nameQualifiers||{}),((L.historyDir||{}).up||[]),((L.historyDir||{}).down||[])].forEach(function(a){ (a||[]).forEach(addW); });
     FU_KNOWN.forEach(addW); NOUN_STOP.forEach(addW); EXTRA_STOP.forEach(addW);
+    (L.assistantNameWords||[]).forEach(function(w){ delete V[w]; });   /* UNO: assistant-name cue words stay unknown (product names) */
     c.vocab=V; c.nameGeneric={}; (L.nameGeneric||[]).forEach(function(w){ c.nameGeneric[w]=1; });
     c.inv=new RegExp('(^|[^a-z0-9])('+(L.inventoryWords||[]).slice().sort(function(a,b){ return b.length-a.length; }).map(esc).join('|')+')(?=$|[^a-z0-9])');
     c.L=L; C=c; C_FOR=L; return c;

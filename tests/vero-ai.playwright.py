@@ -148,7 +148,7 @@ def main():
         br = p.chromium.launch()
         ctx, pg, errs = page_for(br)
         pg.click('#vero-fab'); pg.wait_for_timeout(300)
-        # ---- local-only queries never call the AI Worker and never offer "Ask VERO AI"
+        # ---- local-only queries never call the AI Worker and never offer "Ask UNO AI"
         code = pg.evaluate("String(ALL_PRODUCTS.find(p=>!p.disabled&&p.dp_volume&&p.moq&&ALL_PRODUCTS.filter(x=>x.model===p.model).length===1).item_code)")
         model = pg.evaluate(f"ALL_PRODUCTS.find(p=>String(p.item_code)==='{code}').model")
         multi = pg.evaluate("(()=>{const P=ALL_PRODUCTS.filter(p=>!p.disabled);const c={};P.forEach(p=>c[p.model]=(c[p.model]||0)+1);const m=Object.keys(c).find(k=>c[k]>=4&&/\\d/.test(k));return P.filter(p=>p.model===m).slice(0,3).map(p=>String(p.item_code))})()")
@@ -159,24 +159,24 @@ def main():
             ask(pg, q, 250)
             offers += pg.evaluate("[...document.querySelectorAll('#vero-log .vero-msg.vero-bot')].pop().querySelectorAll('.vero-askai').length")
         chk('A1 LOCAL route: 14 exact/price/filter/category/compare queries make ZERO AI requests', len(reqlog()) == n0, reqlog()[n0:])
-        chk('A1b no "Ask VERO AI" chip on lookups, prices, MOQ, pure filters, compare-by-code', offers == 0, offers)
+        chk('A1b no "Ask UNO AI" chip on lookups, prices, MOQ, pure filters, compare-by-code', offers == 0, offers)
 
         # ---- public user (no code): AI-type question -> local results + unlock row, no /ask call
         ask(pg, 'best charger for a laptop and phone', 900)
         t = last(pg)
-        chk('A2 public user: AI-type question -> local results + explanatory VERO AI message, no AI request',
-            'This question needs VERO AI. AI access is currently available to authorized sales users.' in t and pg.locator('#vero-log .vero-card').count() > 0 and len(asks()) == 0, t[:200])
+        chk('A2 public user: AI-type question -> local results + explanatory UNO AI message, no AI request',
+            'This question needs UNO AI. AI access is currently available to authorized sales users.' in t and pg.locator('#vero-log .vero-card').count() > 0 and len(asks()) == 0, t[:200])
         chk('A2a access-code field hidden initially; small "Sales AI Access" action shown',
             pg.locator('#vero-log [data-unlock]').count() == 0 and pg.locator('#vero-log [data-act="gateopen"]').count() == 1 and 'Sales AI Access' in pg.locator('#vero-log [data-act="gateopen"]').inner_text())
         chk('A2c no "locked/restricted"/auth wording shown to users', not re.search(r'locked|restricted|unauthori|authenticat|token', pg.inner_text('#vero-log'), re.I))
         pg.locator('#vero-log .vero-ai').last.scroll_into_view_if_needed(); pg.wait_for_timeout(150)
         pg.screenshot(path=SHOTS + '/01_public_ai_prompt.png')
         pg.locator('#vero-log [data-act="gateopen"]').click(); pg.wait_for_timeout(250)
-        chk('A2d clicking "Sales AI Access" reveals the compact code field + "Enter your VERO access code."',
-            pg.locator('#vero-log [data-unlock]').count() == 1 and 'Enter your VERO access code.' in last(pg) and pg.evaluate("document.activeElement && document.activeElement.hasAttribute('data-unlock')"))
+        chk('A2d clicking "Sales AI Access" reveals the compact code field + "Enter your Sales AI access code."',
+            pg.locator('#vero-log [data-unlock]').count() == 1 and 'Enter your Sales AI access code.' in last(pg) and pg.evaluate("document.activeElement && document.activeElement.hasAttribute('data-unlock')"))
         pg.screenshot(path=SHOTS + '/02_access_code_entry.png')
         unlock(pg, 'VERO-0000-0000-0000-0000')
-        chk('A2b invalid code -> "Invalid or inactive VERO access code."', 'Invalid or inactive VERO access code.' in last(pg) and len(asks()) == 0, last(pg))
+        chk('A2b invalid code -> "Invalid or inactive Sales AI access code."', 'Invalid or inactive Sales AI access code.' in last(pg) and len(asks()) == 0, last(pg))
         pg.screenshot(path=SHOTS + '/02b_invalid_code.png')
         unlock(pg, codes['c_sales01']); pg.wait_for_timeout(1200)
         t = last(pg)
@@ -187,14 +187,14 @@ def main():
           return [...b.querySelectorAll('.vero-card')].every(c=>{const p=ALL_PRODUCTS.find(x=>String(x.item_code)===c.dataset.code);return c.innerText.includes(f(p.srp))&&c.innerText.includes(f(p.dp));});})()""")
         chk('A3c card prices equal live pricelist data', price_ok)
         chk('A3d basis tags shown (From pricelist data / General guidance)', 'from pricelist data' in t.lower() and 'general guidance' in t.lower(), t)
-        chk('A3e footer shows "VERO AI on · Sign out"', 'VERO AI on' in pg.inner_text('#vero-disc'))
+        chk('A3e footer shows "UNO AI on · Sign out"', 'UNO AI on' in pg.inner_text('#vero-disc'))
         body = json.loads(asks()[-1]['body'])
         chk('A4 request body keys are exactly v,q,candidates,history,route,trigger (no prices/dealer data)', sorted(body.keys()) == ['candidates', 'history', 'q', 'route', 'trigger', 'v'] and 2 <= len(body['candidates']) <= 8 and not re.search(r'srp|dp_vol|special|moq|\u20b1', json.dumps(body), re.I), body)
         lastp = [x for x in reqlog() if x['to'] == 'openai'][-1]; b = lastp['body']
         chk('A4b OpenAI request: Responses API, gpt-6-luna, strict JSON schema, low reasoning, no tools, no price/MOQ data, Bearer key',
             not b.get('tools') and b['model'] == 'gpt-6-luna' and b['text']['format']['type'] == 'json_schema' and b['text']['format']['strict'] is True and b['reasoning']['effort'] == 'low' and b['store'] is False and lastp['auth'] == 'bearer'
             and not re.search(r'srp|dp_volume|moq|\u20b1', b['input'], re.I), b)
-        chk('A3f AI answer labelled "VERO AI"', 'VERO AI' in pg.evaluate("[...document.querySelectorAll('#vero-log .vero-ai .vero-ai-badge')].pop().innerText"))
+        chk('A3f AI answer labelled "UNO AI"', 'UNO AI' in pg.evaluate("[...document.querySelectorAll('#vero-log .vero-ai .vero-ai-badge')].pop().innerText"))
         pg.locator('#vero-log .vero-ai').last.scroll_into_view_if_needed(); pg.wait_for_timeout(200)
         pg.screenshot(path=SHOTS + '/03_unlocked_sales_catalog_ai.png')
 
@@ -255,22 +255,22 @@ def main():
                    'best power bank for office F', 'best hub for office G', 'best cable for office H', 'best charger for home I']:
             ask(pg3, qq, 1100)
         t = pg3.inner_text('#vero-log')
-        chk('A10 per-code rate limit (4/min) -> friendly limit message', 'reached the VERO AI limit' in t, t[-300:])
+        chk('A10 per-code rate limit (4/min) -> friendly limit message', 'reached the UNO AI limit' in t, t[-300:])
         pg3.screenshot(path=SHOTS + '/09_rate_limited.png')
         pg3.locator('[data-act="aisignout"]').click(); pg3.wait_for_timeout(200)
-        chk('A11 Sign out clears AI session', 'VERO AI on' not in pg3.inner_text('#vero-disc') and pg3.evaluate("sessionStorage.getItem('vero_ai_session')") is None)
+        chk('A11 Sign out clears AI session', 'UNO AI on' not in pg3.inner_text('#vero-disc') and pg3.evaluate("sessionStorage.getItem('vero_ai_session')") is None)
         ctx3.close()
 
-        # ---- "Ask VERO AI" manual escalation
+        # ---- "Ask UNO AI" manual escalation
         ctx4, pg4, _ = page_for(br)
         pg4.click('#vero-fab'); pg4.wait_for_timeout(200)
         n0 = len(asks())
         ask(pg4, 'usb c hub for travel', 400)
         chip = pg4.locator('#vero-log .vero-askai')
-        chk('A12 "Ask VERO AI" offered on a descriptive local answer, no auto AI call', chip.count() == 1 and len(asks()) == n0)
+        chk('A12 "Ask UNO AI" offered on a descriptive local answer, no auto AI call', chip.count() == 1 and len(asks()) == n0)
         pg4.screenshot(path=SHOTS + '/10_ask_vero_ai_chip.png')
         chip.click(); pg4.wait_for_timeout(400)
-        chk('A12b chip -> explanatory message for a public user (code field still hidden)', pg4.locator('#vero-log [data-unlock]').count() == 0 and 'This question needs VERO AI' in last(pg4))
+        chk('A12b chip -> explanatory message for a public user (code field still hidden)', pg4.locator('#vero-log [data-unlock]').count() == 0 and 'This question needs UNO AI' in last(pg4))
         ctx4.close()
 
         # ---- dealer mode: AI off for dealers in the pilot
@@ -282,7 +282,7 @@ def main():
         ask(pg5, 'best charger for a laptop and phone', 900)
         t = last(pg5)
         chk('A13 dealer mode: no AI controls (no message, no "Sales AI Access", no code field), no requests, local answer + "coming soon"',
-            pg5.locator('#vero-log [data-unlock]').count() == 0 and pg5.locator('#vero-log [data-act="gateopen"]').count() == 0 and 'needs VERO AI' not in t and len(reqlog()) == n0 and 'coming soon' in t, t[:160])
+            pg5.locator('#vero-log [data-unlock]').count() == 0 and pg5.locator('#vero-log [data-act="gateopen"]').count() == 0 and 'needs UNO AI' not in t and len(reqlog()) == n0 and 'coming soon' in t, t[:160])
         ctx5.close()
 
         # ---- webEnabled false (frontend) -> web question gets the neutral message, no request
@@ -302,8 +302,8 @@ def main():
         pg7.click('#vero-fab'); pg7.wait_for_timeout(200)
         ask(pg7, 'best charger for travel', 900); unlock(pg7, codes['c_sales01'])
         t = last(pg7)
-        chk('A15 AI unavailable (Worker AI_ENABLED=false) -> "VERO AI is temporarily unavailable. Local product search is still available." + local results stay',
-            'VERO AI is temporarily unavailable. Local product search is still available.' in t and pg7.locator('#vero-log .vero-card').count() > 0, t)
+        chk('A15 AI unavailable (Worker AI_ENABLED=false) -> "UNO AI is temporarily unavailable. Local product search is still available." + local results stay',
+            'UNO AI is temporarily unavailable. Local product search is still available.' in t and pg7.locator('#vero-log .vero-card').count() > 0, t)
         pg7.screenshot(path=SHOTS + '/14_ai_unavailable.png')
         n_before = len(reqlog())
         ask(pg7, 'srp of ' + code, 300)
@@ -314,11 +314,11 @@ def main():
         ctx8, pg8, _ = page_for(br)
         pg8.evaluate("sessionStorage.setItem('vero_ai_session', JSON.stringify({token:'expired.or.revoked', role:'sales', exp: Date.now()+3600000, web:true}))")
         pg8.click('#vero-fab'); pg8.wait_for_timeout(200)
-        chk('A18 (pre) footer shows the saved session', 'VERO AI on' in pg8.inner_text('#vero-disc'))
+        chk('A18 (pre) footer shows the saved session', 'UNO AI on' in pg8.inner_text('#vero-disc'))
         ask(pg8, 'best charger for travel', 1500)
         t = last(pg8)
-        chk('A18 expired/revoked session -> "Your VERO AI session has expired. Enter your access code again." with the code field open',
-            'Your VERO AI session has expired. Enter your access code again.' in t and pg8.locator('#vero-log [data-unlock]').count() == 1 and pg8.evaluate("sessionStorage.getItem('vero_ai_session')") is None and 'VERO AI on' not in pg8.inner_text('#vero-disc'), t)
+        chk('A18 expired/revoked session -> "Your UNO AI session has expired. Enter your access code again." with the code field open',
+            'Your UNO AI session has expired. Enter your access code again.' in t and pg8.locator('#vero-log [data-unlock]').count() == 1 and pg8.evaluate("sessionStorage.getItem('vero_ai_session')") is None and 'UNO AI on' not in pg8.inner_text('#vero-disc'), t)
         pg8.screenshot(path=SHOTS + '/15_session_expired.png')
         unlock(pg8, codes['c_sales02'])
         chk('A18b re-entering a valid code resumes the same question', 'Based on UGREEN Pricelist data' in last(pg8))

@@ -37,13 +37,13 @@ P2R3A_CHANGED = {
     'type c to lightning': r'^8 USB-C to Lightning charging cables:',            # pair must be in the name (was 34 loose matches)
     'compare 20503 vs AV102': r'^Model AV102 has 7 SKUs\. Tap Compare',          # same guidance; card list differs
     'AV104 or AV108': r'^8 SKUs for AV104 and AV108:',                           # both models listed (was AV104 only)
-    'travel charger': r'^1 travel charger:',                                     # no "Ask VERO AI" offer on a plain catalog lookup
+    'travel charger': r'^1 travel charger:',                                     # no "Ask UNO AI" offer on a plain catalog lookup
     'something for my desk setup': r'^Which product type do you mean\?',         # clarify instead of an AI call with no product intent
     'best gift for a gamer': r'^Happy to help — which product type or SKU',      # clarify instead of an AI call with no product intent
     'may 100W charger ba kayo': r'^Meron — 4 na 100W chargers sa current pricelist:',   # Taglish reply to a Taglish question
     'pang laptop na charger': r'^38 na chargers \(Hindi ko ma-confirm ang compatibility sa laptop',  # local list (>=45W first) + caveat + AI offer, not the AI gate
     'meron ba kayong hdmi cable': r'^Meron — \d+ na HDMI cables sa current pricelist:',  # HDMI cables directly (no section chooser)
-    'hello': r'^Hi! I’m VERO, your UGREEN Product & Sales Assistant',            # small talk (was "No products match")
+    'hello': r'^Hi! I’m UNO, your UGREEN Product and Sales Assistant',            # small talk (was "No products match")
     'help': r'^Yes, I can help!',                                                # small talk (was 2 random products)
     'asdfqwer': r'^Which product type do you mean\?',                            # clarify (was "No products match")
     'new arrivals': r'^Which product type do you mean\?',                        # clarify (was "No products match")

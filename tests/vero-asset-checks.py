@@ -1,6 +1,6 @@
 """Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves now (default dbbacf3: 53fa5fa code (VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F; v2 shadow files present but NOT loaded) + NEW-C3R-1 data (Commit D)).
+  baseline_ref = the commit GitHub Pages serves now (default ae4105b: V2-2C C3 tests-only harness on Commit D dbbacf3 = 53fa5fa code (VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F; v2 shadow files present but NOT loaded) + NEW-C3R-1 data).
   Always pass the baseline explicitly for a release; a CMS Publish moves main and makes any default stale.
   If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
 
@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'dbbacf3'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'ae4105b'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
@@ -27,13 +27,16 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # VERO V2-2C C3 (baseline dbbacf3 = live: 53fa5fa code incl. C2F + Commit D data), chained scoring / dev gold SHADOW HARNESS (tests only, measurement only):
-                 # tests/vero-v2-shadow.js (REALISTIC + ORACLE chained scoring through the dormant VeroContext, hard safety gates,
-                 # report-and-ratchet quality, mutation kills, performance proxies, external --holdout input) and
-                 # tests/vero-v2-devsets.json (schema vero-v2-devsets/2: declared follow-up classes, provenance, DEV chains, B144
-                 # follow-up gold, DEV matrix templates; no held-out content). No js/ file changes: vero-parse / vero-ontology /
-                 # vero-discourse / vero-context stay byte-identical (G04b); no index.html / live ORDER file, data, Worker or config.
-                 'tests/vero-v2-shadow.js', 'tests/vero-v2-devsets.json'}
+                 # UNO front-end branding (baseline ae4105b = live). Public assistant name VERO -> UNO; internal engineering names stay VERO.
+                 # Visible UI strings / aria labels (UNO; UNO AI only for AI states; neutral "Sales AI access code"), lexicon identity replies +
+                 # phrase-specific UNO small-talk cues (VERO cues kept), assistantNameWords ['uno'] kept out of the planner vocabulary so
+                 # "uno" / "uno cable" / "uno hub" stay product searches byte-identically; ?v= bumps for the 3 changed live scripts only.
+                 # The 3 larger avatars replaced (same names) from Deliverables/VERO-Video/assets-src/vero-hires/bust; vero-icon.webp unchanged.
+                 # No css / config / data / backend / Worker / vero-engine / vero-compose / vero-nlu / vero-facts / v2 shadow change.
+                 'index.html', 'js/vero.js', 'js/vero-lexicon.js', 'js/vero-plan.js',
+                 'assets/vero/vero-default.webp', 'assets/vero/vero-happy.webp', 'assets/vero/vero-thinking.webp', 'assets/vero/README.md',
+                 'tests/uno-branding.test.js', 'tests/vero-p2r3a.test.js', 'tests/vero-p2r3a.playwright.py', 'tests/vero-ai.playwright.py',
+                 'tests/vero-p1-regression.playwright.py'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}
 # ======================================================================================================
