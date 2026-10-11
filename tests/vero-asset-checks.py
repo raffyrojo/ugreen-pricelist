@@ -1,6 +1,6 @@
 """Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves now (default 53fa5fa: VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F; v2 shadow files present but NOT loaded).
+  baseline_ref = the commit GitHub Pages serves now (default dbbacf3: 53fa5fa code (VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F; v2 shadow files present but NOT loaded) + NEW-C3R-1 data (Commit D)).
   Always pass the baseline explicitly for a release; a CMS Publish moves main and makes any default stale.
   If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
 
@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '53fa5fa'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'dbbacf3'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
@@ -27,27 +27,15 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # NEW-C3R-1 governed DATA correction (baseline 53fa5fa, owner approval 2026-10-11, item-code-first evidence):
-                 # data/products.json only - one line '*Bluetooth Version: 6.0' inserted after '*placeholder' in the features of
-                 # 16171, 16172, 95164 and 85769 (official UGREEN listings tied to each exact item code). Exact old/new values:
-                 # APPROVED_DATA below (= manifest VERO-NEW-C3R-1-Proposed-Manifest-2026-10-11.json, sha256 028a9c7e...28da0).
-                 # No js / css / index.html / config / Worker change; no model, name, colour, price, category or description change.
-                 'data/products.json'}
+                 # VERO V2-2C C3 (baseline dbbacf3 = live: 53fa5fa code incl. C2F + Commit D data), chained scoring / dev gold SHADOW HARNESS (tests only, measurement only):
+                 # tests/vero-v2-shadow.js (REALISTIC + ORACLE chained scoring through the dormant VeroContext, hard safety gates,
+                 # report-and-ratchet quality, mutation kills, performance proxies, external --holdout input) and
+                 # tests/vero-v2-devsets.json (schema vero-v2-devsets/2: declared follow-up classes, provenance, DEV chains, B144
+                 # follow-up gold, DEV matrix templates; no held-out content). No js/ file changes: vero-parse / vero-ontology /
+                 # vero-discourse / vero-context stay byte-identical (G04b); no index.html / live ORDER file, data, Worker or config.
+                 'tests/vero-v2-shadow.js', 'tests/vero-v2-devsets.json'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
-APPROVED_DATA = {
-    ('16171', 'features'): (
-        '*placeholder\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Battery Type: Polymer Lithium‑ion Battery\n*Battery Capacity: 800mAh\n*Battery Energy: 2.96Wh\n*Limited Charging Voltage: 5.25V\n*Charging Input: 5V⎓1.5A\n*Charging Time: About 2 hours',
-        '*placeholder\n*Bluetooth Version: 6.0\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Battery Type: Polymer Lithium‑ion Battery\n*Battery Capacity: 800mAh\n*Battery Energy: 2.96Wh\n*Limited Charging Voltage: 5.25V\n*Charging Input: 5V⎓1.5A\n*Charging Time: About 2 hours'),
-    ('16172', 'features'): (
-        '*placeholder\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Battery Type: Polymer Lithium‑ion Battery\n*Battery Capacity: 800mAh\n*Battery Energy: 2.96Wh\n*Limited Charging Voltage: 5.25V\n*Charging Input: 5V⎓1.5A\n*Charging Time: About 2 hours',
-        '*placeholder\n*Bluetooth Version: 6.0\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Battery Type: Polymer Lithium‑ion Battery\n*Battery Capacity: 800mAh\n*Battery Energy: 2.96Wh\n*Limited Charging Voltage: 5.25V\n*Charging Input: 5V⎓1.5A\n*Charging Time: About 2 hours'),
-    ('85769', 'features'): (
-        '*placeholder\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Charging Port: USB‑C\n*Charging Case Battery: Polymer lithium‑ion battery\n*Capacity: Earbuds: 60mAh 3.85V(0.231Wh)\n*Charging Case: 600mAh 3.7V (2.22Wh)\n*Limited Charging Voltage: 5.25V\n*Charging Case Input: 5V⎓1A\n*Charging Case Output: 5V⎓300 mA',
-        '*placeholder\n*Bluetooth Version: 6.0\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Charging Port: USB‑C\n*Charging Case Battery: Polymer lithium‑ion battery\n*Capacity: Earbuds: 60mAh 3.85V(0.231Wh)\n*Charging Case: 600mAh 3.7V (2.22Wh)\n*Limited Charging Voltage: 5.25V\n*Charging Case Input: 5V⎓1A\n*Charging Case Output: 5V⎓300 mA'),
-    ('95164', 'features'): (
-        '*placeholder\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Charging Port: USB‑C\n*Charging Case Battery: Polymer lithium‑ion battery\n*Capacity: Earbuds: 60mAh 3.85V(0.231Wh)\n*Charging Case: 600mAh 3.7V (2.22Wh)\n*Limited Charging Voltage: 5.25V\n*Charging Case Input: 5V⎓1A\n*Charging Case Output: 5V⎓300 mA',
-        '*placeholder\n*Bluetooth Version: 6.0\n*Frequency Band: 2400MHz‑2483.5MHz\n*Max. RF Output Power: 4dBm\n*Charging Port: USB‑C\n*Charging Case Battery: Polymer lithium‑ion battery\n*Capacity: Earbuds: 60mAh 3.85V(0.231Wh)\n*Charging Case: 600mAh 3.7V (2.22Wh)\n*Limited Charging Voltage: 5.25V\n*Charging Case Input: 5V⎓1A\n*Charging Case Output: 5V⎓300 mA'),
-}
+APPROVED_DATA = {}
 # ======================================================================================================
 
 ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']   # live load order

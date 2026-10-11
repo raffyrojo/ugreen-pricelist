@@ -1,6 +1,15 @@
 {
- "schema": "vero-v2-devsets/1",
- "note": "Development / regression sets ONLY (already used for tuning p2r3a). Never cite results on these as unbiased accuracy. Items copied verbatim from the frozen held-out files; corrections are the post-run expectation fixes recorded in the grade files.",
+ "schema": "vero-v2-devsets/2",
+ "note": "DEVELOPMENT / REGRESSION DATA ONLY. Everything in this file is visible to implementation and was used for tuning (HO1-HO3 since p2r3a; chains, b144FollowUps and matrixDev authored for V2-2C C3). Never cite results on it as unbiased accuracy. Held-out data (Held-Out #4 and the external held-out phrasing templates) is NEVER stored here: it is authored independently outside the repo and read only through tests/vero-v2-shadow.js --holdout <path> (V2-2D).",
+ "provenance": {
+  "HO1": "dev: copied verbatim from frozen held-out set #1 (p2r3a, 2026-10-07); used for tuning since, so DEV",
+  "HO2": "dev: held-out set #2 (2026-10-07); used for tuning since, so DEV",
+  "HO3": "dev: held-out set #3 (2026-10-07); used for tuning since, so DEV",
+  "b144FollowUps": "dev: gold for the 7 B144 follow-up turns, authored by the V2-2C C3 implementation session 2026-10-10 (data-derived where possible); keyed by B144 id; vero-sales-questions.json untouched",
+  "chains": "dev: chains authored by the V2-2C C3 implementation session 2026-10-10 from plan 2026-10-08 section 2 (rows A-S, P) and design review 2026-10-09 section 15 categories; gold is data-derived from products.json at run time",
+  "matrixDev": "dev: generative act x family phrasing templates (DEV group only), authored by the V2-2C C3 implementation session 2026-10-10. The HOLDOUT template group is authored independently outside the repo (owner decision D2, 2026-10-10)"
+ },
+ "cls": "Each turn declares its follow-up class (STANDALONE / CONTEXT / CONTEXT_COMPAT / TOPIC_SWITCH / STANDALONE_IN_SEQ). The harness derives the class independently (sequence position, contextTurns, topicSwitch, gold route) and fails on any mismatch; the declared label never overrides the derived one.",
  "sets": {
   "HO1": {
    "name": "VERO p2r3a held-out set v1",
@@ -8,6 +17,7 @@
     {
      "id": "HO01",
      "q": "boss magkano yung 130W car charger natin?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35025"
@@ -18,6 +28,7 @@
     {
      "id": "HO02",
      "q": "EC604 dp at moq pls",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "55910B"
@@ -28,6 +39,7 @@
     {
      "id": "HO03",
      "q": "anong colors available ng PB580?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "75984B",
@@ -40,6 +52,7 @@
     {
      "id": "HO04",
      "q": "cheapest magnetic power bank",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "25208",
@@ -51,6 +64,7 @@
     {
      "id": "HO05",
      "q": "may cat7 ba tayo na 5 meters?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "11263",
@@ -62,6 +76,7 @@
     {
      "id": "HO06",
      "q": "8 port switch magkano",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35499US"
@@ -72,6 +87,7 @@
     {
      "id": "HO07",
      "q": "may keyboard kayo?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [],
      "check": "empty",
@@ -80,6 +96,7 @@
     {
      "id": "HO08",
      "q": "nvme enclosure 10gbps pinakamura",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "10902"
@@ -90,6 +107,7 @@
     {
      "id": "HO09",
      "q": "pang Samsung S24 Ultra na 45W charger, alin pwede?",
+     "cls": "STANDALONE",
      "exp": "WEB",
      "expCodes": [],
      "check": "cands",
@@ -98,6 +116,7 @@
     {
      "id": "HO10",
      "q": "pwede ba isakay sa eroplano yung PB728?",
+     "cls": "STANDALONE",
      "exp": "WEB",
      "expCodes": [
       "75702B"
@@ -108,6 +127,7 @@
     {
      "id": "HO11",
      "q": "does the CM843 support 3 external monitors on M2 MacBook Air?",
+     "cls": "STANDALONE",
      "exp": "WEB",
      "expCodes": [
       "85489"
@@ -118,6 +138,7 @@
     {
      "id": "HO12",
      "q": "DH4300 Plus vs DXP4800 Plus ano pinagkaiba?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "85449",
@@ -129,6 +150,7 @@
     {
      "id": "HO13",
      "q": "ano maganda for small office na NAS, mga 5 users lang?",
+     "cls": "STANDALONE",
      "exp": "AI",
      "expCodes": [],
      "check": "candsNas",
@@ -137,6 +159,7 @@
     {
      "id": "HO14",
      "q": "ano best seller natin ngayon?",
+     "cls": "STANDALONE",
      "exp": "NOT_AI",
      "expCodes": [],
      "check": "none",
@@ -145,6 +168,7 @@
     {
      "id": "HO15",
      "q": "ilan pa natitira sa PB552?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "55995B"
@@ -156,6 +180,7 @@
     {
      "id": "HO16",
      "q": "nag-increase ba yung price ng mga docking station recently?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [],
      "check": "history",
@@ -164,6 +189,7 @@
     {
      "id": "HO17",
      "q": "salamat VERO! last na, may 1m na usb c to lightning ba?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "60751",
@@ -177,6 +203,7 @@
     {
      "id": "HO18",
      "q": "something for gaming",
+     "cls": "STANDALONE",
      "exp": "CLARIFY",
      "expCodes": [],
      "check": "none",
@@ -185,6 +212,7 @@
     {
      "id": "HO19",
      "q": "cat5e 10m?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [],
      "check": "noCat5eClaim",
@@ -193,6 +221,7 @@
     {
      "id": "HO20",
      "q": "X860 meron bang ibang kulay?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "95169B",
@@ -205,6 +234,7 @@
      "id": "SQ1-1",
      "seq": "SQ1",
      "q": "may 100W na wall charger tayo?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "45514B",
@@ -219,6 +249,7 @@
      "id": "SQ1-2",
      "seq": "SQ1",
      "q": "e yung 45w?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "65050B",
@@ -233,6 +264,7 @@
      "id": "SQ1-3",
      "seq": "SQ1",
      "q": "white lang",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "85691B"
@@ -245,6 +277,7 @@
      "id": "SQ1-4",
      "seq": "SQ1",
      "q": "dp nyan?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "85691B"
@@ -257,6 +290,7 @@
      "id": "SQ2-1",
      "seq": "SQ2",
      "q": "10k powerbank na may sariling cable",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "75982B",
@@ -275,6 +309,7 @@
      "id": "SQ2-2",
      "seq": "SQ2",
      "q": "yung pinakamura dun",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "75161B",
@@ -288,6 +323,7 @@
      "id": "SQ2-3",
      "seq": "SQ2",
      "q": "ok iba naman, hdmi switch meron?",
+     "cls": "TOPIC_SWITCH",
      "exp": "LOCAL",
      "expCodes": [
       "50966",
@@ -303,6 +339,7 @@
      "id": "SQ3-1",
      "seq": "SQ3",
      "q": "magkano yung CM843?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "85489"
@@ -314,6 +351,7 @@
      "id": "SQ3-2",
      "seq": "SQ3",
      "q": "kaya ba nito 3 monitors sa windows laptop?",
+     "cls": "CONTEXT_COMPAT",
      "exp": "WEB",
      "expCodes": [
       "85489"
@@ -326,6 +364,7 @@
      "id": "SQ4-1",
      "seq": "SQ4",
      "q": "may stock ba ng 2.5 inch hdd enclosure?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "60353",
@@ -347,6 +386,7 @@
      "id": "SQ4-2",
      "seq": "SQ4",
      "q": "alin dun yung type c?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "50743",
@@ -360,6 +400,7 @@
      "id": "SQ5-1",
      "seq": "SQ5",
      "q": "top 3 pinakamahal na webcam",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "75725A",
@@ -373,6 +414,7 @@
      "id": "SQ5-2",
      "seq": "SQ5",
      "q": "thank you!",
+     "cls": "STANDALONE_IN_SEQ",
      "exp": "SMALLTALK",
      "expCodes": [],
      "check": "empty",
@@ -382,6 +424,7 @@
      "id": "SQ5-3",
      "seq": "SQ5",
      "q": "how about the cheapest?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "15728"
@@ -394,6 +437,7 @@
      "id": "SQ6-1",
      "seq": "SQ6",
      "q": "PB722 specs",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35525B"
@@ -405,6 +449,7 @@
      "id": "SQ6-2",
      "seq": "SQ6",
      "q": "same capacity pero mas mura",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "90597A",
@@ -418,6 +463,7 @@
      "id": "SQ7-1",
      "seq": "SQ7",
      "q": "may irerecommend ka for my client?",
+     "cls": "STANDALONE",
      "exp": "CLARIFY",
      "expCodes": [],
      "check": "none",
@@ -427,6 +473,7 @@
      "id": "SQ7-2",
      "seq": "SQ7",
      "q": "charger para sa Nintendo Switch 2",
+     "cls": "STANDALONE_IN_SEQ",
      "exp": "AI",
      "expCodes": [],
      "check": "cands",
@@ -452,6 +499,7 @@
     {
      "id": "N01",
      "q": "magkano ang Studio Max5s?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "16172",
@@ -463,6 +511,7 @@
     {
      "id": "N04",
      "q": "pinakamurang open ear earbuds",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "45785",
@@ -476,6 +525,7 @@
     {
      "id": "N06",
      "q": "card reader na may usb c at usb a",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "50704",
@@ -489,6 +539,7 @@
     {
      "id": "N08",
      "q": "may capture card ba tayo for streaming?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "40189"
@@ -499,6 +550,7 @@
     {
      "id": "N09",
      "q": "laptop bag 15.6 inch",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "30325"
@@ -509,6 +561,7 @@
     {
      "id": "N10",
      "q": "mini displayport to hdmi 4k",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "40360"
@@ -519,6 +572,7 @@
     {
      "id": "N11",
      "q": "usb c to dp cable 3 meters",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "25839"
@@ -529,6 +583,7 @@
     {
      "id": "N13",
      "q": "pinakamurang 240W na usb-c to usb-c 1m",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "65907"
@@ -539,6 +594,7 @@
     {
      "id": "N17",
      "q": "may samsung tracker kayo?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "55769",
@@ -551,6 +607,7 @@
     {
      "id": "N18",
      "q": "magnetic wireless charger 25w cheapest",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "85451"
@@ -561,6 +618,7 @@
     {
      "id": "N19",
      "q": "sobrang init ng phone ko pag nagcha-charge, may wireless charger na may fan?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "75247"
@@ -571,6 +629,7 @@
     {
      "id": "N20",
      "q": "pwede ba yung W720 sa iPhone 16 Pro?",
+     "cls": "STANDALONE",
      "exp": "WEB",
      "expCodes": [
       "85899"
@@ -581,6 +640,7 @@
     {
      "id": "N21",
      "q": "kaya ba ng DXP4800 Plus mag-run ng Jellyfin?",
+     "cls": "STANDALONE",
      "exp": "WEB",
      "expCodes": [
       "35260"
@@ -591,6 +651,7 @@
     {
      "id": "N22",
      "q": "macbook pro m3 kaya ba mag dual monitor gamit CM681?",
+     "cls": "STANDALONE",
      "exp": "WEB",
      "expCodes": [
       "15978"
@@ -601,6 +662,7 @@
     {
      "id": "N23",
      "q": "dock na may 2 HDMI at DP under 3k",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35625"
@@ -611,6 +673,7 @@
     {
      "id": "N24",
      "q": "nag-iba ba presyo ng WS210?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "45760",
@@ -622,6 +685,7 @@
     {
      "id": "N25",
      "q": "price history ng PB722",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35525B"
@@ -632,6 +696,7 @@
     {
      "id": "N26",
      "q": "earbuds na tumaas this month",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [],
      "check": "history",
@@ -640,6 +705,7 @@
     {
      "id": "N27",
      "q": "available pa ba yung HiTune Max 6?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "55687",
@@ -652,6 +718,7 @@
     {
      "id": "N28",
      "q": "ilan stocks natin ng Cat8 15m?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "30799"
@@ -663,6 +730,7 @@
     {
      "id": "N29",
      "q": "may naubos na ba sa smart finders?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [],
      "check": "none",
@@ -672,6 +740,7 @@
     {
      "id": "N30",
      "q": "pang regalo sa girlfriend ko, ano maganda?",
+     "cls": "STANDALONE",
      "exp": "CLARIFY",
      "expCodes": [],
      "check": "none",
@@ -680,6 +749,7 @@
     {
      "id": "N31",
      "q": "hello! anong pinaka bagong product natin?",
+     "cls": "STANDALONE",
      "exp": "NOT_AI",
      "expCodes": [],
      "check": "none",
@@ -689,6 +759,7 @@
      "id": "Q1-1",
      "seq": "Q1",
      "q": "usb c to usb c 100w 2m",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "65250",
@@ -706,6 +777,7 @@
      "id": "Q1-2",
      "seq": "Q1",
      "q": "yung white lang",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "35221"
@@ -718,6 +790,7 @@
      "id": "Q1-3",
      "seq": "Q1",
      "q": "magkano DP nun?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "35221"
@@ -730,6 +803,7 @@
      "id": "Q2-1",
      "seq": "Q2",
      "q": "magandang hapon VERO",
+     "cls": "STANDALONE",
      "exp": "SMALLTALK",
      "expCodes": [],
      "check": "empty",
@@ -739,6 +813,7 @@
      "id": "Q2-2",
      "seq": "Q2",
      "q": "need ko ng phone holder sa kotse na magnetic",
+     "cls": "STANDALONE_IN_SEQ",
      "exp": "LOCAL",
      "expCodes": [
       "80785",
@@ -753,6 +828,7 @@
      "id": "Q2-3",
      "seq": "Q2",
      "q": "iba naman: may laptop stand na foldable?",
+     "cls": "TOPIC_SWITCH",
      "exp": "LOCAL",
      "expCodes": [
       "40291",
@@ -767,6 +843,7 @@
      "id": "Q3-1",
      "seq": "Q3",
      "q": "55137 vs 75288",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "55137",
@@ -779,6 +856,7 @@
      "id": "Q3-2",
      "seq": "Q3",
      "q": "alin mas mura?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "55137",
@@ -792,6 +870,7 @@
      "id": "Q3-3",
      "seq": "Q3",
      "q": "e yung FitBuds magkano?",
+     "cls": "TOPIC_SWITCH",
      "exp": "LOCAL",
      "expCodes": [
       "65655",
@@ -805,6 +884,7 @@
      "id": "Q4-1",
      "seq": "Q4",
      "q": "may maganda ka bang mouse?",
+     "cls": "STANDALONE",
      "exp": "AI",
      "expCodes": [],
      "check": "candsMouse",
@@ -814,6 +894,7 @@
      "id": "Q4-2",
      "seq": "Q4",
      "q": "under 500 lang",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "65892",
@@ -834,6 +915,7 @@
      "id": "Q5-1",
      "seq": "Q5",
      "q": "magkano yung CM591?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "90225"
@@ -845,6 +927,7 @@
      "id": "Q5-2",
      "seq": "Q5",
      "q": "meron pa ba nito sa warehouse?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "90225"
@@ -858,6 +941,7 @@
      "id": "Q6-1",
      "seq": "Q6",
      "q": "ilang bays ng DXP6800 Pro?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "25898B"
@@ -869,6 +953,7 @@
      "id": "Q6-2",
      "seq": "Q6",
      "q": "how about the DXP8800 Plus?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "35126B"
@@ -927,6 +1012,7 @@
     {
      "id": "T01",
      "q": "magkano yung ClipBuds Pro?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "85185",
@@ -940,6 +1026,7 @@
     {
      "id": "T02",
      "q": "EchoBuds Plus colors?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "95164",
@@ -952,6 +1039,7 @@
     {
      "id": "T03",
      "q": "nexode mini 30w dp",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "25036",
@@ -964,6 +1052,7 @@
     {
      "id": "T04",
      "q": "robot gan 65w",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35314",
@@ -975,6 +1064,7 @@
     {
      "id": "T05",
      "q": "DP112 3m price",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "60844"
@@ -986,6 +1076,7 @@
     {
      "id": "T06",
      "q": "optical audio cable 2m",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "10540"
@@ -996,6 +1087,7 @@
     {
      "id": "T07",
      "q": "3.5mm to rca 5 meters",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "10513",
@@ -1007,6 +1099,7 @@
     {
      "id": "T08",
      "q": "usb extension 10m",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "10321"
@@ -1017,6 +1110,7 @@
     {
      "id": "T09",
      "q": "cheapest dual band wifi adapter",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "20204"
@@ -1027,6 +1121,7 @@
     {
      "id": "T10",
      "q": "pinakamahal na wireless hdmi extender",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "50633A"
@@ -1037,6 +1132,7 @@
     {
      "id": "T11",
      "q": "may stylus para sa ipad?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "90915",
@@ -1048,6 +1144,7 @@
     {
      "id": "T12",
      "q": "ano moq ng LP452S?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "90915"
@@ -1059,6 +1156,7 @@
     {
      "id": "T13",
      "q": "5 port switch",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35492US"
@@ -1069,6 +1167,7 @@
     {
      "id": "T14",
      "q": "type c to 3.5mm adapter na may charging port",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "50596",
@@ -1080,6 +1179,7 @@
     {
      "id": "T15",
      "q": "lightning to 3.5mm",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "30756",
@@ -1091,6 +1191,7 @@
     {
      "id": "T16",
      "q": "ilang watts yung X757?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "25873"
@@ -1102,6 +1203,7 @@
     {
      "id": "T17",
      "q": "pinakamalaking capacity na power bank na may built-in cable",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "55995B",
@@ -1113,6 +1215,7 @@
     {
      "id": "T18",
      "q": "dp 1.4 cable 2 meters pinakamura",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "25905"
@@ -1123,6 +1226,7 @@
     {
      "id": "T19",
      "q": "price history ng AV112",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "60179",
@@ -1134,6 +1238,7 @@
     {
      "id": "T20",
      "q": "anong mga nagbago presyo sa wifi adapters?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "50340"
@@ -1144,6 +1249,7 @@
     {
      "id": "T21",
      "q": "available ba stocks ng CM737?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "35031A"
@@ -1156,6 +1262,7 @@
     {
      "id": "T22",
      "q": "ilan pa ang natira sa US121 15m?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "10323"
@@ -1167,6 +1274,7 @@
     {
      "id": "T23",
      "q": "any left of the NW301 splitter?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "45311"
@@ -1179,6 +1287,7 @@
     {
      "id": "T24",
      "q": "earphones na may mic na type c",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "30638"
@@ -1189,6 +1298,7 @@
     {
      "id": "T25",
      "q": "usb c to micro usb cable",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "50590"
@@ -1199,6 +1309,7 @@
     {
      "id": "T26",
      "q": "anong pinaka murang NASync?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "95432"
@@ -1211,6 +1322,7 @@
      "id": "S1-1",
      "seq": "S1",
      "q": "hdmi to vga adapter",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "40248",
@@ -1224,6 +1336,7 @@
      "id": "S1-2",
      "seq": "S1",
      "q": "yung may audio",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "40248"
@@ -1236,6 +1349,7 @@
      "id": "S1-3",
      "seq": "S1",
      "q": "magkano yun?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "40248"
@@ -1248,6 +1362,7 @@
      "id": "S2-1",
      "seq": "S2",
      "q": "usb-a hub 4 ports na may power port",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "20805"
@@ -1259,6 +1374,7 @@
      "id": "S2-2",
      "seq": "S2",
      "q": "e yung 7 ports?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "90305"
@@ -1271,6 +1387,7 @@
      "id": "S2-3",
      "seq": "S2",
      "q": "ok next question: may screwdriver set kayo?",
+     "cls": "TOPIC_SWITCH",
      "exp": "LOCAL",
      "expCodes": [
       "80459"
@@ -1283,6 +1400,7 @@
      "id": "S3-1",
      "seq": "S3",
      "q": "CM448 vs CM492 alin mas mabilis?",
+     "cls": "STANDALONE",
      "exp": "LOCAL",
      "expCodes": [
       "20204",
@@ -1296,6 +1414,7 @@
      "id": "S3-2",
      "seq": "S3",
      "q": "alin mas mahal?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "20204",
@@ -1309,6 +1428,7 @@
      "id": "S4-1",
      "seq": "S4",
      "q": "may suggestion ka for gaming setup?",
+     "cls": "STANDALONE",
      "exp": "CLARIFY",
      "expCodes": [],
      "check": "none",
@@ -1318,6 +1438,7 @@
      "id": "S4-2",
      "seq": "S4",
      "q": "mouse sana",
+     "cls": "CONTEXT",
      "exp": "NOT_CLARIFY_LOCAL_OR_AI",
      "expCodes": [],
      "check": "allFamilyMouse",
@@ -1327,6 +1448,7 @@
      "id": "S5-1",
      "seq": "S5",
      "q": "pwede ba ang CM506 sa projector na walang wifi?",
+     "cls": "STANDALONE",
      "exp": "AI",
      "expCodes": [
       "50633A"
@@ -1339,6 +1461,7 @@
      "id": "S5-2",
      "seq": "S5",
      "q": "how about with a macbook air?",
+     "cls": "CONTEXT_COMPAT",
      "exp": "WEB",
      "expCodes": [
       "50633A"
@@ -1351,6 +1474,7 @@
      "id": "S6-1",
      "seq": "S6",
      "q": "salamat sa help kanina",
+     "cls": "STANDALONE",
      "exp": "SMALLTALK",
      "expCodes": [],
      "check": "empty",
@@ -1360,6 +1484,7 @@
      "id": "S6-2",
      "seq": "S6",
      "q": "last na: dp ng CM210?",
+     "cls": "CONTEXT",
      "exp": "LOCAL",
      "expCodes": [
       "50923"
@@ -1390,5 +1515,3610 @@
     "S6-2"
    ]
   }
+ },
+ "chains": [
+  {
+   "id": "C01",
+   "src": "plan §2 A",
+   "contextTurns": [
+    "C01-2"
+   ],
+   "turns": [
+    {
+     "id": "C01-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C01-2",
+     "q": "alin dun yung may 3 ports?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE",
+      "SELECT"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 3
+       }
+      ],
+      "check": "set"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C02",
+   "src": "plan §2 B",
+   "contextTurns": [
+    "C02-2"
+   ],
+   "turns": [
+    {
+     "id": "C02-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C02-2",
+     "q": "yung may 3 ports lang",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 3
+       }
+      ],
+      "check": "set"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C03",
+   "src": "plan §2 C",
+   "contextTurns": [
+    "C03-2"
+   ],
+   "turns": [
+    {
+     "id": "C03-1",
+     "q": "show me 100W chargers",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C03-2",
+     "q": "how about yung may 4 ports?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 4
+       }
+      ],
+      "check": "set"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C04",
+   "src": "plan §2 D",
+   "contextTurns": [
+    "C04-2"
+   ],
+   "turns": [
+    {
+     "id": "C04-1",
+     "q": "power bank 10000mah",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C04-2",
+     "q": "yung may built-in cable",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       },
+       {
+        "nameRe": "buil[dt][- ]?in|with\\s+(\\S+\\s+)?cable|retractable"
+       }
+      ],
+      "check": "set"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C05",
+   "src": "plan §2 E",
+   "contextTurns": [
+    "C05-2"
+   ],
+   "turns": [
+    {
+     "id": "C05-1",
+     "q": "usb c hub",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C05-2",
+     "q": "mas mura?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "pick": "min:srp",
+      "check": "firstIn"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C06",
+   "src": "plan §2 F",
+   "contextTurns": [
+    "C06-2"
+   ],
+   "turns": [
+    {
+     "id": "C06-1",
+     "q": "nvme to pcie adapter",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "PCIe Expansion Card"
+        ]
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C06-2",
+     "q": "which one is Gen 4?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT",
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "PCIe Expansion Card"
+        ]
+       },
+       {
+        "nameRe": "gen ?4|4\\.0"
+       }
+      ],
+      "check": "set"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C07",
+   "src": "plan §2 G",
+   "contextTurns": [
+    "C07-2"
+   ],
+   "turns": [
+    {
+     "id": "C07-1",
+     "q": "hdmi cable",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Video Cable"
+        ]
+       },
+       {
+        "nameRe": "HDMI"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C07-2",
+     "q": "yung 2m",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Video Cable"
+        ]
+       },
+       {
+        "nameRe": "HDMI"
+       },
+       {
+        "num": "lengthM",
+        "op": "==",
+        "v": 2
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C08",
+   "src": "plan §2 H1",
+   "contextTurns": [
+    "C08-2"
+   ],
+   "turns": [
+    {
+     "id": "C08-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C08-2",
+     "q": "how about 100W?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REPLACE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C09",
+   "src": "plan §2 H2",
+   "contextTurns": [
+    "C09-2"
+   ],
+   "turns": [
+    {
+     "id": "C09-1",
+     "q": "100W charger 4 ports",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 4
+       }
+      ],
+      "check": "set"
+     }
+    },
+    {
+     "id": "C09-2",
+     "q": "kahit ilang ports",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "RELAX"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       }
+      ],
+      "check": "set"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C10",
+   "src": "plan §2 H3",
+   "contextTurns": [
+    "C10-2"
+   ],
+   "turns": [
+    {
+     "id": "C10-1",
+     "q": "65W charger 3 ports",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 3
+       }
+      ],
+      "check": "set"
+     }
+    },
+    {
+     "id": "C10-2",
+     "q": "any number of ports",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "RELAX"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "set"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C11",
+   "src": "plan §2 R1",
+   "contextTurns": [
+    "C11-2"
+   ],
+   "turns": [
+    {
+     "id": "C11-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C11-2",
+     "q": "may hdmi cable ba?",
+     "cls": "TOPIC_SWITCH",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Video Cable"
+        ]
+       },
+       {
+        "nameRe": "HDMI"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     },
+     "topicSwitch": true
+    }
+   ]
+  },
+  {
+   "id": "C12",
+   "src": "plan §2 R2",
+   "contextTurns": [
+    "C12-2"
+   ],
+   "turns": [
+    {
+     "id": "C12-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C12-2",
+     "q": "FitBuds?",
+     "cls": "TOPIC_SWITCH",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "nameRe": "FitBuds"
+       }
+      ],
+      "check": "set"
+     },
+     "topicSwitch": true
+    }
+   ]
+  },
+  {
+   "id": "C13",
+   "src": "plan §2 R3",
+   "contextTurns": [
+    "C13-2"
+   ],
+   "turns": [
+    {
+     "id": "C13-1",
+     "q": "X757",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "codeOrModel": "X757"
+       }
+      ],
+      "check": "first"
+     }
+    },
+    {
+     "id": "C13-2",
+     "q": "magkano yun?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "ATTRIBUTE_OF_FOCUS"
+     ],
+     "gold": {
+      "where": [
+       {
+        "codeOrModel": "X757"
+       }
+      ],
+      "check": "first"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C14",
+   "src": "plan §2 R4",
+   "contextTurns": [
+    "C14-2"
+   ],
+   "turns": [
+    {
+     "id": "C14-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C14-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "C15",
+   "src": "plan §2 R5",
+   "contextTurns": [
+    "C15-2"
+   ],
+   "turns": [
+    {
+     "id": "C15-1",
+     "q": "compare X755 and X757",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "any": [
+         {
+          "codeOrModel": "X755"
+         },
+         {
+          "codeOrModel": "X757"
+         }
+        ]
+       }
+      ],
+      "check": "set"
+     }
+    },
+    {
+     "id": "C15-2",
+     "q": "alin mas mahal?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "where": [
+       {
+        "any": [
+         {
+          "codeOrModel": "X755"
+         },
+         {
+          "codeOrModel": "X757"
+         }
+        ]
+       }
+      ],
+      "pick": "max:srp",
+      "check": "firstIn"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C16",
+   "src": "plan §2 R6",
+   "contextTurns": [
+    "C16-2"
+   ],
+   "turns": [
+    {
+     "id": "C16-1",
+     "q": "usb-c hub",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C16-2",
+     "q": "yung may HDMI at ethernet",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       },
+       {
+        "textRe": "HDMI",
+        "fields": [
+         "product_name",
+         "features"
+        ]
+       },
+       {
+        "textRe": "RJ45|ethernet|gigabit|\\bLAN\\b",
+        "fields": [
+         "product_name",
+         "features"
+        ]
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C17",
+   "src": "plan §2 R7",
+   "contextTurns": [
+    "C17-2"
+   ],
+   "turns": [
+    {
+     "id": "C17-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C17-2",
+     "q": "white lang",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "colorRe": "white"
+       }
+      ],
+      "check": "subsetOrEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C18",
+   "src": "plan §2 R8",
+   "contextTurns": [
+    "C18-2"
+   ],
+   "turns": [
+    {
+     "id": "C18-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C18-2",
+     "q": "yung mas okay",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     },
+     "expect": {
+      "options": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "C19",
+   "src": "plan §2 S1",
+   "contextTurns": [
+    "C19-2"
+   ],
+   "turns": [
+    {
+     "id": "C19-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C19-2",
+     "q": "in stock ba?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "STOCK_OF_CONTEXT"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     },
+     "expect": {
+      "stock": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "C20",
+   "src": "plan §2 S2",
+   "contextTurns": [
+    "C20-2"
+   ],
+   "turns": [
+    {
+     "id": "C20-1",
+     "q": "X757",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "codeOrModel": "X757"
+       }
+      ],
+      "check": "first"
+     }
+    },
+    {
+     "id": "C20-2",
+     "q": "may stock pa?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "STOCK_OF_CONTEXT"
+     ],
+     "gold": {
+      "where": [
+       {
+        "codeOrModel": "X757"
+       }
+      ],
+      "check": "first"
+     },
+     "expect": {
+      "stock": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "C21",
+   "src": "plan §2 S3",
+   "contextTurns": [
+    "C21-2"
+   ],
+   "turns": [
+    {
+     "id": "C21-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C21-2",
+     "q": "may stock pa ba yung may 3 ports?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE",
+      "STOCK_OF_CONTEXT"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 3
+       }
+      ],
+      "check": "set"
+     },
+     "expect": {
+      "stock": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "C22",
+   "src": "plan §2 P1 (standalone)",
+   "contextTurns": [],
+   "turns": [
+    {
+     "id": "C22-1",
+     "q": "ilan?",
+     "cls": "STANDALONE",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C23",
+   "src": "plan §2 P1 (standalone)",
+   "contextTurns": [],
+   "turns": [
+    {
+     "id": "C23-1",
+     "q": "ilang ports",
+     "cls": "STANDALONE",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C24",
+   "src": "plan §2 P2 honest negative",
+   "contextTurns": [],
+   "turns": [
+    {
+     "id": "C24-1",
+     "q": "may keyboard kayo?",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": null,
+     "gold": {
+      "where": [
+       {
+        "nameRe": "keyboard"
+       }
+      ],
+      "check": "empty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C25",
+   "src": "plan §2 P2 honest negative + reference on an empty prior result",
+   "contextTurns": [
+    "C25-2"
+   ],
+   "turns": [
+    {
+     "id": "C25-1",
+     "q": "meron ba kayong xyzabc",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": null,
+     "gold": {
+      "codes": [],
+      "check": "empty"
+     }
+    },
+    {
+     "id": "C25-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C26",
+   "src": "§15 3+ turn REFINE-RELAX-SWITCH-ATTRIBUTE with smalltalk",
+   "contextTurns": [
+    "C26-2",
+    "C26-3",
+    "C26-4",
+    "C26-5",
+    "C26-6",
+    "C26-7"
+   ],
+   "turns": [
+    {
+     "id": "C26-1",
+     "q": "100W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C26-2",
+     "q": "yung may 4 ports",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 4
+       }
+      ],
+      "check": "set"
+     }
+    },
+    {
+     "id": "C26-3",
+     "q": "salamat",
+     "cls": "CONTEXT",
+     "exp": "SMALLTALK",
+     "act": [
+      null
+     ],
+     "gold": {
+      "check": "none"
+     }
+    },
+    {
+     "id": "C26-4",
+     "q": "kahit ilang ports",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "RELAX"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 100
+       }
+      ],
+      "check": "set"
+     }
+    },
+    {
+     "id": "C26-5",
+     "q": "may hdmi cable ba?",
+     "cls": "TOPIC_SWITCH",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Video Cable"
+        ]
+       },
+       {
+        "nameRe": "HDMI"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     },
+     "topicSwitch": true
+    },
+    {
+     "id": "C26-6",
+     "q": "yung pangalawa",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 2
+     }
+    },
+    {
+     "id": "C26-7",
+     "q": "magkano yun?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "ATTRIBUTE_OF_FOCUS"
+     ],
+     "gold": {
+      "check": "prevFocus"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C27",
+   "src": "§15 3+ turn REPLACE-SWITCH-ATTRIBUTE",
+   "contextTurns": [
+    "C27-2",
+    "C27-3",
+    "C27-4"
+   ],
+   "turns": [
+    {
+     "id": "C27-1",
+     "q": "power bank 10000mah",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C27-2",
+     "q": "e yung 20000mah?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REPLACE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 20000
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C27-3",
+     "q": "ok iba naman, usb c hub",
+     "cls": "TOPIC_SWITCH",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     },
+     "topicSwitch": true
+    },
+    {
+     "id": "C27-4",
+     "q": "magkano yung una?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT",
+      "ATTRIBUTE_OF_FOCUS"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "C28",
+   "src": "§15 reference out of range",
+   "contextTurns": [
+    "C28-2"
+   ],
+   "turns": [
+    {
+     "id": "C28-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C28-2",
+     "q": "yung pang-sampu",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C29",
+   "src": "§15 reference other",
+   "contextTurns": [
+    "C29-2",
+    "C29-3"
+   ],
+   "turns": [
+    {
+     "id": "C29-1",
+     "q": "55137 vs 75288",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "any": [
+         {
+          "codeOrModel": "55137"
+         },
+         {
+          "codeOrModel": "75288"
+         }
+        ]
+       }
+      ],
+      "check": "set"
+     }
+    },
+    {
+     "id": "C29-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     }
+    },
+    {
+     "id": "C29-3",
+     "q": "the other one",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "otherOfPair"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C30",
+   "src": "§15 metric narrowing hub",
+   "contextTurns": [
+    "C30-2"
+   ],
+   "turns": [
+    {
+     "id": "C30-1",
+     "q": "usb c hub",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C30-2",
+     "q": "mas mabilis",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     },
+     "expect": {
+      "options": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "C31",
+   "src": "§15 metric narrowing enclosure",
+   "contextTurns": [
+    "C31-2"
+   ],
+   "turns": [
+    {
+     "id": "C31-1",
+     "q": "ssd enclosure",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hard Drive Enclosure"
+        ]
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C31-2",
+     "q": "mas mabilis",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hard Drive Enclosure"
+        ]
+       }
+      ],
+      "pick": "max:gbpsAny",
+      "check": "firstIn"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C32",
+   "src": "§15 metric narrowing charger",
+   "contextTurns": [
+    "C32-2"
+   ],
+   "turns": [
+    {
+     "id": "C32-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C32-2",
+     "q": "mas mabilis",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C33",
+   "src": "§15 metric narrowing power bank",
+   "contextTurns": [
+    "C33-2"
+   ],
+   "turns": [
+    {
+     "id": "C33-1",
+     "q": "power bank",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C33-2",
+     "q": "yung mas malaking capacity",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       }
+      ],
+      "pick": "max:mahName",
+      "check": "firstIn"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C34",
+   "src": "§15 metric narrowing cable",
+   "contextTurns": [
+    "C34-2"
+   ],
+   "turns": [
+    {
+     "id": "C34-1",
+     "q": "usb c cable",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "any": [
+         {
+          "textRe": "cable",
+          "fields": [
+           "category"
+          ]
+         },
+         {
+          "nameRe": "\\bcable\\b"
+         }
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       },
+       {
+        "nameNotRe": "buil[dt][- ]?in"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C34-2",
+     "q": "mas mahaba",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "where": [
+       {
+        "any": [
+         {
+          "textRe": "cable",
+          "fields": [
+           "category"
+          ]
+         },
+         {
+          "nameRe": "\\bcable\\b"
+         }
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       },
+       {
+        "nameNotRe": "buil[dt][- ]?in"
+       }
+      ],
+      "pick": "max:lengthM",
+      "check": "firstIn"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C35",
+   "src": "§15 applicability: power-bank ports (a data gap is UNKNOWN; stays in context)",
+   "contextTurns": [
+    "C35-2"
+   ],
+   "turns": [
+    {
+     "id": "C35-1",
+     "q": "power bank 10000mah",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C35-2",
+     "q": "yung may 2 ports",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 2
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C36",
+   "src": "§15 applicability: video-cable watts (keep-slot not listed)",
+   "contextTurns": [
+    "C36-2",
+    "C36-3"
+   ],
+   "turns": [
+    {
+     "id": "C36-1",
+     "q": "hdmi cable",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Video Cable"
+        ]
+       },
+       {
+        "nameRe": "HDMI"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C36-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     }
+    },
+    {
+     "id": "C36-3",
+     "q": "same wattage",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "NOT_LISTED",
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C37",
+   "src": "§15 evidence labels / USB relations",
+   "contextTurns": [],
+   "turns": [
+    {
+     "id": "C37-1",
+     "q": "usb 3.2 gen 1 hub",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "usbClass": "5Gbps"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C38",
+   "src": "§15 USB relations refine",
+   "contextTurns": [
+    "C38-2"
+   ],
+   "turns": [
+    {
+     "id": "C38-1",
+     "q": "usb 3.0 hub",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "usbClass": "5Gbps"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C38-2",
+     "q": "yung may usb-c",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "usbClass": "5Gbps"
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C39",
+   "src": "§15 stale: TTL expired (+1 ms)",
+   "contextTurns": [
+    "C39-2"
+   ],
+   "turns": [
+    {
+     "id": "C39-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C39-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     },
+     "dt": 900001,
+     "expect": {
+      "ctxStatus": "expired"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C40",
+   "src": "§15 stale: TTL exact boundary (still valid)",
+   "contextTurns": [
+    "C40-2"
+   ],
+   "turns": [
+    {
+     "id": "C40-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C40-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     },
+     "dt": 900000,
+     "expect": {
+      "ctxStatus": "fresh"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C41",
+   "src": "§15 stale: public to dealer mode change",
+   "contextTurns": [
+    "C41-2"
+   ],
+   "turns": [
+    {
+     "id": "C41-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C41-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     },
+     "mode": "dealer",
+     "expect": {
+      "ctxStatus": "modeChanged"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C42",
+   "src": "§15 stale: dataVersion change (re-executed)",
+   "contextTurns": [
+    "C42-2"
+   ],
+   "turns": [
+    {
+     "id": "C42-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C42-2",
+     "q": "yung may 3 ports lang",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "num": "portsName",
+        "op": "==",
+        "v": 3
+       }
+      ],
+      "check": "set"
+     },
+     "dataVersion": "dv-next",
+     "expect": {
+      "ctxStatus": "dataChanged",
+      "notesAny": [
+       "reexecuted"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "C43",
+   "src": "§15 stale: ordinal target disabled",
+   "contextTurns": [
+    "C43-2"
+   ],
+   "turns": [
+    {
+     "id": "C43-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C43-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     },
+     "edit": {
+      "op": "disable",
+      "prevGold": 1
+     },
+     "expect": {
+      "notesAny": [
+       "target.unavailable"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "C44",
+   "src": "§15 stale: ordinal target removed",
+   "contextTurns": [
+    "C44-2"
+   ],
+   "turns": [
+    {
+     "id": "C44-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C44-2",
+     "q": "yung pangalawa",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     },
+     "edit": {
+      "op": "remove",
+      "prevGold": 2
+     },
+     "expect": {
+      "notesAny": [
+       "target.unavailable"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "C45",
+   "src": "§15 stale: focus family reclassified by a data edit",
+   "contextTurns": [
+    "C45-2"
+   ],
+   "turns": [
+    {
+     "id": "C45-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C45-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     },
+     "edit": {
+      "op": "reclassify",
+      "prevGold": 1,
+      "category": "Car Charger",
+      "sheet": "Mobile-Car Charger and Accessories"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C46",
+   "src": "§15 stale: price changed between turns (live reorder)",
+   "contextTurns": [
+    "C46-2"
+   ],
+   "turns": [
+    {
+     "id": "C46-1",
+     "q": "usb c hub",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C46-2",
+     "q": "mas mura",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "check": "editedFirst"
+     },
+     "edit": {
+      "op": "price",
+      "prevGold": -1,
+      "srp": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "C47",
+   "src": "§15 stale: candidates truncated at 50 (refine re-executes over the full catalogue)",
+   "contextTurns": [
+    "C47-2"
+   ],
+   "turns": [
+    {
+     "id": "C47-1",
+     "q": "usb c cable",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "any": [
+         {
+          "textRe": "cable",
+          "fields": [
+           "category"
+          ]
+         },
+         {
+          "nameRe": "\\bcable\\b"
+         }
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       },
+       {
+        "nameNotRe": "buil[dt][- ]?in"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C47-2",
+     "q": "yung 2m",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "any": [
+         {
+          "textRe": "cable",
+          "fields": [
+           "category"
+          ]
+         },
+         {
+          "nameRe": "\\bcable\\b"
+         }
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       },
+       {
+        "nameNotRe": "buil[dt][- ]?in"
+       },
+       {
+        "num": "lengthM",
+        "op": "==",
+        "v": 2
+       }
+      ],
+      "check": "subsetNonEmpty"
+     },
+     "expect": {
+      "fullReexec": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "C48",
+   "src": "§15 polarity: EXCLUDE",
+   "contextTurns": [
+    "C48-2"
+   ],
+   "turns": [
+    {
+     "id": "C48-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C48-2",
+     "q": "hindi black",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "EXCLUDE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "colorNotRe": "black"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C49",
+   "src": "§15 polarity: RELAX across a comma (#2)",
+   "contextTurns": [
+    "C49-2"
+   ],
+   "turns": [
+    {
+     "id": "C49-1",
+     "q": "65W charger white",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       },
+       {
+        "colorRe": "white"
+       }
+      ],
+      "check": "subsetOrEmpty"
+     }
+    },
+    {
+     "id": "C49-2",
+     "q": "white, not needed",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "RELAX"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C50",
+   "src": "§15 polarity: own-family exclude keeps the family (#1)",
+   "contextTurns": [
+    "C50-2"
+   ],
+   "turns": [
+    {
+     "id": "C50-1",
+     "q": "power bank 10000mah",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C50-2",
+     "q": "not the one with cable",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "EXCLUDE",
+      "REFINE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       },
+       {
+        "nameNotRe": "buil[dt][- ]?in|with\\s+(\\S+\\s+)?cable|retractable"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C51",
+   "src": "§15 polarity: excluding the context family itself",
+   "contextTurns": [
+    "C51-2"
+   ],
+   "turns": [
+    {
+     "id": "C51-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C51-2",
+     "q": "not a charger",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C52",
+   "src": "§15 generation: USB \"Gen 4\" never USB4",
+   "contextTurns": [
+    "C52-2"
+   ],
+   "turns": [
+    {
+     "id": "C52-1",
+     "q": "usb c hub",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Hub",
+         "Docking Station"
+        ]
+       },
+       {
+        "nameRe": "USB-?C|Type[- ]?C"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C52-2",
+     "q": "gen 4",
+     "cls": "CONTEXT",
+     "exp": "CLARIFY",
+     "act": [
+      "CLARIFY"
+     ],
+     "gold": {
+      "check": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C53",
+   "src": "§15 alternative cheaper than focus",
+   "contextTurns": [
+    "C53-2",
+    "C53-3"
+   ],
+   "turns": [
+    {
+     "id": "C53-1",
+     "q": "65W charger",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Wall Charger/Desk Charger"
+        ]
+       },
+       {
+        "num": "wattsName",
+        "op": "==",
+        "v": 65
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C53-2",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     }
+    },
+    {
+     "id": "C53-3",
+     "q": "may mas mura ba na ganito?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "ALTERNATIVE"
+     ],
+     "gold": {
+      "check": "cheaperThanPrevFocus"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C54",
+   "src": "§15 same-but anchor",
+   "contextTurns": [
+    "C54-2"
+   ],
+   "turns": [
+    {
+     "id": "C54-1",
+     "q": "Studio Max5s black",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "nameRe": "Studio Max5s"
+       },
+       {
+        "colorRe": "black"
+       }
+      ],
+      "check": "first"
+     }
+    },
+    {
+     "id": "C54-2",
+     "q": "same but white",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "REFINE",
+      "REPLACE"
+     ],
+     "gold": {
+      "where": [
+       {
+        "nameRe": "Studio Max5s"
+       },
+       {
+        "colorRe": "white"
+       }
+      ],
+      "check": "first"
+     }
+    }
+   ]
+  },
+  {
+   "id": "C55",
+   "src": "§15 stock follow-up chain",
+   "contextTurns": [
+    "C55-2",
+    "C55-3",
+    "C55-4"
+   ],
+   "turns": [
+    {
+     "id": "C55-1",
+     "q": "power bank 10000mah",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C55-2",
+     "q": "in stock ba?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "STOCK_OF_CONTEXT"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Power Bank"
+        ]
+       },
+       {
+        "num": "mahName",
+        "op": "==",
+        "v": 10000
+       }
+      ],
+      "check": "subsetNonEmpty"
+     },
+     "expect": {
+      "stock": true
+     }
+    },
+    {
+     "id": "C55-3",
+     "q": "yung una",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "SELECT"
+     ],
+     "gold": {
+      "check": "prevShown",
+      "n": 1
+     }
+    },
+    {
+     "id": "C55-4",
+     "q": "may stock pa?",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "STOCK_OF_CONTEXT"
+     ],
+     "gold": {
+      "check": "prevFocus"
+     },
+     "expect": {
+      "stock": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "C56",
+   "src": "§15 topic cue leakage negative",
+   "contextTurns": [
+    "C56-2",
+    "C56-3"
+   ],
+   "turns": [
+    {
+     "id": "C56-1",
+     "q": "hdmi cable",
+     "cls": "STANDALONE",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Video Cable"
+        ]
+       },
+       {
+        "nameRe": "HDMI"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     }
+    },
+    {
+     "id": "C56-2",
+     "q": "mas mura",
+     "cls": "CONTEXT",
+     "exp": "LOCAL",
+     "act": [
+      "COMPARE_METRIC"
+     ],
+     "gold": {
+      "where": [
+       {
+        "field": "category",
+        "in": [
+         "Video Cable"
+        ]
+       },
+       {
+        "nameRe": "HDMI"
+       }
+      ],
+      "pick": "min:srp",
+      "check": "firstIn"
+     }
+    },
+    {
+     "id": "C56-3",
+     "q": "ok next question: may screwdriver set kayo?",
+     "cls": "TOPIC_SWITCH",
+     "exp": "LOCAL",
+     "act": [
+      "SWITCH"
+     ],
+     "gold": {
+      "where": [
+       {
+        "nameRe": "screwdriver"
+       }
+      ],
+      "check": "subsetNonEmpty"
+     },
+     "topicSwitch": true
+    }
+   ]
+  }
+ ],
+ "b144FollowUps": {
+  "L04": {
+   "cls": "CONTEXT",
+   "act": [
+    "ATTRIBUTE_OF_FOCUS"
+   ],
+   "gold": {
+    "where": [
+     {
+      "codeOrModel": "X755"
+     }
+    ],
+    "check": "first"
+   }
+  },
+  "L06": {
+   "cls": "CONTEXT",
+   "act": [
+    "ATTRIBUTE_OF_FOCUS"
+   ],
+   "gold": {
+    "where": [
+     {
+      "codeOrModel": "20503"
+     }
+    ],
+    "check": "set"
+   }
+  },
+  "P02": {
+   "cls": "CONTEXT",
+   "act": [
+    "COMPARE_METRIC"
+   ],
+   "gold": {
+    "where": [
+     {
+      "any": [
+       {
+        "codeOrModel": "X755"
+       },
+       {
+        "codeOrModel": "X772"
+       }
+      ]
+     }
+    ],
+    "pick": "max:wattsName",
+    "check": "firstIn"
+   }
+  },
+  "P03": {
+   "cls": "CONTEXT",
+   "act": [
+    "COMPARE_METRIC"
+   ],
+   "gold": {
+    "where": [
+     {
+      "any": [
+       {
+        "codeOrModel": "X755"
+       },
+       {
+        "codeOrModel": "X772"
+       }
+      ]
+     }
+    ],
+    "pick": "min:srp",
+    "check": "firstIn"
+   }
+  },
+  "P04": {
+   "cls": "CONTEXT",
+   "act": [
+    "COMPARE_METRIC"
+   ],
+   "gold": {
+    "where": [
+     {
+      "any": [
+       {
+        "codeOrModel": "X755"
+       },
+       {
+        "codeOrModel": "X772"
+       }
+      ]
+     }
+    ],
+    "pick": "max:portsName",
+    "check": "firstIn"
+   }
+  },
+  "T08": {
+   "cls": "CONTEXT_COMPAT",
+   "act": null,
+   "gold": {
+    "where": [
+     {
+      "codeOrModel": "25870"
+     }
+    ],
+    "check": "anchorFirst"
+   }
+  },
+  "U02": {
+   "cls": "CONTEXT",
+   "act": [
+    "CLARIFY"
+   ],
+   "gold": {
+    "check": "none"
+   }
+  }
+ },
+ "matrixDev": {
+  "group": "DEV",
+  "families": [
+   {
+    "id": "charger",
+    "q": "65W charger",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Wall Charger/Desk Charger"
+      ]
+     },
+     {
+      "num": "wattsName",
+      "op": "==",
+      "v": 65
+     }
+    ]
+   },
+   {
+    "id": "power_bank",
+    "q": "power bank 10000mah",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Power Bank"
+      ]
+     },
+     {
+      "num": "mahName",
+      "op": "==",
+      "v": 10000
+     }
+    ]
+   },
+   {
+    "id": "hub",
+    "q": "usb c hub",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Hub",
+       "Docking Station"
+      ]
+     },
+     {
+      "nameRe": "USB-?C|Type[- ]?C"
+     }
+    ]
+   },
+   {
+    "id": "hdmi_cable",
+    "q": "hdmi cable",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Video Cable"
+      ]
+     },
+     {
+      "nameRe": "HDMI"
+     }
+    ]
+   },
+   {
+    "id": "enclosure",
+    "q": "ssd enclosure",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Hard Drive Enclosure"
+      ]
+     }
+    ]
+   },
+   {
+    "id": "earphones",
+    "q": "bluetooth earphones",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Bluetooth Earphone"
+      ]
+     }
+    ]
+   },
+   {
+    "id": "card_reader",
+    "q": "card reader",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Card Reader"
+      ]
+     }
+    ]
+   },
+   {
+    "id": "mouse",
+    "q": "mouse",
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Mouse"
+      ]
+     }
+    ]
+   }
+  ],
+  "followUps": [
+   {
+    "act": "REFINE",
+    "kind": "colour",
+    "qs": [
+     [
+      "white lang",
+      "white"
+     ],
+     [
+      "yung black lang",
+      "black"
+     ]
+    ],
+    "check": "subsetOrEmpty"
+   },
+   {
+    "act": "EXCLUDE",
+    "kind": "notColour",
+    "qs": [
+     [
+      "hindi white",
+      "white"
+     ],
+     [
+      "not black",
+      "black"
+     ]
+    ],
+    "check": "subsetOrHonestEmpty"
+   },
+   {
+    "act": "COMPARE_METRIC",
+    "kind": "price",
+    "qs": [
+     [
+      "mas mura",
+      null
+     ],
+     [
+      "alin pinakamura?",
+      null
+     ]
+    ],
+    "pick": "min:srp",
+    "check": "firstIn"
+   },
+   {
+    "act": "SELECT",
+    "kind": "ordinal",
+    "qs": [
+     [
+      "yung una",
+      1
+     ],
+     [
+      "yung pangalawa",
+      2
+     ],
+     [
+      "yung pangatlo",
+      3
+     ]
+    ],
+    "check": "prevShown"
+   },
+   {
+    "act": "STOCK_OF_CONTEXT",
+    "kind": "stock",
+    "qs": [
+     [
+      "in stock ba?",
+      null
+     ],
+     [
+      "may stock pa?",
+      null
+     ]
+    ],
+    "check": "subsetNonEmpty",
+    "expect": {
+     "stock": true
+    }
+   },
+   {
+    "act": "SWITCH",
+    "kind": "topic",
+    "qs": [
+     [
+      "ok iba naman, may webcam?",
+      null
+     ]
+    ],
+    "where": [
+     {
+      "field": "category",
+      "in": [
+       "Webcam"
+      ]
+     }
+    ],
+    "check": "subsetNonEmpty",
+    "topicSwitch": true
+   }
+  ],
+  "afterSelect": {
+   "act": "ATTRIBUTE_OF_FOCUS",
+   "q": "magkano yun?",
+   "check": "prevFocus"
+  },
+  "perfSecond": [
+   "magkano yun?",
+   "in stock ba?",
+   "mas mura",
+   "yung una",
+   "hindi white"
+  ]
  }
 }
