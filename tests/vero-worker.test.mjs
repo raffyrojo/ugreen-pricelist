@@ -623,7 +623,7 @@ if (P === 'openai') {
   chk('L4 model language label ignored: English question -> en, Taglish question -> taglish', r4.j.language === 'en' && r4b.j.language === 'taglish', [r4.j.language, r4b.j.language]);
 
   // L5 v2 cached answers (English reply to the Taglish question) are not reused
-  chk('L5 PROMPT_VERSION bumped so pre-fix cached answers are not reused', W.PROMPT_VERSION === 'v4');
+  chk('L5 PROMPT_VERSION bumped so pre-fix cached answers are not reused (v5 = UNO identity, after v4 language fix)', W.PROMPT_VERSION === 'v5');
 
   // G: language is part of the strict output contract (2026-10-06, after the live check showed the prompt line was ignored)
   const schemaOf = b => (P === 'openai' ? b.text.format.schema : b.output_config.format.schema);
@@ -647,7 +647,7 @@ if (P === 'openai') {
     !/Taglish/.test(JSON.stringify(schemaOf(eReq))) && JSON.stringify(ePr.language.enum) === '["en"]', ePr);
   chk('G3 Taglish requirement is the very first line of the instructions; English requests start with the English requirement',
     sysOf(tReq).startsWith('MANDATORY LANGUAGE: Answer in natural conversational Taglish. A pure-English reply is invalid.') &&
-    sysOf(eReq).startsWith('MANDATORY LANGUAGE: Answer in natural, plain English only.') && /You are VERO/.test(sysOf(tReq).split('\n')[1]));
+    sysOf(eReq).startsWith('MANDATORY LANGUAGE: Answer in natural, plain English only.') && /^You are UNO, /.test(sysOf(tReq).split('\n')[1]));
   const uT = userOf(tReq).replace(/^\[?\{?"?(role"?:"?user"?,"?content"?:"?)?/, '');
   chk('G4 Taglish requirement is at the start of the user input (before PRODUCTS) and the end reminder is kept',
     userOf(tReq).indexOf('MANDATORY LANGUAGE: Answer in natural conversational Taglish') >= 0 && userOf(tReq).indexOf('MANDATORY LANGUAGE') < userOf(tReq).indexOf('PRODUCTS:') &&
@@ -689,6 +689,79 @@ if (P === 'openai') {
     v.reply.length <= 600 && isWordCut(('Good travel pick for laptops ').repeat(30).trim(), v.reply) &&
     v.picks[0].reason.length <= 200 && isWordCut(longReason.trim(), v.picks[0].reason) &&
     v.cannot_confirm[0] === cut && v.conflicts[0] === cut, v);
+}
+
+/* ---------------- UNO Branding Phase E: model-facing identity (prompt v5) ----------------
+   Only the identity line of COMPOSE_SYSTEM changed (VERO -> UNO, plus one line separating the assistant name from UGREEN
+   products named "Uno"). Every other rule, the research prompt, the language heads and both schemas are frozen as sha256 of
+   the production baseline 69b9d4a (backend/ identical to ae4105b). Direct identity questions ("who are you?") are answered
+   locally by the front-end and never reach the Worker, so the request checks use product questions that can reach it.
+   The fake provider only proves what the model RECEIVES; it says nothing about real-model wording. */
+{
+  const sysOf = b => String(b.instructions || b.system || '');
+  const ID1 = 'You are UNO, the UGREEN Product and Sales Assistant for UGREEN Philippines salespeople.';
+  const ID2 = 'UNO is your assistant name; product names containing "Uno" refer to UGREEN products, not to you.';
+  const BASE = { rules: '74f15c22c48bc77c314cbb5c0d4c0f398f3991e97b2dec193b6a642397f9834c', research: 'f88626fc40921416d95cda2ef8239c0dfd65633eae4335238d737fd325139991',
+    schemas: '753942e257358fedb442e2fa5fc28b7d98408f7b39214f094b92cfd164fdbc21', heads: '6a7d8ad948cd9f955bb9a8827c24aba1ab1a46bd4fea62bbaff77698593663f8' };
+  const LANGS = ['en', 'taglish'];
+  const lines = l => W.COMPOSE_SYSTEMS[l].split('\n');
+  const idOk = s => { const x = s.split('\n'); return x[1] === ID1 && x[2] === ID2; };
+  chk('U1 both compose prompts: line 1 = language head, line 2 = UNO identity, line 3 = Uno product distinction (exact text)',
+    LANGS.every(l => lines(l)[0] === W.LANG_HEADS[l] && idOk(W.COMPOSE_SYSTEMS[l])), LANGS.map(l => lines(l).slice(0, 3)));
+  chk('U2 no compose prompt or schema text carries the old identity ("You are VERO" / VERO / Vero)',
+    LANGS.every(l => !/You are VERO/.test(W.COMPOSE_SYSTEMS[l]) && !/\bvero\b/i.test(W.COMPOSE_SYSTEMS[l])) && !/\bvero\b/i.test(JSON.stringify([W.COMPOSE_SCHEMA, W.COMPOSE_SCHEMAS])));
+  const rulesH = await Promise.all(LANGS.map(l => W.sha256hex(lines(l).slice(3).join('\n'))));
+  chk('U3 every other compose rule is byte-identical to the production baseline (sha256 frozen at 69b9d4a)', rulesH.every(h => h === BASE.rules), rulesH);
+  chk('U4 compose schemas (base + per-language) and language heads byte-identical to the production baseline',
+    await W.sha256hex(JSON.stringify([W.COMPOSE_SCHEMA, W.COMPOSE_SCHEMAS])) === BASE.schemas && await W.sha256hex(JSON.stringify(W.LANG_HEADS)) === BASE.heads);
+  chk('U5 identity change is small: exactly +103 characters per compose prompt vs baseline (1808 -> 1911 en, 2017 -> 2120 taglish)',
+    W.COMPOSE_SYSTEMS.en.length === 1911 && W.COMPOSE_SYSTEMS.taglish.length === 2120, [W.COMPOSE_SYSTEMS.en.length, W.COMPOSE_SYSTEMS.taglish.length]);
+
+  // Realistic questions that can reach the Worker (front-end aiRoute at 69b9d4a sends them; the Worker keeps the final route).
+  reset(); const eU = mkEnv({ CODE_PER_MIN: '100', CODE_PER_DAY: '100' }); const tU = await login(eU, 'c_uno', 'sales');
+  const unoCables = live.filter(p => /\buno\b/i.test(p.product_name)).map(p => String(p.item_code));
+  const otherCable = live.find(p => p.sheet_display === 'Mobile: Charging Cable' && !/\buno\b/i.test(p.product_name));
+  const hubs = live.filter(p => p.sheet_display === 'Transmission: Docking and Hub').slice(0, 3).map(p => String(p.item_code));
+  const KEYS = ['cached', 'cannot_confirm', 'confidence', 'conflicts', 'language', 'ok', 'picks', 'reply', 'route', 'sources', 'web_status'];
+  const cases = [
+    { q: 'which uno cable is best for my laptop?', cands: unoCables.slice(0, 2).concat(String(otherCable.item_code)), route: 'catalog', expect: 'catalog', uno: true },
+    { q: 'recommend an uno hub for macbook', cands: hubs, route: 'web', expect: 'catalog' },
+    { q: 'UNO, which charger is better for a laptop and phone?', cands: chargers.slice(0, 3), route: 'catalog', expect: 'catalog' },
+    { q: 'recommend an uno hub for my macbook air m4', cands: hubs, route: 'web', expect: 'web' },
+  ];
+  chk('U6 test data: the catalog has enabled UGREEN products named "Uno" (cable) and hub candidates', unoCables.length >= 2 && hubs.length === 3 && !!otherCable, unoCables);
+  for (const [i, cs] of cases.entries()) {
+    const n0 = calls.length;
+    const rr = await call(eU, '/ask', askBody(cs.q, cs.cands, { route: cs.route }), { token: tU });
+    const mine = calls.slice(n0), co = mine.filter(b => !b.tools), re = mine.filter(b => b.tools);
+    const u = co.length ? userOf(co[0]) : '';
+    chk(`U7.${i + 1} "${cs.q}" -> ${cs.expect} route (Worker decision unchanged), compose receives the UNO identity + Uno distinction, no VERO self-identity`,
+      rr.status === 200 && rr.j.ok && rr.j.route === cs.expect && co.length === 1 && idOk(sysOf(co[0])) && !/You are VERO|\bvero\b/i.test(sysOf(co[0])) &&
+      re.length === (cs.expect === 'web' ? 1 : 0), { s: rr.status, j: rr.j, n: mine.length });
+    chk(`U8.${i + 1} "${cs.q}": question passed verbatim as product context (not rewritten); response keys unchanged; schema name vero_answer`,
+      u.indexOf('QUESTION: ' + cs.q) >= 0 && JSON.stringify(Object.keys(rr.j).sort()) === JSON.stringify(KEYS) &&
+      (P !== 'openai' || co[0].text.format.name === 'vero_answer') && rr.j.picks.every(p => JSON.stringify(Object.keys(p).sort()) === '["basis","item_code","reason"]'), Object.keys(rr.j));
+    if (cs.uno) chk(`U9 "${cs.q}": UGREEN products named "Uno" reach the model unchanged as product data (P-labelled names), never as the assistant`,
+      /P1 name: Uno USB-C to USB-C PD Fast Charging Cable/.test(u) && /P2 name: Uno USB-C to USB-C PD Fast Charging Cable/.test(u) && !/name: UNO\b/.test(u), u.slice(0, 400));
+    if (re.length) chk('U10 web route: research prompt byte-identical to the production baseline (no name, unchanged)',
+      await W.sha256hex(sysOf(re[0])) === BASE.research && !/\b(uno|vero)\b/i.test(sysOf(re[0])));
+  }
+  // v4 answers cached under the VERO prompt are not served: the cache key includes PROMPT_VERSION (v5 now).
+  // A VERO-worded v4 row is planted under the exact v4 key; a control row under the v5 key proves the key formula is right.
+  { const eC = mkEnv({ CODE_PER_MIN: '100', CODE_PER_DAY: '100' }); const tC = await login(eC, 'c_unocache', 'sales');
+    const model = mkEnv().MODEL, cands = chargers.slice(0, 3);
+    await call(eC, '/ask', askBody('warm the catalog for the cache test', cands), { token: tC });   // sets the catalog version used in the key
+    const ver = eC.DB.q("SELECT v FROM meta WHERE k = 'catalog_version'")[0].v;
+    const key = (v, q) => W.sha256hex([model, v, ver, 'catalog', q.toLowerCase(), cands.slice().sort().join(','), '[]'].join('|'));
+    const plant = async (k, reply) => eC.DB.db.prepare("INSERT INTO answer_cache (key, route, response, created_at, expires_at, hits) VALUES (?, 'catalog', ?, ?, ?, 0)")
+      .run(k, JSON.stringify({ route: 'catalog', reply, picks: [], confidence: 'low', cannot_confirm: [], conflicts: [], language: 'en', sources: [], web_status: 'not_needed' }),
+        new Date().toISOString(), new Date(Date.now() + 86400000).toISOString());
+    const qOld = 'which charger is better for a laptop and phone? (cache v4)', qCtl = 'which charger is better for a laptop and phone? (cache v5)';
+    await plant(await key('v4', qOld), 'Hi, I am VERO. P1 is the better pick.');
+    await plant(await key('v5', qCtl), 'control row');
+    const r4 = await call(eC, '/ask', askBody(qOld, cands), { token: tC }), r5 = await call(eC, '/ask', askBody(qCtl, cands), { token: tC });
+    chk('U11 a VERO-worded answer cached under prompt v4 is NOT served (fresh v5 answer); a row under the v5 key IS served (key formula verified)',
+      W.PROMPT_VERSION === 'v5' && r4.j.ok && r4.j.cached === false && !/VERO/.test(r4.j.reply) && r5.j.ok && r5.j.cached === true && r5.j.reply === 'control row', [r4.j, r5.j]); }
 }
 
 /* ---------------- CPU measurement (local Node, indicative only) ---------------- */

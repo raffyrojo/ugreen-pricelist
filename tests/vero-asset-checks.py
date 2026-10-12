@@ -1,6 +1,6 @@
 """Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves now (default ae4105b: V2-2C C3 tests-only harness on Commit D dbbacf3 = 53fa5fa code (VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F; v2 shadow files present but NOT loaded) + NEW-C3R-1 data).
+  baseline_ref = the commit GitHub Pages serves now (default 69b9d4a: UNO front-end branding on ae4105b = V2-2C C3 tests-only harness on Commit D dbbacf3 (VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F; v2 shadow files present but NOT loaded); backend/ identical to ae4105b).
   Always pass the baseline explicitly for a release; a CMS Publish moves main and makes any default stale.
   If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
 
@@ -16,10 +16,10 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'ae4105b'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '69b9d4a'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
-VERO_WORKER_SHA = '594f9606da22ed353d5d82a7f78ae9bb0c6ea082d9a05c6bdbf860046e342d99'   # Worker ugreen-vero
+VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
 PUBLISH_WORKER_SHA = 'f3d7159f5bf7152e798b98afbd02af1e28da5255f6bf06a194d679a3ce2510e8'  # Worker ugreen-pricelist-cms
 AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 
@@ -27,16 +27,12 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # UNO front-end branding (baseline ae4105b = live). Public assistant name VERO -> UNO; internal engineering names stay VERO.
-                 # Visible UI strings / aria labels (UNO; UNO AI only for AI states; neutral "Sales AI access code"), lexicon identity replies +
-                 # phrase-specific UNO small-talk cues (VERO cues kept), assistantNameWords ['uno'] kept out of the planner vocabulary so
-                 # "uno" / "uno cable" / "uno hub" stay product searches byte-identically; ?v= bumps for the 3 changed live scripts only.
-                 # The 3 larger avatars replaced (same names) from Deliverables/VERO-Video/assets-src/vero-hires/bust; vero-icon.webp unchanged.
-                 # No css / config / data / backend / Worker / vero-engine / vero-compose / vero-nlu / vero-facts / v2 shadow change.
-                 'index.html', 'js/vero.js', 'js/vero-lexicon.js', 'js/vero-plan.js',
-                 'assets/vero/vero-default.webp', 'assets/vero/vero-happy.webp', 'assets/vero/vero-thinking.webp', 'assets/vero/README.md',
-                 'tests/uno-branding.test.js', 'tests/vero-p2r3a.test.js', 'tests/vero-p2r3a.playwright.py', 'tests/vero-ai.playwright.py',
-                 'tests/vero-p1-regression.playwright.py'}
+                 # UNO Branding Phase E - AI Worker identity (baseline 69b9d4a = live). Compose prompt identity VERO -> UNO plus one line
+                 # separating the assistant name from UGREEN products named "Uno"; PROMPT_VERSION v4 -> v5 (VERO-worded cached answers are
+                 # not reused). Research prompt, schemas (name vero_answer), routing, provider / model, auth / VERO- access codes, budgets,
+                 # sessions and logging unchanged. backend/vero/worker.js is the ONLY backend path in scope (G15); no wrangler.toml /
+                 # migration / front-end / config / data change.
+                 'backend/vero/worker.js', 'tests/vero-worker.test.mjs'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}
 # ======================================================================================================
@@ -117,9 +113,13 @@ chk(f'G11 data/: field changes == APPROVED_DATA exactly ({len(_dd)} found, {len(
 DATA_CHANGED = len(_dd) > 0
 bcss = (base('css/vero.css') or b'').decode('utf-8').splitlines(); ncss = rd('css/vero.css').decode('utf-8').splitlines()
 chk('G12 css/vero.css: additive only (every baseline line kept; new rules only if css/vero.css is in RELEASE_SCOPE)', all(l in ncss for l in bcss) and (ncss == bcss or 'css/vero.css' in RELEASE_SCOPE))
-chk('G13 VERO Worker source sha256 == deployed ugreen-vero baseline 594f9606…2d99', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
+chk('G13 VERO Worker source sha256 == pinned ugreen-vero source 368d7430…1b2c (UNO Phase E, prompt v5)', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
 chk('G14 publish Worker source sha256 == deployed ugreen-pricelist-cms baseline f3d7159f…', sha(rd('backend/worker.js')) == PUBLISH_WORKER_SHA)
-chk('G15 backend/ (both Workers, wrangler configs = budgets/limits/vars) unchanged vs baseline', git('diff', '--quiet', BASE, '--', 'backend/').returncode == 0)
+# G15: backend/ paths may differ only if listed in RELEASE_SCOPE (this release: exactly backend/vero/worker.js); empty = all unchanged
+BACKEND_SCOPE = {f for f in RELEASE_SCOPE if f.startswith('backend/')}
+backend_changed = {f for f in changed if f.startswith('backend/')}
+chk('G15 backend/ (both Workers, wrangler configs = budgets/limits/vars) unchanged vs baseline except ' + (', '.join(sorted(BACKEND_SCOPE)) or 'nothing'),
+    backend_changed <= BACKEND_SCOPE, sorted(backend_changed - BACKEND_SCOPE))
 mig = sorted(os.listdir(os.path.join(R, 'backend/vero/migrations')))
 chk('G16 D1 migrations: only 0001/0002, unchanged (no schema change)', mig == ['0001_init.sql', '0002_product_text_cache.sql'] and all(base(f'backend/vero/migrations/{m}') == rd(f'backend/vero/migrations/{m}') for m in mig), mig)
 vjs = rd('js/vero.js').decode('utf-8'); bvjs = (base('js/vero.js') or b'').decode('utf-8')
