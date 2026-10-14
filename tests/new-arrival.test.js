@@ -229,32 +229,46 @@ function dupScenario(edit) {
   chk('scheduled activation: dateAdded / created_at / isNew unchanged', ps.map(snap).join('|') === before.join('|'), ps.map(snap));
 }
 
-/* ---- 15-16: approved data correction (13 SKUs + 25683) against data/products.json ---- */
+/* ---- 15-16: approved data correction (13 SKUs + 25683) against data/products.json ----
+   NEW-ARRIVAL-DATA-CORRECTION (owner-approved 2026-10-14): 33 key REMOVALS — 13 legacy SKUs lose BOTH dateAdded and
+   created_at (both absent before the faulty CMS Publish d0002bb; removed, never set to null), 25683 loses the 7 price
+   fields inherited from 95424B / stamped by its first save. Key presence is checked, not just values (NA-14). */
 const CORRECT_13 = ['30732','75177','45301','75545','35900','85570','85638','75644','95796','85201','85478','55527','55530'];
+const KEYS_13 = ['dateAdded', 'created_at'];
 const STRIP_25683 = ['previousSRP','priceChangeSRP','srpChangeDate','previousDP','priceChangeDP','dpChangeDate','priceHistory'];
 {
   const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'products.json'), 'utf8'));
-  const applied = CORRECT_13.every(c => !has(data.find(p => p.item_code === c) || {}, 'dateAdded'));
+  const find = c => data.find(p => p.item_code === c) || {};
+  const state13 = CORRECT_13.map(c => KEYS_13.map(k => has(find(c), k) ? 1 : 0).join('')).join(',');
+  const applied = CORRECT_13.every(c => KEYS_13.every(k => !has(find(c), k)));
+  const pending = CORRECT_13.every(c => find(c).dateAdded === '2026-10' && has(find(c), 'created_at') && find(c).created_at === null);
+  chk('data: 13 SKUs are either fully corrected or fully pre-correction (no partial / null-instead-of-absent state)', applied || pending, state13);
   const fixed = JSON.parse(JSON.stringify(data));
-  fixed.forEach(p => {                                     // idempotent: a no-op once the correction is published
-    if (CORRECT_13.includes(p.item_code) && p.dateAdded === '2026-10') delete p.dateAdded;
+  fixed.forEach(p => {                                     // idempotent: a no-op once the correction is applied
+    if (CORRECT_13.includes(p.item_code)) KEYS_13.forEach(k => { delete p[k]; });
     if (p.item_code === '25683') STRIP_25683.forEach(k => { delete p[k]; });
   });
-  console.log('INFO data correction ' + (applied ? 'present in data/products.json' : 'NOT yet published — checking the proposed correction applied to the current data'));
-  const sb = makeSandbox(Date.UTC(2026, 9, 14, 10, 0, 0));    // fixed "now" = 2026-10-14 so the 30-day window is deterministic
+  console.log('INFO data correction ' + (applied ? 'present in data/products.json' : 'NOT yet applied — checking the proposed correction applied to the current data'));
+  const sb = makeSandbox(Date.UTC(2026, 9, 14, 15, 0, 0));    // fixed "now" = 2026-10-14 15:00Z (after every 2026-10-14 add) so the window is deterministic
   const isNA = run(sb, 'isNewArrival'), pcRecent = run(sb, 'pcHasRecent');
   const byCode = Object.fromEntries(fixed.map(p => [p.item_code, p]));
   chk('data: all 13 SKUs present', CORRECT_13.every(c => byCode[c]));
-  chk('data: 13 corrected SKUs have no dateAdded and are NOT New Arrivals', CORRECT_13.every(c => !has(byCode[c], 'dateAdded') && !isNA(byCode[c])), CORRECT_13.filter(c => isNA(byCode[c])));
+  chk('data: 13 corrected SKUs have NEITHER dateAdded NOR created_at key', CORRECT_13.every(c => KEYS_13.every(k => !has(byCode[c], k))));
+  chk('data: 13 corrected SKUs are NOT New Arrivals', CORRECT_13.every(c => !isNA(byCode[c])), CORRECT_13.filter(c => isNA(byCode[c])));
   const p = byCode['25683'];
   chk('data: 25683 is a New Arrival', p && isNA(p));
-  chk('data: 25683 has no price-change badge / history', p && !pcRecent(p) && !STRIP_25683.some(k => has(p, k)));
+  chk('data: 25683 has no price-change badge / history keys', p && !pcRecent(p) && !STRIP_25683.some(k => has(p, k)));
   chk('data: 25683 keeps its current prices (1239 / 991 / 929)', p && p.srp === 1239 && p.dp === 991 && p.dp_volume === 929);
-  // Exactly the approved fields differ between the current data and the corrected data.
+  chk('data: 25683 keeps its creation fields (dateAdded 1791964097363, created_at null, isNew true)', p && p.dateAdded === 1791964097363 && has(p, 'created_at') && p.created_at === null && p.isNew === true);
+  chk('data: 826 products, unique item codes', fixed.length === 826 && new Set(fixed.map(x => String(x.item_code))).size === 826);
+  const naCount = fixed.filter(x => !x.disabled && isNA(x)).length;
+  chk('data: 18 New Arrivals after the correction (fixed now 2026-10-14 15:00Z)', naCount === 18, naCount);
+  // Exactly the approved 33 keys differ (key presence aware) between the current data and the corrected data.
   const diffs = [];
-  data.forEach((q, i) => { const r = fixed[i]; new Set([...Object.keys(q), ...Object.keys(r)]).forEach(k => { if (JSON.stringify(q[k]) !== JSON.stringify(r[k])) diffs.push(q.item_code + '.' + k); }); });
-  const expected = applied ? [] : [...CORRECT_13.map(c => c + '.dateAdded'), ...STRIP_25683.map(k => '25683.' + k)];
-  chk('data: correction touches exactly the approved fields (' + expected.length + ')', diffs.slice().sort().join() === expected.slice().sort().join() && fixed.length === data.length, diffs);
+  data.forEach((q, i) => { const r = fixed[i]; new Set([...Object.keys(q), ...Object.keys(r)]).forEach(k => {
+    if (has(q, k) !== has(r, k) || JSON.stringify(q[k]) !== JSON.stringify(r[k])) diffs.push(q.item_code + '.' + k); }); });
+  const expected = applied ? [] : [...CORRECT_13.flatMap(c => KEYS_13.map(k => c + '.' + k)), ...STRIP_25683.map(k => '25683.' + k)];
+  chk('data: correction touches exactly the approved keys (' + (applied ? '0 remaining' : '33') + ')', diffs.slice().sort().join() === expected.slice().sort().join() && fixed.length === data.length && fixed.every((x, i) => x.item_code === data[i].item_code), diffs);
 }
 
 console.log(ok ? '\nALL PASS' : '\nFAILURES'); process.exit(ok ? 0 : 1);
