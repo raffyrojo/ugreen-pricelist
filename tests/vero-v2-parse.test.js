@@ -783,7 +783,11 @@ function c2fExecFingerprint(VPm,opts){ const h=require('crypto').createHash('sha
   chk('C2F.X1 evalFrameCodes evidence equals executeFrame evidence for every proposed code ('+C2F_SINGLE.length+' frames, '+rows+' rows)', rows>500 && !mism.length, mism.slice(0,5));
   /* X2 executeFrame is unchanged: frozen fingerprint of its full output over the corpus, computed on the pre-C2F parser at 99dd595 */
   const fp=c2fExecFingerprint(VP,OPTS);
-  chk('C2F.X2 executeFrame output byte-identical to 99dd595 over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='dae251312a9b384eea7f6ef8498c282bd17b45f644a645464ebfcedfd1d4a053', fp);
+  /* re-pinned 2026-10-13 (owner-approved tests-only V2 CMS baseline reconciliation): the authorized CMS reorder (live 1164f6be) changed
+     only the ORDER of the tied codes of "ssd enclosure" (same 30 codes) and "m.2 nvme enclosure 10gbps" (same 6 codes); old content in
+     the new order reproduces this value, new content in the old order reproduces the 99dd595 value
+     dae251312a9b384eea7f6ef8498c282bd17b45f644a645464ebfcedfd1d4a053 (report UNO-V2-CMS-Baseline-Reconciliation-2026-10-13.md) */
+  chk('C2F.X2 executeFrame output byte-identical to the 99dd595 behaviour on catalogue 1164f6be over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='0f0bea9e1994ca85aa3f1d69b065a216c4572658851f9ca302e060a021ecb877', fp);
   /* X3 G3 same-span binding survives the discourse store (source span -> provenance { turn, span }); never across turns */
   const fr=TF('hub with 2 usb-c gen 1'), hubs=famCodes('hub_dock');
   const asStored=(f,turnOf)=>Object.assign({},f,{ constraints:f.constraints.map(c=>{ const x=JSON.parse(JSON.stringify(c)); delete x.source; x.provenance={ turn:turnOf(c), span:c.source&&c.source.span, act:'SELECT' }; return x; }) });

@@ -393,7 +393,12 @@ function c2fMergedFingerprint(VPm,VCm,Dm,tf,mk){ const h=require('crypto').creat
   return h.digest('hex'); }
 /*C2F-FP-END*/
 { const fp=c2fMergedFingerprint(VP,VC,D,TF,n=>base({ now:n }));
-  chk('CX.F14 executeFrame output on merged (stored, provenance-carrying) frames byte-identical to 99dd595 over '+C2F_PAIRS.length+' chains (sha256 '+fp.slice(0,12)+'…)', fp==='f7cf6c8b1ce333d1ed182627a31cf74894d2d96065ae8037b6fb5a9fbb5edb6d', fp); }
+  /* re-pinned 2026-10-13 (owner-approved tests-only V2 CMS baseline reconciliation): the authorized CMS Publishes (live 1164f6be)
+     reordered 123 records inside "Flash-Hard Drive Enclosure"; only the ORDER of the tied codes of chain "ssd enclosure" -> "mas mabilis"
+     changed (same 30 codes, same act / route / kind). Proven causal: old catalogue content in the new order reproduces this value, new
+     content in the old order reproduces the 99dd595 value f7cf6c8b1ce333d1ed182627a31cf74894d2d96065ae8037b6fb5a9fbb5edb6d. Evidence:
+     Deliverables/VERO-Phase2/UNO-V2-CMS-Baseline-Reconciliation-2026-10-13.md */
+  chk('CX.F14 executeFrame output on merged (stored, provenance-carrying) frames byte-identical to the 99dd595 behaviour on catalogue 1164f6be over '+C2F_PAIRS.length+' chains (sha256 '+fp.slice(0,12)+'…)', fp==='11762920a4135572d0f2fbca093916016f12f62961887e64d7daf78aa78d2f99', fp); }
 
 /* ================= CX.MUT mutation kills ================= */
 { const mutant=(from,to)=>{ const pairs=Array.isArray(from)?from:[[from,to]]; let src=CTX_SRC;

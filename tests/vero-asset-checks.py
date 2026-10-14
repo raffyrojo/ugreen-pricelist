@@ -1,6 +1,6 @@
 """Static asset / integrity checks for VERO frontend releases, against the CURRENT production baseline.
 Usage: python3 -I tests/vero-asset-checks.py <repo_root> [baseline_ref]
-  baseline_ref = the commit GitHub Pages serves now (default 69b9d4a: UNO front-end branding on ae4105b = V2-2C C3 tests-only harness on Commit D dbbacf3 (VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F; v2 shadow files present but NOT loaded); backend/ identical to ae4105b).
+  baseline_ref = the commit GitHub Pages serves now (default 56296068: UNO Phase E AI Worker identity on 69b9d4a UNO front-end branding (VERO p2r3a.4 runtime + dormant v2-2A / v2-2B / V2-2C C1+N1+G3+C2+C2F + C3 tests; v2 shadow files present but NOT loaded); live Worker source = backend/vero/worker.js 368d7430).
   Always pass the baseline explicitly for a release; a CMS Publish moves main and makes any default stale.
   If origin/main moved since (e.g. a CMS Publish commit), re-baseline to the current origin/main.
 
@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '69b9d4a'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '56296068'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,12 +27,21 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # UNO Branding Phase E - AI Worker identity (baseline 69b9d4a = live). Compose prompt identity VERO -> UNO plus one line
-                 # separating the assistant name from UGREEN products named "Uno"; PROMPT_VERSION v4 -> v5 (VERO-worded cached answers are
-                 # not reused). Research prompt, schemas (name vero_answer), routing, provider / model, auth / VERO- access codes, budgets,
-                 # sessions and logging unchanged. backend/vero/worker.js is the ONLY backend path in scope (G15); no wrangler.toml /
-                 # migration / front-end / config / data change.
-                 'backend/vero/worker.js', 'tests/vero-worker.test.mjs'}
+                 # UNO Evidence & Retrieval Layer R1 (baseline 56296068 = live): evidence contracts + missing-evidence classifier +
+                 # LLM-suppression policy, SHADOW ONLY. One NEW dormant file js/vero-evidence.js (global VeroEvidence, registered in SHADOW,
+                 # so G23 proves it unloaded and unreferenced) plus its tests, dev set and shadow report. No runtime / index.html / Worker /
+                 # backend / D1 / config / css / data change (G04 / G04b / G09 / G11-G16); G24 checks it reads no commercial field.
+                 # R1 Phase 1 (owner-approved 2026-10-13): + the dedicated regression file of the 66 round-5 reviewer failures.
+                 # R1 Phase 2 milestone P2-M1 (owner-approved 2026-10-13, OD-5): + the independent power statement inventory and decision
+                 # oracle (test data only; read by tests/vero-evidence.test.js, never by a page).
+                 'js/vero-evidence.js', 'tests/vero-evidence.test.js', 'tests/vero-evidence-devset.json', 'tests/vero-evidence-shadow.js',
+                 'tests/vero-evidence-regressions.test.js', 'tests/vero-evidence-power-oracle.json',
+                 # V2 CMS baseline reconciliation (owner-approved 2026-10-13, tests only): the three dormant v2 frozen-output checks
+                 # (CX.F14, C2F.X2, F1) re-pinned to live 1164f6be after the authorized CMS reorder; no v2 implementation change.
+                 'tests/vero-v2-context.test.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js',
+                 # P2-M1 bounded oracle correction round (owner OD-A ... OD-J, 2026-10-14): + the oracle label-lock ledger (test data only;
+                 # generated outside the repo, read only by tests/vero-evidence.test.js, never by a page).
+                 'tests/vero-evidence-power-oracle.labels.tsv'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}
 # ======================================================================================================
@@ -40,7 +49,8 @@ APPROVED_DATA = {}
 ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']   # live load order
 VJS = list(ORDER)
 # v2 shadow assets: ONE authoritative map file -> browser global. Every entry must stay unloaded and unreferenced (G23).
-SHADOW = {'js/vero-ontology.js': 'VeroOntology', 'js/vero-parse.js': 'VeroParse', 'js/vero-discourse.js': 'VeroDiscourse', 'js/vero-context.js': 'VeroContext'}
+# js/vero-evidence.js = UNO Evidence & Retrieval Layer R1 (shadow / dormant). Keep this map a one-line literal (parsed by tests).
+SHADOW = {'js/vero-ontology.js': 'VeroOntology', 'js/vero-parse.js': 'VeroParse', 'js/vero-discourse.js': 'VeroDiscourse', 'js/vero-context.js': 'VeroContext', 'js/vero-evidence.js': 'VeroEvidence'}
 
 sha = lambda b: hashlib.sha256(b).hexdigest()
 rd = lambda f: open(os.path.join(R, f), 'rb').read()
@@ -142,6 +152,10 @@ g23_hits = sorted({(f, m) for f, t in [('index.html', root)] + [(f, rd(f).decode
 chk(f'G23 v2 shadow assets ({", ".join(os.path.basename(f) for f in SHADOW)}; globals {", ".join(SHADOW.values())}) are NOT referenced by index.html or any of the {len(ORDER)} live load-order files',
     bool(G23_TOKENS) and not g23_hits, g23_hits[:5])
 chk('G22 vero.js stores no prices in the conversation context (keepCtx/convCtx carry codes + plan only)', 'keepCtx' in vjs and not re.search(r'ctx[^;]{0,80}\.(srp|dp|dp_volume)\b', vjs))
+# G24: the evidence layer (shadow) never reads commercial fields - the pricelist stays the only commercial authority
+_ev = brain.get('js/vero-evidence.js', '')
+chk('G24 evidence layer js/vero-evidence.js reads no commercial field (srp / dp / dp_volume / special_dp / moq / priceSchedule / priceHistory)',
+    bool(_ev) and not re.search(r'\.(srp|dp|dp_volume|special_dp|moq|priceSchedule|priceHistory)\b|\[\s*[\'"](srp|dp|dp_volume|special_dp|moq)[\'"]\s*\]', _ev))
 
 print('--- informational (not part of the deploy gate) ---')
 mirror = os.path.join(R, 'ugreen-pricelist-cms/index.html')
