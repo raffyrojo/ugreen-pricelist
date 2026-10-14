@@ -105,7 +105,8 @@ m('which sku has the biggest price increase this month?',r=>r.codes[0]===oTop.co
 m('top 5 price increases this month',r=>{ const exp=uniq(OCT.slice().sort((a,b)=>b.d-a.d).map(x=>x.code)).slice(0,5); return JSON.stringify(r.codes)===JSON.stringify(exp); });
 m('biggest price increase in percent',r=>r.codes[0]===maxBy(SRP,x=>x.pct).code && /by percentage/.test(r.note));
 m('what product had the biggest price decrease?',r=>r.codes[0]===minBy(SRP,x=>x.d).code && minBy(SRP,x=>x.d).d<0 && /by peso amount/.test(r.note) && r.codes[0]==='45065');
-m('may bumaba ba ang presyo this month?',r=>OCT.every(x=>x.d>0) && /^No — no SRP decreases effective in October 2026/.test(r.note) && /Most recent recorded decrease: SKU 80430/.test(r.note));
+const lastDec=SRP.filter(x=>x.d<0).sort((a,b)=>String(b.effectiveDate).localeCompare(String(a.effectiveDate)))[0];   // 45065 since the 2026-10-14 duplicate-badge correction removed 80430's fake decrease
+m('may bumaba ba ang presyo this month?',r=>OCT.every(x=>x.d>0) && /^No — no SRP decreases effective in October 2026/.test(r.note) && lastDec && lastDec.code==='45065' && new RegExp('Most recent recorded decrease: SKU '+lastDec.code+'\\b').test(r.note));
 m('which SKUs changed price this month?',r=>r.codes.length===uniq(OCT.map(x=>x.code)).length && r.codes.length===253);
 m('how many SKUs changed price this month?',r=>new RegExp('^'+uniq(OCT.map(x=>x.code)).length+' SKUs with an SRP change effective in October 2026').test(r.note));
 m('how much did SKU 20503 increase?',r=>/SKU 20503 SRP ₱79\.00 → ₱89\.00 \(\+₱10\.00/.test(r.note) && /2026-10-01/.test(r.note));

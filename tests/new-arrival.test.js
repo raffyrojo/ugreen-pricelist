@@ -271,4 +271,37 @@ const STRIP_25683 = ['previousSRP','priceChangeSRP','srpChangeDate','previousDP'
   chk('data: correction touches exactly the approved keys (' + (applied ? '0 remaining' : '33') + ')', diffs.slice().sort().join() === expected.slice().sort().join() && fixed.length === data.length && fixed.every((x, i) => x.item_code === data[i].item_code), diffs);
 }
 
+/* ---- 17: DUPLICATE-BADGE-CORRECTION (owner-approved 2026-10-14) ----
+   10541 / 80430 / 80433 were duplicated before the d5ae7e81 fix; their first save stamped a fake price-change badge
+   against the source's price (10540 389/292, 80431 279/195). The 6 badge keys are removed (18 total); the SKUs stay
+   genuine New Arrivals with their prices, and the genuine Oct-1 changes of 55988C / 25919C / 75646A are kept. */
+{
+  const BADGE = ['previousSRP','priceChangeSRP','srpChangeDate','previousDP','priceChangeDP','dpChangeDate'];
+  const FAKE = { '10541': [459, 344, 321, 389, 292], '80430': [259, 181, 168, 279, 195], '80433': [569, 398, 370, 279, 195] };
+  const data = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'products.json'), 'utf8'));
+  const find = c => data.find(p => p.item_code === c) || {};
+  const applied = Object.keys(FAKE).every(c => BADGE.every(k => !has(find(c), k)));
+  const pending = Object.entries(FAKE).every(([c, v]) => find(c).previousSRP === v[3] && find(c).previousDP === v[4] && find(c).srpChangeDate === '2026-09-22');
+  chk('dup-badge: 3 SKUs fully corrected or fully pre-correction (no partial state)', applied || pending);
+  const fixed = JSON.parse(JSON.stringify(data));
+  fixed.forEach(p => { if (FAKE[p.item_code]) BADGE.forEach(k => { delete p[k]; }); });
+  console.log('INFO duplicate-badge correction ' + (applied ? 'present in data/products.json' : 'NOT yet applied — checking it against the current data'));
+  const sb = makeSandbox(Date.UTC(2026, 9, 14, 15, 0, 0));
+  const isNA = run(sb, 'isNewArrival'), pcRecent = run(sb, 'pcHasRecent');
+  const byC = Object.fromEntries(fixed.map(p => [p.item_code, p]));
+  for (const [c, v] of Object.entries(FAKE)) {
+    const p = byC[c];
+    chk(`dup-badge: ${c} has no price-change badge keys and no badge`, p && !BADGE.some(k => has(p, k)) && !pcRecent(p));
+    chk(`dup-badge: ${c} keeps prices ${v[0]} / ${v[1]} / ${v[2]} and stays a New Arrival`, p && p.srp === v[0] && p.dp === v[1] && p.dp_volume === v[2] && typeof p.dateAdded === 'number' && p.isNew === true && isNA(p));
+  }
+  for (const c of ['55988C', '25919C', '75646A'])
+    chk(`dup-badge: ${c} keeps its genuine 2026-10-01 price-change badge and history`, byC[c] && byC[c].srpChangeDate === '2026-10-01' && pcRecent(byC[c]) && (byC[c].priceHistory || []).length === 1 && byC[c].priceHistory[0].source === 'scheduled');
+  chk('dup-badge: New Arrivals still 18 at fixed now 2026-10-14 15:00Z', fixed.filter(x => !x.disabled && isNA(x)).length === 18);
+  const diffs = [];
+  data.forEach((q, i) => { const r = fixed[i]; new Set([...Object.keys(q), ...Object.keys(r)]).forEach(k => {
+    if (has(q, k) !== has(r, k) || JSON.stringify(q[k]) !== JSON.stringify(r[k])) diffs.push(q.item_code + '.' + k); }); });
+  const expected = applied ? [] : Object.keys(FAKE).flatMap(c => BADGE.map(k => c + '.' + k));
+  chk('dup-badge: correction touches exactly the approved keys (' + (applied ? '0 remaining' : '18') + ')', diffs.slice().sort().join() === expected.slice().sort().join(), diffs);
+}
+
 console.log(ok ? '\nALL PASS' : '\nFAILURES'); process.exit(ok ? 0 : 1);

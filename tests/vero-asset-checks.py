@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'd5ae7e81'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '9b91d62d'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,50 +27,36 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # NEW-ARRIVAL-DATA-CORRECTION (baseline d5ae7e81 = live, owner-approved 2026-10-14): DATA ONLY. data/products.json
-                 # loses exactly the 33 keys in APPROVED_DATA; G11 now compares key presence (ABSENT marker, NA-13); the new-arrival
-                 # test validates the full 33-key correction (NA-14). No runtime / index.html / config / css / backend change.
-                 'data/products.json', 'tests/new-arrival.test.js'}
+                 # DUPLICATE-BADGE-CORRECTION (baseline 9b91d62d = live, owner-approved 2026-10-14): DATA ONLY. data/products.json
+                 # loses exactly the 18 keys in APPROVED_DATA; the new-arrival test checks the three SKUs. No runtime change.
+                 # Owner-approved scope addition: vero-nlu M05 was pinned to 80430's fake decrease; it now derives the latest recorded
+                 # SRP decrease from price history (45065, genuine 569 -> 499 on 2026-09-18).
+                 'data/products.json', 'tests/new-arrival.test.js', 'tests/vero-nlu.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
 APPROVED_DATA = {
-    # NEW-ARRIVAL-DATA-CORRECTION (owner-approved 2026-10-14): 33 key REMOVALS, no additions, no value edits.
-    # 13 legacy SKUs: dateAdded '2026-10' + created_at null were stamped by the pre-fix editor in CMS Publish d0002bb (both absent before).
-    # 25683: price-change metadata inherited from 95424B on duplication + the synthetic first-save stamp (fake 1339 -> 1239 history).
-    ('30732', 'dateAdded'): ('2026-10', ABSENT),
-    ('30732', 'created_at'): ('None', ABSENT),
-    ('75177', 'dateAdded'): ('2026-10', ABSENT),
-    ('75177', 'created_at'): ('None', ABSENT),
-    ('45301', 'dateAdded'): ('2026-10', ABSENT),
-    ('45301', 'created_at'): ('None', ABSENT),
-    ('75545', 'dateAdded'): ('2026-10', ABSENT),
-    ('75545', 'created_at'): ('None', ABSENT),
-    ('35900', 'dateAdded'): ('2026-10', ABSENT),
-    ('35900', 'created_at'): ('None', ABSENT),
-    ('85570', 'dateAdded'): ('2026-10', ABSENT),
-    ('85570', 'created_at'): ('None', ABSENT),
-    ('85638', 'dateAdded'): ('2026-10', ABSENT),
-    ('85638', 'created_at'): ('None', ABSENT),
-    ('75644', 'dateAdded'): ('2026-10', ABSENT),
-    ('75644', 'created_at'): ('None', ABSENT),
-    ('95796', 'dateAdded'): ('2026-10', ABSENT),
-    ('95796', 'created_at'): ('None', ABSENT),
-    ('85201', 'dateAdded'): ('2026-10', ABSENT),
-    ('85201', 'created_at'): ('None', ABSENT),
-    ('85478', 'dateAdded'): ('2026-10', ABSENT),
-    ('85478', 'created_at'): ('None', ABSENT),
-    ('55527', 'dateAdded'): ('2026-10', ABSENT),
-    ('55527', 'created_at'): ('None', ABSENT),
-    ('55530', 'dateAdded'): ('2026-10', ABSENT),
-    ('55530', 'created_at'): ('None', ABSENT),
-    ('25683', 'previousSRP'): ('1339', ABSENT),
-    ('25683', 'priceChangeSRP'): ('down', ABSENT),
-    ('25683', 'srpChangeDate'): ('2026-10-14', ABSENT),
-    ('25683', 'previousDP'): ('1071', ABSENT),
-    ('25683', 'priceChangeDP'): ('down', ABSENT),
-    ('25683', 'dpChangeDate'): ('2026-10-14', ABSENT),
-    ('25683', 'priceHistory'): ("[{'effectiveDate': '2026-09-18', 'createdDate': '2026-09-18', 'oldSrp': 1199, 'newSrp': 1299, 'oldDp': 959, 'newDp': 1039, 'oldVol': None, 'newVol': None, 'source': 'seed', 'seeded': True}, {'effectiveDate': '2026-10-01', 'createdDate': '2026-09-30', 'oldSrp': 1299, 'newSrp': 1339, 'oldDp': 1039, 'newDp': 1071, 'oldVol': 974, 'newVol': 1004, 'source': 'scheduled'}, {'effectiveDate': '2026-10-14', 'createdDate': '2026-10-14', 'oldSrp': 1339, 'newSrp': 1239, 'oldDp': 1071, 'newDp': 991, 'oldVol': 1004, 'newVol': 929, 'source': 'edit'}]", ABSENT),
+    # DUPLICATE-BADGE-CORRECTION (owner-approved 2026-10-14): 18 key REMOVALS, no additions, no value edits.
+    # 10541 / 80430 / 80433: fake first-save price-change badge fields stamped in CMS Publish 5d9b63d6 (2026-09-22) against
+    # their duplication sources' prices (10540 389/292; 80431 279/195). Creation fields, prices and genuine Oct-1 changes untouched.
+    ('10541', 'previousSRP'): ('389', ABSENT),
+    ('10541', 'priceChangeSRP'): ('up', ABSENT),
+    ('10541', 'srpChangeDate'): ('2026-09-22', ABSENT),
+    ('10541', 'previousDP'): ('292', ABSENT),
+    ('10541', 'priceChangeDP'): ('up', ABSENT),
+    ('10541', 'dpChangeDate'): ('2026-09-22', ABSENT),
+    ('80430', 'previousSRP'): ('279', ABSENT),
+    ('80430', 'priceChangeSRP'): ('down', ABSENT),
+    ('80430', 'srpChangeDate'): ('2026-09-22', ABSENT),
+    ('80430', 'previousDP'): ('195', ABSENT),
+    ('80430', 'priceChangeDP'): ('down', ABSENT),
+    ('80430', 'dpChangeDate'): ('2026-09-22', ABSENT),
+    ('80433', 'previousSRP'): ('279', ABSENT),
+    ('80433', 'priceChangeSRP'): ('up', ABSENT),
+    ('80433', 'srpChangeDate'): ('2026-09-22', ABSENT),
+    ('80433', 'previousDP'): ('195', ABSENT),
+    ('80433', 'priceChangeDP'): ('up', ABSENT),
+    ('80433', 'dpChangeDate'): ('2026-09-22', ABSENT),
 }
 # ======================================================================================================
 
