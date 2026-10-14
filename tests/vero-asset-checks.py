@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '56296068'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '6842ade6'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,21 +27,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # UNO Evidence & Retrieval Layer R1 (baseline 56296068 = live): evidence contracts + missing-evidence classifier +
-                 # LLM-suppression policy, SHADOW ONLY. One NEW dormant file js/vero-evidence.js (global VeroEvidence, registered in SHADOW,
-                 # so G23 proves it unloaded and unreferenced) plus its tests, dev set and shadow report. No runtime / index.html / Worker /
-                 # backend / D1 / config / css / data change (G04 / G04b / G09 / G11-G16); G24 checks it reads no commercial field.
-                 # R1 Phase 1 (owner-approved 2026-10-13): + the dedicated regression file of the 66 round-5 reviewer failures.
-                 # R1 Phase 2 milestone P2-M1 (owner-approved 2026-10-13, OD-5): + the independent power statement inventory and decision
-                 # oracle (test data only; read by tests/vero-evidence.test.js, never by a page).
-                 'js/vero-evidence.js', 'tests/vero-evidence.test.js', 'tests/vero-evidence-devset.json', 'tests/vero-evidence-shadow.js',
-                 'tests/vero-evidence-regressions.test.js', 'tests/vero-evidence-power-oracle.json',
-                 # V2 CMS baseline reconciliation (owner-approved 2026-10-13, tests only): the three dormant v2 frozen-output checks
-                 # (CX.F14, C2F.X2, F1) re-pinned to live 1164f6be after the authorized CMS reorder; no v2 implementation change.
-                 'tests/vero-v2-context.test.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js',
-                 # P2-M1 bounded oracle correction round (owner OD-A ... OD-J, 2026-10-14): + the oracle label-lock ledger (test data only;
-                 # generated outside the repo, read only by tests/vero-evidence.test.js, never by a page).
-                 'tests/vero-evidence-power-oracle.labels.tsv'}
+                 # NEW-ARRIVAL-DATE-FIX (baseline 6842ade6 = live, owner-approved 2026-10-14): saveSku() decides ADD vs EDIT from editor
+                 # state and copies dateAdded / created_at / isNew exactly on edit (absent stays absent); new adds stamp Date.now() + ISO;
+                 # duplicates get fresh stamps, drop inherited price-change metadata and skip price stamping on their first save.
+                 # Code only (index.html: admin.js ?v= tag); the 13-SKU + 25683 data correction is a separate, later release.
+                 'js/admin.js', 'index.html', 'tests/new-arrival.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 APPROVED_DATA = {}
 # ======================================================================================================

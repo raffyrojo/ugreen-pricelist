@@ -600,33 +600,15 @@ function saveSku() {
   var descLines = (document.getElementById('f-desc').value||'').split('\n').map(function(l){return stripLeadingBullets(l.trim());}).filter(Boolean);
   var featLines = (document.getElementById('f-feats').value||'').split('\n').map(function(l){return stripLeadingBullets(l.trim());}).filter(Boolean);
   var now = new Date();
-  // v1.1.17: "New Item" tag fix — PRESERVE dateAdded/created_at on EDIT so editing
-  // an SKU never re-tags it as "new". Only stamp them fresh when creating a brand-new SKU.
-  // Root cause of bug: every save used to rewrite dateAdded to the current month,
-  // which made isNewSku() return true for edited SKUs and pollute the "New Items Only" filter.
-  var prevProduct = editingCode ? ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(editingCode);}) : null;
-  var dateAdded = (prevProduct && prevProduct.dateAdded)
-    ? prevProduct.dateAdded                                                        // EDIT: keep original
-    : (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0'));        // ADD: stamp today
-  // created_at: ISO timestamp — preserved on edit, stamped on add. If an edited
-  // base product has no created_at (source import), leave it null so isNewSku()
-  // falls back to date-based detection via dateAdded (which is now preserved).
-  var created_at = editingCode
-    ? ((prevProduct && prevProduct.created_at) || null)
-    : now.toISOString();
-  // v1.1.17: STRICT isNew handling — the single source of truth for "New" badge.
-  //   ADD  → isNew = true (explicit, one-time stamp at creation).
-  //   EDIT → preserve whatever value the existing record holds. If prevProduct.isNew
-  //          is true, keep it true. If undefined (base product), leave it undefined so
-  //          the product continues to be treated as baseline (not in "New Items Only").
-  // Explicit-protection pattern: formData.isNew = existingItem.isNew on edit; the only
-  // place isNew is set to true is here, for brand-new creations. Editing NEVER retags.
-  var isNewFlag;
-  if (editingCode && prevProduct) {
-    isNewFlag = prevProduct.isNew; // preserve exact value — may be true, false, or undefined
-  } else {
-    isNewFlag = true; // creation: stamp explicitly
-  }
+  // 2026-10-14 NEW-ARRIVAL-DATE-FIX: ADD vs EDIT is decided by editor state
+  // (editingCode), never by whether dateAdded exists. Before this fix an edited
+  // legacy SKU with no dateAdded was stamped with the current month, which made the
+  // public isNewArrival() badge treat it as newly added.
+  //   EDIT → dateAdded / created_at / isNew copied EXACTLY from the existing record;
+  //          a property that was absent stays absent (never invented).
+  //   ADD  → fresh precise stamps: dateAdded = Date.now() (ms), created_at = ISO, isNew = true.
+  var isEdit = !!editingCode;
+  var prevProduct = isEdit ? ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(editingCode);}) : null;
   var imgKey = null;
   var urlInput = document.getElementById('f-img-url');
   var imgUrl = urlInput ? urlInput.value.trim() : '';
@@ -654,18 +636,27 @@ function saveSku() {
     description: descLines.join('\n'),
     short_desc: (function(){var e=document.getElementById('f-short');return e?(e.value||'').replace(/\s+/g,' ').trim():'';})(),
     features: featLines.length ? '*placeholder\n'+featLines.map(function(f){return '*'+f;}).join('\n') : '',
-    remarks: '', image: imgKey||'', dateAdded: dateAdded, created_at: created_at
+    remarks: '', image: imgKey||''
   };
-  // v1.1.17: only attach isNew when we have a value (true on add, preserved on edit).
-  // Leave it off entirely when editing a base product that never had an isNew flag,
-  // so isNewSku() continues to fall back to its date-based logic.
-  if (isNewFlag !== undefined) p.isNew = isNewFlag;
+  if (isEdit) {
+    if (prevProduct) {
+      ['dateAdded','created_at','isNew'].forEach(function(k){
+        if (Object.prototype.hasOwnProperty.call(prevProduct, k)) p[k] = prevProduct[k];
+      });
+    }
+  } else {
+    p.dateAdded = now.getTime(); p.created_at = now.toISOString(); p.isNew = true;
+  }
+  // A duplicate's first save is part of its creation, not a price change: the
+  // copied source prices are not a "before" price (see adminDuplicateProduct).
+  var dupFirstSave = !!(isEdit && _dupFirstSave[String(editingCode)]);
   // Price-change indicator: stamp metadata when an EXISTING SKU's SRP/DP actually change
   // (compared against the price that existed immediately before this edit). New SKUs never stamp.
-  if (editingCode && prevProduct && typeof pcStamp === 'function') pcStamp(p, prevProduct.srp, prevProduct.dp, (typeof pcToday==='function'?pcToday():''));
+  if (isEdit && prevProduct && !dupFirstSave && typeof pcStamp === 'function') pcStamp(p, prevProduct.srp, prevProduct.dp, (typeof pcToday==='function'?pcToday():''));
   // Also log the change to the permanent per-SKU price history (carries prior
   // history + any pending schedule from the existing record onto the merged obj).
-  if (editingCode && prevProduct) pcLogManualEdit(p, prevProduct, (typeof pcToday==='function'?pcToday():''));
+  if (isEdit && prevProduct && !dupFirstSave) pcLogManualEdit(p, prevProduct, (typeof pcToday==='function'?pcToday():''));
+  if (isEdit) delete _dupFirstSave[String(editingCode)];
   var custom = loadNewSkus();
   var idx = custom.findIndex(function(x){return String(x.item_code)===String(ic);});
   // v1.1.17: MERGE instead of replace — preserves any fields on the existing record
@@ -2567,6 +2558,11 @@ function _bakeAndDownload(){ _downloadProductsJson(); }
 
 
 /* ── Duplicate product (new in CMS) — clones a SKU, then opens the editor ── */
+/* Price-change metadata a duplicate must NOT inherit (badge fields from pcStamp,
+   history / schedule from pcApplyChange / pcScheduleAdd, legacy publish baseline). */
+var DUP_PRICE_META_FIELDS = ['previousSRP','priceChangeSRP','srpChangeDate','previousDP','priceChangeDP','dpChangeDate','priceHistory','priceSchedule','pubSRP','pubDP'];
+/* Duplicates awaiting their first editor save (in memory; see saveSku). */
+var _dupFirstSave = {};
 function adminDuplicateProduct(code){
   if(typeof isAdmin==='function' && !isAdmin()){ openAdminModal(); return; }
   var src=ALL_PRODUCTS.find(function(x){return String(x.item_code)===String(code);});
@@ -2574,7 +2570,12 @@ function adminDuplicateProduct(code){
   var base=String(src.item_code), nc=base+'-COPY', i=2;
   while(ALL_PRODUCTS.some(function(x){return String(x.item_code)===nc;})){ nc=base+'-COPY'+i; i++; }
   var clone=JSON.parse(JSON.stringify(src));
-  clone.item_code=nc; clone.isNew=true; clone.dateAdded=Date.now();
+  // A duplicate is a NEW SKU: fresh creation stamps, and none of the source's
+  // price-change badge / history / schedule metadata.
+  var now=new Date();
+  clone.item_code=nc; clone.isNew=true; clone.dateAdded=now.getTime(); clone.created_at=now.toISOString();
+  DUP_PRICE_META_FIELDS.forEach(function(k){ delete clone[k]; });
+  _dupFirstSave[nc]=true;
   ALL_PRODUCTS.push(clone);
   try{ var cu=loadNewSkus(); cu.push(clone); saveNewSkus(cu); }catch(e){}
   try{ _recentNewIds[nc]=Date.now(); }catch(e){}
