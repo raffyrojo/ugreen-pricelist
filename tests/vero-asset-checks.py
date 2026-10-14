@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '9b91d62d'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '398ffac5'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,37 +27,18 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # DUPLICATE-BADGE-CORRECTION (baseline 9b91d62d = live, owner-approved 2026-10-14): DATA ONLY. data/products.json
-                 # loses exactly the 18 keys in APPROVED_DATA; the new-arrival test checks the three SKUs. No runtime change.
-                 # Owner-approved scope addition: vero-nlu M05 was pinned to 80430's fake decrease; it now derives the latest recorded
-                 # SRP decrease from price history (45065, genuine 569 -> 499 on 2026-09-18).
-                 'data/products.json', 'tests/new-arrival.test.js', 'tests/vero-nlu.test.js'}
+                 # ACCIDENTAL-3-SKU-RESTORE (baseline 398ffac5 = live, owner-approved 2026-10-14): DATA ONLY. An accidental CMS Publish
+                 # (398ffac5) removed 35605B / 45089 / 35856; they are re-inserted unchanged from f5e12baf at their original positions.
+                 # G11 gains an opt-in APPROVED_ADDITIONS check (each added record must equal APPROVED_ADDITIONS_REF's record).
+                 'data/products.json'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
-APPROVED_DATA = {
-    # DUPLICATE-BADGE-CORRECTION (owner-approved 2026-10-14): 18 key REMOVALS, no additions, no value edits.
-    # 10541 / 80430 / 80433: fake first-save price-change badge fields stamped in CMS Publish 5d9b63d6 (2026-09-22) against
-    # their duplication sources' prices (10540 389/292; 80431 279/195). Creation fields, prices and genuine Oct-1 changes untouched.
-    ('10541', 'previousSRP'): ('389', ABSENT),
-    ('10541', 'priceChangeSRP'): ('up', ABSENT),
-    ('10541', 'srpChangeDate'): ('2026-09-22', ABSENT),
-    ('10541', 'previousDP'): ('292', ABSENT),
-    ('10541', 'priceChangeDP'): ('up', ABSENT),
-    ('10541', 'dpChangeDate'): ('2026-09-22', ABSENT),
-    ('80430', 'previousSRP'): ('279', ABSENT),
-    ('80430', 'priceChangeSRP'): ('down', ABSENT),
-    ('80430', 'srpChangeDate'): ('2026-09-22', ABSENT),
-    ('80430', 'previousDP'): ('195', ABSENT),
-    ('80430', 'priceChangeDP'): ('down', ABSENT),
-    ('80430', 'dpChangeDate'): ('2026-09-22', ABSENT),
-    ('80433', 'previousSRP'): ('279', ABSENT),
-    ('80433', 'priceChangeSRP'): ('up', ABSENT),
-    ('80433', 'srpChangeDate'): ('2026-09-22', ABSENT),
-    ('80433', 'previousDP'): ('195', ABSENT),
-    ('80433', 'priceChangeDP'): ('up', ABSENT),
-    ('80433', 'dpChangeDate'): ('2026-09-22', ABSENT),
-}
+APPROVED_DATA = {}
+# Approved product ADDITIONS (item codes) for this release; each added record must be byte-identical (JSON) to the record with
+# the same item_code at APPROVED_ADDITIONS_REF, and every pre-existing product must keep its position and values. Empty = none.
+APPROVED_ADDITIONS = {'35605B', '45089', '35856'}
+APPROVED_ADDITIONS_REF = 'f5e12baf2d8479b2aaf8f2c230556a80636128f6'
 # ======================================================================================================
 
 ORDER = ['js/vero-lexicon.js', 'js/vero-nlu.js', 'js/vero-facts.js', 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero-engine.js', 'js/vero.js']   # live load order
@@ -116,6 +97,19 @@ import json as _json
 _other = git('diff', '--name-only', BASE, '--', 'data/').stdout.decode().split()
 _pb, _pn = _json.loads(base('data/products.json').decode('utf-8')), _json.loads(rd('data/products.json').decode('utf-8'))
 _dd = set()
+_bcodes = {str(x.get('item_code')) for x in _pb}
+_added = [str(x.get('item_code')) for x in _pn if str(x.get('item_code')) not in _bcodes]
+_add_bad = []
+if _added or APPROVED_ADDITIONS:
+    _ref = {str(x.get('item_code')): x for x in (_json.loads(git('show', f'{APPROVED_ADDITIONS_REF}:data/products.json').stdout.decode('utf-8')) if APPROVED_ADDITIONS else [])}
+    if sorted(_added) != sorted(APPROVED_ADDITIONS): _add_bad.append(f'added {sorted(_added)} != approved {sorted(APPROVED_ADDITIONS)}')
+    for _c in _added:
+        _r = _ref.get(_c); _x = next(x for x in _pn if str(x.get('item_code')) == _c)
+        if _r is None or _json.dumps(_r, sort_keys=False, ensure_ascii=False) != _json.dumps(_x, sort_keys=False, ensure_ascii=False): _add_bad.append(f'{_c} differs from {APPROVED_ADDITIONS_REF[:8]}')
+    _nc = [str(x.get('item_code')) for x in _pn]
+    _rc = [c for c in _ref if c in set(_nc)]
+    if [c for c in _nc if c in _ref] != _rc: _add_bad.append(f'added products not at their {APPROVED_ADDITIONS_REF[:8]} positions (relative order differs)')
+_pn = [x for x in _pn if str(x.get('item_code')) not in set(_added)]   # pre-existing products, in their new order
 if len(_pb) == len(_pn):
     for _a, _b in zip(_pb, _pn):
         for _k in set(_a) | set(_b):
@@ -129,15 +123,16 @@ _actual = {(c, k): (o, n) for c, k, o, n in _dd}
 _want = {(str(c), k): (str(o), str(n)) for (c, k), (o, n) in APPROVED_DATA.items()}
 _extra = sorted(f'{c}.{k}: {o!r} -> {n!r} (not approved)' for (c, k), (o, n) in _actual.items() if _want.get((c, k)) != (o, n))
 _miss = sorted(f'{c}.{k}: expected {o!r} -> {n!r} (missing / differs)' for (c, k), (o, n) in _want.items() if _actual.get((c, k)) != (o, n))
-_ok = (len(_pb) == len(_pn) and len(_actual) == len(_dd) and len(_want) == len(APPROVED_DATA) and _actual == _want
+_ok = (not _add_bad and [str(x.get('item_code')) for x in _pb] == [str(x.get('item_code')) for x in _pn] and len(_pb) == len(_pn) and len(_actual) == len(_dd) and len(_want) == len(APPROVED_DATA) and _actual == _want
        and set(_other) <= {'data/products.json'})
-_why = ([f'product count {len(_pb)} -> {len(_pn)}'] if len(_pb) != len(_pn) else []) + \
+_why = _add_bad + ([f'pre-existing product count {len(_pb)} -> {len(_pn)}'] if len(_pb) != len(_pn) else []) + \
+       (['pre-existing product order changed'] if len(_pb) == len(_pn) and [str(x.get('item_code')) for x in _pb] != [str(x.get('item_code')) for x in _pn] else []) + \
        (['duplicate (item_code, field) in the actual changes'] if len(_actual) != len(_dd) else []) + \
        (['APPROVED_DATA has keys that collide after str() normalisation'] if len(_want) != len(APPROVED_DATA) else []) + \
        ([f'other data/ file changed: {sorted(set(_other) - {"data/products.json"})}'] if not set(_other) <= {'data/products.json'} else [])
-chk(f'G11 data/: field changes == APPROVED_DATA exactly ({len(_dd)} found, {len(_want)} approved; same product count; no other data/ file)', _ok,
+chk(f'G11 data/: field changes == APPROVED_DATA exactly ({len(_dd)} found, {len(_want)} approved; additions {len(_added)} == {len(APPROVED_ADDITIONS)} approved, identical to ref; pre-existing count + order kept; no other data/ file)', _ok,
     (_why + ([] if len(_pb) != len(_pn) else _extra + _miss))[:6])
-DATA_CHANGED = len(_dd) > 0
+DATA_CHANGED = len(_dd) > 0 or bool(_added)
 bcss = (base('css/vero.css') or b'').decode('utf-8').splitlines(); ncss = rd('css/vero.css').decode('utf-8').splitlines()
 chk('G12 css/vero.css: additive only (every baseline line kept; new rules only if css/vero.css is in RELEASE_SCOPE)', all(l in ncss for l in bcss) and (ncss == bcss or 'css/vero.css' in RELEASE_SCOPE))
 chk('G13 VERO Worker source sha256 == pinned ugreen-vero source 368d7430…1b2c (UNO Phase E, prompt v5)', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
