@@ -99,8 +99,14 @@ for (const q of ['magsafe power bank', 'meron ba tayong magsafe power bank?', 'm
   const first = r.codes[0];
   chk('P3e "magsafe charger" -> explicit MagSafe (name/features) items first, magnetic-only listed separately', /mag\s?safe/i.test(name(first) + byCode(first).features + byCode(first).short_desc) && /MagSafe stated in the product name or features/.test(r.note) && /magnetic wireless/i.test(r.note), { note: r.note, codes: r.codes }); }
 { const r = A('magnetic power bank'); chk('P3f "magnetic power bank" unchanged — no MagSafe claim', !/magsafe/i.test(r.note || '') && r.codes.length >= magPB.length, { note: r.note, n: r.codes.length }); }
-{ const r = A('qi2 power bank'); const sdOnly = ALL.filter(p => isPB(p) && /\bqi\s?2\b/i.test(p.short_desc || '') && !/\bqi\s?2\b/i.test(p.product_name + '\n' + (p.features || '')));
-  chk('P3g "qi2 power bank" -> no confirmed Qi2 power bank (Qi2 only in short_desc/description); listed as not confirmed', /^No\b/.test(r.note) && /mentioned only in product descriptions/.test(r.note) && sdOnly.every(p => r.note.indexOf(String(p.item_code)) >= 0), { note: r.note, sdOnly: sdOnly.map(p => p.item_code) }); }
+{ const r = A('qi2 power bank'); const QI2 = /\bqi\s?2\b/i;
+  /* re-baseline 6672902d (2026-10-15): the engine names the first 5 description-only mentions plus "…"; the 2026-10-14 CMS descriptions added
+     Qi2 mentions to 5 more power banks, so the check is cap-aware: every named code is a description-only Qi2 power bank, count = min(5, N),
+     "…" exactly when N > 5 */
+  const descOnly = ALL.filter(p => !p.disabled && isPB(p) && QI2.test((p.short_desc || '') + '\n' + (p.description || '')) && !QI2.test(p.product_name + '\n' + (p.features || ''))).map(p => String(p.item_code));
+  const m = /not confirmed: ([^.…]*)/.exec(r.note || ''), named = m ? (m[1].match(/[0-9]{4,6}[A-Z]{0,4}/g) || []) : [];
+  chk('P3g "qi2 power bank" -> no confirmed Qi2 power bank (Qi2 only in short_desc/description); listed as not confirmed (first 5 + "…")', /^No\b/.test(r.note) && /mentioned only in product descriptions/.test(r.note) &&
+    descOnly.length > 0 && named.length === Math.min(5, descOnly.length) && named.every(c => descOnly.includes(c)) && (/…/.test(r.note) === (descOnly.length > 5)), { note: r.note, named, descOnly }); }
 { const nw = mk({ item_code: 'ZZMS1', product_name: '10000mAh MagSafe Magnetic Wireless Power Bank (Test)', srp: 1999 });
   const r = E.answer(ALL.concat([nw]), 'magsafe power bank', {});
   chk('P3h synthetic: a power bank NAMED MagSafe is the confirmed item; magnetic-only ones are "Also …"', r.codes[0] === 'ZZMS1' && /^1 MagSafe power bank in the current pricelist \(MagSafe stated/.test(r.note) && /Also \d+ magnetic wireless power banks/.test(r.note), r.note); }

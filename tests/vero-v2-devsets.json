@@ -300,10 +300,11 @@
       "75701C",
       "85301B",
       "75161B",
-      "75161C"
+      "75161C",
+      "35604B"
      ],
      "check": "subsetNonEmpty",
-     "behavior": "10,000mAh power banks with built-in cable only (PB570, PB727; PB526 'with Cable' acceptable). No 20k."
+     "behavior": "10,000mAh power banks with built-in cable only (PB570, PB727, PB511; PB526 'with Cable' acceptable). No 20k."
     },
     {
      "id": "SQ2-2",
@@ -404,11 +405,11 @@
      "exp": "LOCAL",
      "expCodes": [
       "75725A",
-      "35626",
-      "65381"
+      "45153",
+      "35626"
      ],
      "check": "ordered",
-     "behavior": "75725A 3,799 > 35626 2,349 > 65381 1,899."
+     "behavior": "75725A 3,799 > 45153 2,699 > 35626 2,349."
     },
     {
      "id": "SQ5-2",
@@ -1043,11 +1044,12 @@
      "exp": "LOCAL",
      "expCodes": [
       "25036",
-      "15550"
+      "15550",
+      "45089"
      ],
      "check": "set",
      "anchorKind": "name",
-     "behavior": "Nexode Mini 30W (CD359, 2 colours) with DP 569. Not the 'Nexode N Mini' 20W."
+     "behavior": "Nexode Mini 30W (CD359, 3 colours) with DP 569. Not the 'Nexode N Mini' 20W."
     },
     {
      "id": "T04",
@@ -1056,10 +1058,11 @@
      "exp": "LOCAL",
      "expCodes": [
       "35314",
-      "15570"
+      "15570",
+      "35856"
      ],
      "check": "set",
-     "behavior": "65W Robot GaN (CD361, Purple / Space Gray). Not the 100W Robot GaN."
+     "behavior": "65W Robot GaN (CD361, Purple / Space Gray / Blue-Pink). Not the 100W Robot GaN."
     },
     {
      "id": "T05",

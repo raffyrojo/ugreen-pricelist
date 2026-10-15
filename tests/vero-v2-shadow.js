@@ -335,20 +335,22 @@ chk('J2 a null judge is UNSCORED, never SAME_OK: every scored turn has >= 1 judg
 { const crypto=require('crypto');
   /* review round 1: E03 / D07 left the allow-list — with the evidence floor (a proposed row must name or mention every requested
      connector) they are byte-identical to the live baseline again */
-  const ALLOW={ 'B144:S05':['LOCAL','inferred',8,'#6: retractable => built-in cable is INFERRED (+1, labelled; the set is no longer "exact")'],
-    'B144:B04':['LOCAL','inferred',17,'#6: retractable => built-in (+1 INFERRED)'], 'HO3:T17':['LOCAL','inferred',17,'#6: retractable => built-in (+1 INFERRED)'],
-    'B144:A04':['LOCAL','alternative',17,'#6: one more alternative admitted only through retractable => built-in, labelled inferred'],
-    'B144:G04':['LOCAL','exact',50,'§7 rule 4: rows with no wattage are kept AFTER the ranked rows (were dropped)'],
-    'B144:V01':['LOCAL','exact',61,'§7 rule 4: rows with no length kept after the ranked rows'], 'B144:K06':['LOCAL','exact',129,'§7 rule 4: rows with no length kept last'], 'B144:T05':['LOCAL','exact',129,'§7 rule 4: rows with no length kept last'] };
+  /* re-baseline 6672902d (2026-10-15, NA-11): causal audit on d87c6e99 vs 6672902d trees with identical code -- every differing item is explained by the catalogue (15 added SKUs, 55988B re-enabled, rewritten 75177 / power-bank text, catalogue-size counters); 0 route / act changes outside those items. Allow-list: route / kind / category unchanged; counts grow only by new or re-enabled SKUs
+     (S05 +55988B; B04 / T17 / A04 +35604B +55988B; G04 +35856 +25418B +85252B +45089; V01 +90592; K06 / T05 +60114 +35604B); was 8 / 17 / 17 / 17 / 50 / 61 / 129 / 129 */
+  const ALLOW={ 'B144:S05':['LOCAL','inferred',9,'#6: retractable => built-in cable is INFERRED (+1, labelled; the set is no longer "exact")'],
+    'B144:B04':['LOCAL','inferred',19,'#6: retractable => built-in (+1 INFERRED)'], 'HO3:T17':['LOCAL','inferred',19,'#6: retractable => built-in (+1 INFERRED)'],
+    'B144:A04':['LOCAL','alternative',19,'#6: one more alternative admitted only through retractable => built-in, labelled inferred'],
+    'B144:G04':['LOCAL','exact',54,'§7 rule 4: rows with no wattage are kept AFTER the ranked rows (were dropped)'],
+    'B144:V01':['LOCAL','exact',62,'§7 rule 4: rows with no length kept after the ranked rows'], 'B144:K06':['LOCAL','exact',131,'§7 rule 4: rows with no length kept last'], 'B144:T05':['LOCAL','exact',131,'§7 rule 4: rows with no length kept last'] };
   const ST=ROWS.filter(r=>!r.follow), sig=JSON.stringify(ST.filter(r=>!ALLOW[r.set+':'+r.id]).map(r=>r.set+':'+r.id).sort().map(k=>{ const p=V2[k].proposal; return [k,p.route,p.kind,p.codes]; }));
   /* re-pinned 2026-10-13 (owner-approved tests-only V2 CMS baseline reconciliation): the authorized CMS reorder (live 1164f6be) changed
      only the catalogue ORDER of the 796-code proposals B144:H03 / B144:H05 (same codes, route LOCAL, kind exact; new list = old list
      re-sorted by the new catalogue positions). Old content in the new order reproduces this value; new content in the old order
      reproduces the 16a827d value 1225cca49e0c88370a48c15d05a8666dd96ca360eb1e2c14e1202dc7cf95b33d (report
      UNO-V2-CMS-Baseline-Reconciliation-2026-10-13.md). The allow-list below is unchanged. */
-  const sha=crypto.createHash('sha256').update(sig).digest('hex'), FREEZE='d5b8f544decfa697040044f4c9aef4bf4aa41c7d3c675f7e9c77027457ae06d7';
+  const sha=crypto.createHash('sha256').update(sig).digest('hex'), FREEZE='c7aff1e3e6d4ccd9a94d77d05a185b98e4323181556e49d8c733ed85e7313e6a';   /* re-baseline 6672902d; was d5b8f544…06d7 on 1164f6be */
   const allowBad=Object.keys(ALLOW).filter(k=>{ const p=V2[k]&&V2[k].proposal, w=ALLOW[k]; return !p || p.route!==w[0] || p.kind!==w[1] || p.codes.length!==w[2]; });
-  chk('F1 single-turn freeze: '+(ST.length-Object.keys(ALLOW).length)+' standalone v2 proposals byte-identical to live 16a827d behaviour on catalogue 1164f6be (sha '+sha.slice(0,12)+'…); '+Object.keys(ALLOW).length+' reviewed allow-list changes each at their pinned value', ST.length===225 && sha===FREEZE && !allowBad.length, JSON.stringify([ST.length,sha,allowBad]));
+  chk('F1 single-turn freeze: '+(ST.length-Object.keys(ALLOW).length)+' standalone v2 proposals byte-identical to live 16a827d behaviour on catalogue 6672902d (sha '+sha.slice(0,12)+'…); '+Object.keys(ALLOW).length+' reviewed allow-list changes each at their pinned value', ST.length===225 && sha===FREEZE && !allowBad.length, JSON.stringify([ST.length,sha,allowBad]));
   chk('F2 allow-listed changes never worsen a scored turn (category SAME_OK / V2_BETTER / SAME_FAIL as before; no V2_WORSE)', Object.keys(ALLOW).every(k=>ROWS.find(r=>r.set+':'+r.id===k).category!=='V2_WORSE'));
   /* EV1 (review round 1): structural evidence floor over every shadow turn — a partial / closest / inferred proposal never contains a
      product that neither names nor mentions a requested (affirmed) connector; this catches E03 / D07-style answers without gold */

@@ -398,7 +398,8 @@ function c2fMergedFingerprint(VPm,VCm,Dm,tf,mk){ const h=require('crypto').creat
      changed (same 30 codes, same act / route / kind). Proven causal: old catalogue content in the new order reproduces this value, new
      content in the old order reproduces the 99dd595 value f7cf6c8b1ce333d1ed182627a31cf74894d2d96065ae8037b6fb5a9fbb5edb6d. Evidence:
      Deliverables/VERO-Phase2/UNO-V2-CMS-Baseline-Reconciliation-2026-10-13.md */
-  chk('CX.F14 executeFrame output on merged (stored, provenance-carrying) frames byte-identical to the 99dd595 behaviour on catalogue 1164f6be over '+C2F_PAIRS.length+' chains (sha256 '+fp.slice(0,12)+'…)', fp==='11762920a4135572d0f2fbca093916016f12f62961887e64d7daf78aa78d2f99', fp); }
+  /* re-baseline 6672902d (2026-10-15, NA-11): causal audit on d87c6e99 vs 6672902d trees with identical code -- every differing item is explained by the catalogue (15 added SKUs, 55988B re-enabled, rewritten 75177 / power-bank text, catalogue-size counters); 0 route / act changes outside those items; was 11762920…2f99 on 1164f6be */
+  chk('CX.F14 executeFrame output on merged (stored, provenance-carrying) frames byte-identical to the 99dd595 behaviour on catalogue 6672902d over '+C2F_PAIRS.length+' chains (sha256 '+fp.slice(0,12)+'…)', fp==='6eb68da1380ebac10108198db0833aa9ffb1ec1180d9093c907d355adfb4aadd', fp); }
 
 /* ================= CX.MUT mutation kills ================= */
 { const mutant=(from,to)=>{ const pairs=Array.isArray(from)?from:[[from,to]]; let src=CTX_SRC;

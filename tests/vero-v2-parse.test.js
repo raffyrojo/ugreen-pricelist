@@ -139,7 +139,9 @@ const CORPUS=[]; const keep=P=>{ CORPUS.push(P); return P; };
   chk('M7.3 zero silent span drops over the whole generated corpus ('+CORPUS.length+' questions)', silent===0, CORPUS.filter(x=>x.ledger.silentDrops.length).slice(0,5).map(x=>x.q+' :: '+JSON.stringify(x.ledger.silentDrops)));
   const st=CORPUS.every(x=>x.spans.every(s=>['BOUND','UNCONFIRMABLE','UNRESOLVED','AMBIGUOUS'].includes(s.state)));
   chk('M7.4 every span of the corpus ends in BOUND / UNCONFIRMABLE / UNRESOLVED / AMBIGUOUS', st);
-  const U=run('earphones na may mic'); const um=U.spans.find(s=>s.text==='may mic');
+  /* re-baseline 6672902d (2026-10-15): 85733 / 85941 (HiTune S6 Pro, added 2026-10-14) state a built-in mic, so "earphones na may mic" is
+     now correctly exact; "rgb" is a bound feature that no earphone confirms on d87c6e99 or 6672902d (none-confirmed on both) */
+  const U=run('earphones na may rgb'); const um=U.spans.find(s=>s.text==='rgb');
   chk('M7.5 UNKNOWN is not FALSE and not IGNORE: an unconfirmable feature is stated (state UNCONFIRMABLE or none-confirmed note)', (um && um.state==='UNCONFIRMABLE') || U.proposal.kind==='none-confirmed', JSON.stringify([um&&um.state,U.proposal.kind,U.proposal.notes])); }
 
 /* ================= M8 false-negative ladder ================= */
@@ -617,7 +619,11 @@ const negViol=(P,T)=>T.constraints.filter(c=>{ const sp=P.spans.find(s=>s.id===c
   const vs=VP.executeFrame({ subject:{ family:'hub_dock' }, constraints:[A('version','version:usb',{ interface:'usb', generation:'3.2g2' },true)] },OPTS);
   const vs2=VP.executeFrame({ subject:{ family:'hub_dock' }, constraints:[A('version','version:usb',{ interface:'usb', generation:'3.2g2x2' },true)] },OPTS);
   chk('C1.E6 a version request lists only items that STATE it as exact (USB 3.2 Gen 2: CONFIRMED); a version no listing states is never a match (Gen 2x2: no exact, no row CONFIRMED; a relaxed closest set is labelled)', (vs.kind!=='exact' || vs.codes.every(c=>vs.evidence[c]['version:usb']==='CONFIRMED')) && vs2.kind!=='exact' && !vs2.codes.some(c=>vs2.evidence[c]['version:usb']==='CONFIRMED'), JSON.stringify([vs.kind,vs.codes.length,vs2.kind,vs2.codes.length]));
-  const fl=[run('tb4'),run('hdmi 2.2'),run('same wattage')].map(P=>P.proposal), fe=VP.executeFrame({ subject:null, constraints:[A('feature','feature:dp_alt',true,true)] },OPTS);
+  /* re-baseline 6672902d: 75177 now states "DP 1.4 Alt Mode" (a confirming product -> exact by the flood-guard design); feature:builtin
+     is confirmed by several listings (18 exact + 7 inferred on 6672902d), but the subject-less merged frame still clarifies: the result
+     kind is "inferred" across many families with no defining constraint, so the flood guard fires (the zero-exact branch stays covered
+     by "tb4" / "hdmi 2.2") */
+  const fl=[run('tb4'),run('hdmi 2.2'),run('same wattage')].map(P=>P.proposal), fe=VP.executeFrame({ subject:null, constraints:[A('feature','feature:builtin',true,true)] },OPTS);
   chk('C1.E7 no subject-less catalogue flood: "tb4" / "hdmi 2.2" / bare "same wattage" / a subject-less merged frame clarify instead of listing unrelated families', fl.every(p=>p.kind==='clarify' && !p.codes.length) && fe.kind==='clarify' && !fe.codes.length, JSON.stringify(fl.map(p=>[p.kind,p.codes.length]).concat([[fe.kind,fe.codes.length]])));
   const lg=run('longest HDMI cable'), noLen=lg.proposal.codes.filter(c=>G(c).lengthM==null), firstNo=lg.proposal.codes.findIndex(c=>G(c).lengthM==null);
   chk('C1.E8 a ranked set keeps rows with no value for the metric AFTER the ranked rows and says so (never silently dropped)', noLen.length>0 && lg.proposal.codes.slice(firstNo).every(c=>G(c).lengthM==null) && lg.proposal.unrankedTail===noLen.length, JSON.stringify([noLen.length,firstNo,lg.proposal.codes.length]));
@@ -787,7 +793,8 @@ function c2fExecFingerprint(VPm,opts){ const h=require('crypto').createHash('sha
      only the ORDER of the tied codes of "ssd enclosure" (same 30 codes) and "m.2 nvme enclosure 10gbps" (same 6 codes); old content in
      the new order reproduces this value, new content in the old order reproduces the 99dd595 value
      dae251312a9b384eea7f6ef8498c282bd17b45f644a645464ebfcedfd1d4a053 (report UNO-V2-CMS-Baseline-Reconciliation-2026-10-13.md) */
-  chk('C2F.X2 executeFrame output byte-identical to the 99dd595 behaviour on catalogue 1164f6be over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='0f0bea9e1994ca85aa3f1d69b065a216c4572658851f9ca302e060a021ecb877', fp);
+  /* re-baseline 6672902d (2026-10-15, NA-11): causal audit on d87c6e99 vs 6672902d trees with identical code -- every differing item is explained by the catalogue (15 added SKUs, 55988B re-enabled, rewritten 75177 / power-bank text, catalogue-size counters); 0 route / act changes outside those items; was 0f0bea9e…b877 on 1164f6be */
+  chk('C2F.X2 executeFrame output byte-identical to the 99dd595 behaviour on catalogue 6672902d over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='07fb267d878a2bc63096133c4424505725a7c11ea43a13865a3af94d1a7fd31b', fp);
   /* X3 G3 same-span binding survives the discourse store (source span -> provenance { turn, span }); never across turns */
   const fr=TF('hub with 2 usb-c gen 1'), hubs=famCodes('hub_dock');
   const asStored=(f,turnOf)=>Object.assign({},f,{ constraints:f.constraints.map(c=>{ const x=JSON.parse(JSON.stringify(c)); delete x.source; x.provenance={ turn:turnOf(c), span:c.source&&c.source.span, act:'SELECT' }; return x; }) });

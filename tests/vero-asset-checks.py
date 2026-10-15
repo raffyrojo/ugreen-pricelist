@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '736b9a65'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '6672902d'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,10 +27,13 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # CMS-POST-PUBLISH-STATE-FIX (baseline 736b9a65 = live, owner-approved 2026-10-15): admin / publish code only, NO data.
-                 # NA-22: one-time removal of 35605B / 45089 / 35856 from stale ugreen_deleted + a confirmed publish clears exactly the
-                 # published removals / drafts; NA-21: no false "Unsaved changes" after a confirmed publish.
-                 'js/admin.js', 'js/github-save.js', 'index.html', 'tests/cms-post-publish-state.test.js'}
+                 # R1-CATALOGUE-REBASELINE (baseline 6672902d = live, owner-adopted as candidate 2026-10-15): tests and oracle only, NO runtime / data.
+                 # NA-11: the P2-M1 power oracle + label lock rebuilt on the 6672902d catalogue; catalogue-bound pins re-pinned after a
+                 # causal audit (old vs new catalogue, identical code).
+                 'tests/vero-evidence-power-oracle.json', 'tests/vero-evidence-power-oracle.labels.tsv', 'tests/vero-evidence.test.js',
+                 'tests/vero-v2-context.test.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js', 'tests/vero-p2r21.test.js',
+                 # dev gold HO1:SQ2-1 / HO1:SQ5-1 / HO3:T03 / HO3:T04 extended by the SKUs added in 6842ade (35604B, 45153, 45089, 35856)
+                 'tests/vero-v2-devsets.json'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
