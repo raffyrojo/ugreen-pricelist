@@ -249,8 +249,43 @@ function savePendingImg(key, dataUrl){
   }
 }
 function clearPendingImgs(){ try { localStorage.removeItem(PENDING_IMGS_KEY); } catch(e){} }
+/* NA-22 one-time clean-up (CMS-POST-PUBLISH-STATE-FIX, 2026-10-15): 35605B / 45089 / 35856 were
+   restored in Git (736b9a65) but stayed in stale ugreen_deleted lists that a successful publish
+   never cleared, so applyPendingOverlay kept hiding them. Removes ONLY these three codes, keeps
+   every other entry in order, and runs once per browser (marker) so a later deliberate removal
+   is respected. A malformed list is left untouched and the marker is not set (retried next load). */
+var NA22_MIGR_KEY = 'ugreen_migr_na22_v1';
+var NA22_STALE_CODES = ['35605B', '45089', '35856'];
+function migrateStaleDeletionsNA22(){
+  try {
+    if (localStorage.getItem(NA22_MIGR_KEY)) return 0;
+    var raw = localStorage.getItem('ugreen_deleted');
+    var list = [];
+    if (raw) {
+      try { list = JSON.parse(raw); } catch(e){ list = null; }
+      if (!Array.isArray(list)) { _logErr('migrateStaleDeletionsNA22', 'ugreen_deleted is not a list; left unchanged'); return 0; }
+    }
+    var kept = list.filter(function(ic){ return NA22_STALE_CODES.indexOf(String(ic)) < 0; });
+    var removed = list.length - kept.length;
+    if (removed) localStorage.setItem('ugreen_deleted', JSON.stringify(kept));
+    localStorage.setItem(NA22_MIGR_KEY, String(Date.now()));
+    return removed;
+  } catch(e){ _logErr('migrateStaleDeletionsNA22', e); return 0; }
+}
+/* NA-26: a Version-History snapshot taken BEFORE the NA-22 clean-up ran may still carry the three
+   stale codes; drop them on restore. Snapshots taken after it (marker time) are restored verbatim,
+   so a later deliberate removal is kept. Before the clean-up has run, the next load handles it. */
+function na22FilterSnapshotDeletions(ids, snapTs){
+  try {
+    var ran = Number(localStorage.getItem(NA22_MIGR_KEY));
+    if (!Array.isArray(ids) || !ran) return ids;
+    if (Number(snapTs) >= ran) return ids;
+    return ids.filter(function(ic){ return NA22_STALE_CODES.indexOf(String(ic)) < 0; });
+  } catch(e){ _logErr('na22FilterSnapshotDeletions', e); return ids; }
+}
 function applyPendingOverlay(){
   var applied = 0;
+  migrateStaleDeletionsNA22();
   try {
     var imgs = loadPendingImgs();
     for (var k in imgs) { if (window.IMAGES && !window.IMAGES[k]) window.IMAGES[k] = imgs[k]; }
@@ -1826,7 +1861,7 @@ function restoreVersionSnapshot(idx) {
     'This replaces your current custom edits and deletions with the saved state.'
   )) return;
   saveNewSkus(entry.customSkus);
-  localStorage.setItem('ugreen_deleted', JSON.stringify(entry.deletedIds));
+  localStorage.setItem('ugreen_deleted', JSON.stringify(na22FilterSnapshotDeletions(entry.deletedIds, entry.timestamp)));
   showToast('Restored to ' + entry.version + ' — reloading…');
   setTimeout(function(){ location.reload(); }, 1400);
 }
@@ -1965,7 +2000,7 @@ function markUnsaved(){HAS_UNSAVED_CHANGES=true;updateSaveIndicator(false);highl
 function updateSaveIndicator(isSaved){
   var el=document.getElementById('save-indicator');if(!el)return;
   clearTimeout(el._t);
-  if(isSaved){el.textContent='\u2713 Exported';el.className='save-indicator saved';
+  if(isSaved){el.textContent=(isSaved==='published'?'\u2713 Published':'\u2713 Exported');el.className='save-indicator saved';
     el._t=setTimeout(function(){el.style.opacity='0';setTimeout(function(){el.className='save-indicator';el.textContent='';el.style.opacity='';},400);},2000);
   }else{el.textContent='\u25cf Unsaved changes';el.className='save-indicator unsaved';el.style.opacity='1';}
 }

@@ -62,7 +62,71 @@ function _buildSavePayload(){
     var _days = (typeof pcIndicatorDays==='function') ? pcIndicatorDays() : 30;
     newImages['data/price-settings.json'] = 'data:application/json;base64,' + _b64utf8(JSON.stringify({ indicatorDays: _days }, null, 2));
   } catch(e){}
-  return { products: products, newImages: newImages, rewrites: rewrites };
+  return { products: products, newImages: newImages, rewrites: rewrites, pending: _pendingSnapshot() };
+}
+
+/* Local pending state carried by this payload (CMS-POST-PUBLISH-STATE-FIX, 2026-10-15). Only these
+   entries are cleared once the publish is confirmed, so removals / edits made while the request is
+   in flight survive. deleted = null when ugreen_deleted is unreadable (then it is never touched). */
+function _pendingSnapshot(){
+  var del = null, drafts = [];
+  try { del = JSON.parse(localStorage.getItem('ugreen_deleted') || '[]'); } catch(e){ del = null; }
+  if (!Array.isArray(del)) del = null;
+  try { drafts = (typeof loadNewSkus === 'function') ? loadNewSkus() : []; } catch(e){ drafts = []; }
+  if (!Array.isArray(drafts)) drafts = [];
+  return { deleted: del, drafts: drafts.map(function(d){ return JSON.stringify(d); }) };
+}
+
+/* Runs ONLY after the commit is confirmed (HTTP 200 + ok, or a 5xx / timeout whose GitHub read-back
+   matched count AND hash). Adopts image rewrites, clears exactly the published removals (NA-22) and
+   unchanged drafts, and sets the indicator from what is still pending (NA-21). Failures never call it. */
+function _adoptPublished(built, sentHash){
+  built.rewrites.forEach(function(rw){
+    var p = ALL_PRODUCTS.find(function(x){ return String(x.item_code) === String(rw.code); });
+    if (p) p.image = rw.path;
+    if (window.IMAGES) delete window.IMAGES[rw.key];
+  });
+  if (typeof removeDownloadHighlight === 'function') removeDownloadHighlight();
+  try{ if (typeof PROMO_CONFIG !== 'undefined' && PROMO_CONFIG && PROMO_CONFIG._pendingImagePath){ PROMO_CONFIG.imageData = PROMO_CONFIG._pendingImagePath; delete PROMO_CONFIG._pendingImagePath; } }catch(e){}
+  var snap = built.pending || {}, sent = {};
+  built.products.forEach(function(p){ sent[String(p.item_code)] = true; });
+  // Removals: drop each snapshot entry whose code is absent from what was published.
+  if (Array.isArray(snap.deleted)) {
+    var inSnap = {}, cleared = {};
+    snap.deleted.forEach(function(ic){ inSnap[String(ic)] = true; });
+    try {
+      var cur = JSON.parse(localStorage.getItem('ugreen_deleted') || '[]');
+      if (Array.isArray(cur)) {
+        var keep = cur.filter(function(ic){ var k = String(ic); if (inSnap[k] && !sent[k]) { cleared[k] = true; return false; } return true; });
+        if (keep.length !== cur.length) localStorage.setItem('ugreen_deleted', JSON.stringify(keep));
+      }
+    } catch(e){}
+    try { if (typeof DELETED_PRODUCTS !== 'undefined') for (var i = DELETED_PRODUCTS.length - 1; i >= 0; i--) { if (cleared[String(DELETED_PRODUCTS[i].item_code)]) DELETED_PRODUCTS.splice(i, 1); } } catch(e){}
+  }
+  // Drafts (ugreen_new_skus): drop only entries unchanged since the snapshot.
+  try {
+    if (typeof loadNewSkus === 'function' && typeof saveNewSkus === 'function') {
+      var inDr = {};
+      (snap.drafts || []).forEach(function(s){ inDr[s] = true; });
+      var curDr = loadNewSkus();
+      var keepDr = curDr.filter(function(d){ return !inDr[JSON.stringify(d)]; });
+      if (keepDr.length !== curDr.length) saveNewSkus(keepDr);
+    }
+  } catch(e){}
+  // Pending-image store is now committed (or orphaned) — clear it.
+  try { if (typeof clearPendingImgs === 'function') clearPendingImgs(); } catch(e){}
+  // New baseline = exactly what we just published (feeds the next drift check).
+  try { window._UG_BASELINE = { count: built.products.length, hash: sentHash, ts: Date.now() }; } catch(e){}
+  try{localStorage.setItem('ugreen_last_publish',String(Date.now()));}catch(e){}
+  var left = 0;
+  try { var d = JSON.parse(localStorage.getItem('ugreen_deleted') || '[]'); if (Array.isArray(d)) left += d.length; } catch(e){}
+  try { if (typeof loadNewSkus === 'function') left += loadNewSkus().length; } catch(e){}
+  if (typeof updateSaveIndicator === 'function') {
+    try {
+      if (left) { window.HAS_UNSAVED_CHANGES = true; updateSaveIndicator(false); }
+      else { window.HAS_UNSAVED_CHANGES = false; updateSaveIndicator('published'); }
+    } catch(e){}
+  }
 }
 
 
@@ -100,7 +164,7 @@ function _checkRemoteDrift(){
   });
 }
 
-function _verifyPublished(sentCount, sentHash){
+function _verifyPublished(sentCount, sentHash, onConfirmed){
   setTimeout(function(){
     var url=_rawProductsUrl(); if(!url) return;
     fetch(url,{cache:'no-store'})
@@ -109,6 +173,8 @@ function _verifyPublished(sentCount, sentHash){
         if(!Array.isArray(j)){ showToast('\u26A0 Could not verify the publish \u2014 check GitHub before making further edits.'); return; }
         if(j.length===sentCount && (!sentHash || _ugHash(JSON.stringify(j))===sentHash)){
           showToast('Verified on GitHub \u2713 ('+sentCount+' products). Live site follows in ~1\u20132 min.');
+          // 5xx / timeout path: the commit did land -> adopt it (strict: requires the hash match too).
+          if(onConfirmed && sentHash){ try{ onConfirmed(); }catch(e){} }
         } else {
           showToast('\u26A0 GitHub shows '+j.length+' products but '+sentCount+' were sent. If this persists after a minute, re-publish (your data is still in this browser).');
         }
@@ -206,27 +272,11 @@ function _doPublish(endpoint, cfg, pw, built){
   .then(function(res){
     hideLoading();
     if (res.status === 200 && res.body && res.body.ok) {
-      // Success — adopt the image path rewrites into the live data and drop the
-      // now-committed base64 blobs from memory.
-      built.rewrites.forEach(function(rw){
-        var p = ALL_PRODUCTS.find(function(x){ return String(x.item_code) === String(rw.code); });
-        if (p) p.image = rw.path;
-        if (window.IMAGES) delete window.IMAGES[rw.key];
-      });
-      if (typeof removeDownloadHighlight === 'function') removeDownloadHighlight();
-      try{ if (typeof PROMO_CONFIG !== 'undefined' && PROMO_CONFIG && PROMO_CONFIG._pendingImagePath){ PROMO_CONFIG.imageData = PROMO_CONFIG._pendingImagePath; delete PROMO_CONFIG._pendingImagePath; } }catch(e){}
-      if (typeof updateSaveIndicator === 'function') { try { window.HAS_UNSAVED_CHANGES = false; updateSaveIndicator(); } catch(e){} }
-      // Published: these edits are now committed to products.json, so the local
-      // "pending edits" overlay (ugreen_new_skus) is redundant. Clear it so the
-      // dashboard "Pending Changes" KPI resets to 0 after a successful publish.
-      try { if (typeof saveNewSkus === 'function') saveNewSkus([]); else localStorage.setItem('ugreen_new_skus','[]'); } catch(e){}
-      // Pending-image store is now committed (or orphaned) — clear it.
-      try { if (typeof clearPendingImgs === 'function') clearPendingImgs(); } catch(e){}
-      // New baseline = exactly what we just published (feeds the next drift check).
-      try { window._UG_BASELINE = { count: built.products.length, hash: sentHash, ts: Date.now() }; } catch(e){}
+      // Success — adopt the commit: image rewrites, clear the published local
+      // drafts / removals, reset the indicator (see _adoptPublished).
+      _adoptPublished(built, sentHash);
       var short = res.body.commit ? String(res.body.commit).slice(0,7) : '';
       showToast('Published ✓ ' + (short ? '('+short+') ' : '') + 'Verifying on GitHub…');
-      try{localStorage.setItem('ugreen_last_publish',String(Date.now()));}catch(e){}
       _verifyPublished(built.products.length, sentHash);
     } else if (res.status === 401) {
       showToast('Wrong save password — nothing was published.');
@@ -236,7 +286,7 @@ function _doPublish(endpoint, cfg, pw, built){
       showToast('Publish failed: payload too large. Remove or re-add fewer new images, then publish again.');
     } else if (res.status >= 500) {
       showToast('Backend error (HTTP ' + res.status + '). The commit may NOT have landed — verifying…');
-      _verifyPublished(built.products.length, sentHash);
+      _verifyPublished(built.products.length, sentHash, function(){ _adoptPublished(built, sentHash); });
     } else {
       var msg = (res.body && res.body.error) ? res.body.error : ('HTTP ' + res.status);
       showToast('Publish failed: ' + msg + ' (your edits are safe — not lost).');
@@ -246,7 +296,7 @@ function _doPublish(endpoint, cfg, pw, built){
     hideLoading();
     if (err && err.name === 'AbortError') {
       showToast('Publish timed out after 2 minutes. The commit may still have landed — verifying on GitHub…');
-      _verifyPublished(built.products.length, sentHash);
+      _verifyPublished(built.products.length, sentHash, function(){ _adoptPublished(built, sentHash); });
     } else {
       showToast('Network error — could not reach the backend. Your edits are safe. (' + (err.message||err) + ')');
     }

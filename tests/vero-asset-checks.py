@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '398ffac5'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '736b9a65'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,17 +27,17 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # ACCIDENTAL-3-SKU-RESTORE (baseline 398ffac5 = live, owner-approved 2026-10-14): DATA ONLY. An accidental CMS Publish
-                 # (398ffac5) removed 35605B / 45089 / 35856; they are re-inserted unchanged from f5e12baf at their original positions.
-                 # G11 gains an opt-in APPROVED_ADDITIONS check (each added record must equal APPROVED_ADDITIONS_REF's record).
-                 'data/products.json'}
+                 # CMS-POST-PUBLISH-STATE-FIX (baseline 736b9a65 = live, owner-approved 2026-10-15): admin / publish code only, NO data.
+                 # NA-22: one-time removal of 35605B / 45089 / 35856 from stale ugreen_deleted + a confirmed publish clears exactly the
+                 # published removals / drafts; NA-21: no false "Unsaved changes" after a confirmed publish.
+                 'js/admin.js', 'js/github-save.js', 'index.html', 'tests/cms-post-publish-state.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
 APPROVED_DATA = {}
 # Approved product ADDITIONS (item codes) for this release; each added record must be byte-identical (JSON) to the record with
 # the same item_code at APPROVED_ADDITIONS_REF, and every pre-existing product must keep its position and values. Empty = none.
-APPROVED_ADDITIONS = {'35605B', '45089', '35856'}
+APPROVED_ADDITIONS = set()
 APPROVED_ADDITIONS_REF = 'f5e12baf2d8479b2aaf8f2c230556a80636128f6'
 # ======================================================================================================
 
