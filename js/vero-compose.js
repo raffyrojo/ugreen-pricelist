@@ -233,7 +233,17 @@
     }
     /* catalog lists: exist / count / list / rank, and the local part of AI / WEB routes */
     var codes2=(rt==='AI_CATALOG'||rt==='WEB')?(plan.route.candidates.length?plan.route.candidates:R.codes):R.codes;
-    if((I==='lookup'||I==='exist'||I==='compat'||I==='recommend') && plan.subject.length){
+    /* NEW-P2R3A-STOCK-1: an existence question whose subject (a product line / model) a WATTAGE named with it narrowed
+       ("may stock ba ng robot gan 65w?") answers with the executor's narrowed set on the catalogue-list path below, exactly
+       like the same question without stock / existence wording. A spec that removed nothing, and one that removed everything,
+       keep the subject answer: a name anchor only partly identifies a line, so a zero result here is never turned into a
+       "wala" (single-SKU feature questions therefore never change either). Other qualifiers (length, mAh, colour) are out of
+       this fix's scope. Fix round 1: a stock-count question ("ilan ang stock ng robot gan 65w?") is planned as a stock
+       lookup (vero-plan "inventory: count → listed") and follows the same rule. */
+    var subjNarrowed=(I==='exist' || (I==='lookup' && plan.flags.stock)) && plan.subject.length && R.executor==='subject' && R.codes.length>0 &&
+      plan.filters.some(function(f){ return f.attr==='watts'; }) &&
+      (R.codes.length!==plan.subject.length || R.codes.some(function(x){ return plan.subject.indexOf(x)<0; }));
+    if((I==='lookup'||I==='exist'||I==='compat'||I==='recommend') && plan.subject.length && !subjNarrowed){
       codes2=plan.subject.slice(); res.type=codes2.length===1?'lookup':'list'; res.codes=codes2;
       if(plan.flags.stock && (I==='exist'||I==='lookup')){ var ra0=plan.anchors.filter(function(a){ return a.codes.length; }), p0=byCode[codes2[0]];
         var one0=ra0.length===1 && (ra0[0].via==='model'||ra0[0].via==='name') && oneModel(codes2,byCode);
@@ -278,7 +288,7 @@
       res.rank={ by:S.by, dir:S.dir, n:plan.limit };
       return done();
     }
-    if(plan.flags.stock && (I==='exist'||I==='count'||I==='list')) res.note=T(lang,'invListedList',{ label:label(plan,true) }).replace(/:$/,tail?tail+':':':');
+    if(plan.flags.stock && (I==='exist'||I==='count'||I==='list'||subjNarrowed)) res.note=T(lang,'invListedList',{ label:label(plan,true) }).replace(/:$/,tail?tail+':':':');
     else if(I==='count') res.note=T(lang,'count',{ n:codes2.length, label:lab, tail:tail });
     else if(I==='exist') res.note=T(lang,'existYes',{ n:codes2.length, label:lab, tail:tail });
     else res.note=T(lang,'list',{ n:codes2.length, label:lab, tail:tail });

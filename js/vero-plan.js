@@ -172,8 +172,8 @@
   /* a word that can identify products by NAME: not explained by the lexicon, not generic, not a spec, rare enough in names */
   function nameWord(w,c,ni){ return !!(ni.df[w] && ni.df[w]<=40 && /[a-z]/.test(w) && (w.length>=4 || (/\d/.test(w) && w.length>=3) || (w.length===3 && ni.df[w]<=5)) && !c.vocab[w] && !c.nameGeneric[w] && !SPEC_TOKEN.test(w)); }
   /* longest contiguous query window that appears contiguously in product names and holds >= 1 name word */
-  function findNames(t,c,ni,trace){
-    var q=[], out=[], used={};
+  function findNames(t,c,ni,trace,specToks){
+    var q=[], out=[], used={}; specToks=specToks||{};
     nameToks(t).forEach(function(w){ if(/-/.test(w) && !ni.df[w]) w.split('-').forEach(function(x){ if(x) q.push(x); }); else q.push(w); });   /* "open-ear" → open ear */
     /* join split brand words ("fit buds" -> fitbuds, "max 5s" -> max5s) */
     for(var i=0;i+1<q.length;i++){ var j=q[i]+q[i+1]; if(ni.df[j] && !ni.df[q[i]+' '] && nameWord(j,c,ni) && !(nameWord(q[i],c,ni)&&nameWord(q[i+1],c,ni))){ q.splice(i,2,j); } }
@@ -184,6 +184,7 @@
         if(hi-lo+1<= (best?best.hi-best.lo+1:0)) continue;
         var win=q.slice(lo,hi+1); if(win.some(function(w,ix){ return used[lo+ix]; })) continue;
         if(win.length>1 && win.indexOf('to')>=0) continue;   /* "X to Y" is a direction; names write it both ways ("M.2 to PCI-E" / "PCIe … to M.2"), so "to" never glues a name phrase */
+        if(win.length>1 && (specToks[win[0]] || specToks[win[win.length-1]])) continue;   /* NEW-P2R3A-STOCK-1: a wattage already parsed as a filter ("65w") never extends a name phrase at its edge — the filter applies it, independent of word order */
         if(win.some(function(w){ return !ni.df[w]; })) continue;
         var codes=[]; (ni.post[win[0]]||[]).forEach(function(pp){ var tk=ni.toks[pp[0]]; for(var k=1;k<win.length;k++){ if(tk[pp[1]+k]!==win[k]) return; } if(codes.indexOf(pp[0])<0) codes.push(pp[0]); });
         if(codes.length){ /* edge words that are only vocabulary add nothing: keep them only when they narrow the match */ best={ lo:lo, hi:hi, codes:codes, text:win.join(' ') }; }
@@ -639,7 +640,8 @@
     /* fix-pack 2 #1: product-name anchors. With a product TYPE in the question the name is a filter inside that type;
        without one, a narrow name (<= 8 SKUs) is an anchor like a SKU/model, a broad one ("hitune") is a filter. */
     var tNm=X.t; X.devices.named.forEach(function(d){ tNm=tNm.replace(new RegExp('(^|[^a-z0-9])'+esc(d.label)+'(?=$|[^a-z0-9])','g'),'$1 '); });   /* a named device ("macbook air m4") is never a product name */
-    var NI=nameIndex(products,idx.key), names=findNames(tNm,c,NI,trace), typeWord=!!resolveType({ t:X.t, ports:[] },c,[]) || X.connectors.length>0 || /\b(cables?|adapters?|adaptors?|converters?|hubs?|docks?|chargers?|splitters?|switch(?:es|er)?|extenders?|enclosures?|readers?)\b/.test(X.t);
+    var specToks={}; X.filters.forEach(function(f){ if(f.attr==='watts') nameToks(String(f.raw||'')).forEach(function(w){ specToks[w]=1; }); });
+    var NI=nameIndex(products,idx.key), names=findNames(tNm,c,NI,trace,specToks), typeWord=!!resolveType({ t:X.t, ports:[] },c,[]) || X.connectors.length>0 || /\b(cables?|adapters?|adaptors?|converters?|hubs?|docks?|chargers?|splitters?|switch(?:es|er)?|extenders?|enclosures?|readers?)\b/.test(X.t);
     names=names.filter(function(n){ return !plan.anchors.some(function(a){ return a.codes.length && n.codes.every(function(x){ return a.codes.indexOf(x)>=0; }); }); });
     names.forEach(function(n){
       var words=n.text.split(' ');
