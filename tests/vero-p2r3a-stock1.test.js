@@ -81,16 +81,18 @@ chk('G2 30W and 65W never mixed in any answer above', [A,B,C,D,Fq].concat(D3,G).
 /* H no wattage: the existing broad line answer is preserved (all line SKUs, same "listed" sentence) */
 const H=one('may stock ba ng robot gan?'), H2=one('is there stock of robot gan?');
 const lineSubject=H.r.plan.subject;
-chk('H "may stock ba ng robot gan?" → the whole line (subject verbatim, both wattages), "Naka-lista ang …" sentence, stock caveat',
-  lineSubject.length===W65.length+W30.length && sameSet(H.r.codes,lineSubject) && /^Naka-lista ang /.test(H.r.note) && stockOk(H), txt(H));
+const LINE_EQ=PUB.filter(p=>/\brobot\s+gan\b/i.test(String(p.product_name).replace(/gantech/ig,'GaN Tech').replace(/\s+/g,' '))).map(p=>String(p.item_code));   /* NEW-P2R3A-STOCK-2 (O7): the line as the engine matches it (GaNTech ≡ GaN Tech) */
+chk('H "may stock ba ng robot gan?" → the whole line (subject verbatim, every wattage incl. "GaNTech"), "Naka-lista ang …" sentence, stock caveat',
+  sameSet(lineSubject,LINE_EQ) && LINE_EQ.length>W65.length+W30.length && sameSet(H.r.codes,lineSubject) && /^Naka-lista ang /.test(H.r.note) && stockOk(H), txt(H)+' | line '+LINE_EQ.join(','));
 chk('H2 English no-wattage line stock question keeps the subject answer', sameSet(H2.r.codes,lineSubject) && / is listed in the current pricelist\.$/.test(H2.r.note) && stockOk(H2), txt(H2));
 /* I no-inventory safety on every stock query in this file */
 const STOCKQ=[B,D,E1,H,H2].concat(G,[D3[3],D3[4]]);   /* J* stock-count answers are checked in J2 */
 chk('I every stock question keeps the no-live-inventory caveat and never states a quantity / stock state', STOCKQ.every(stockOk), STOCKQ.filter(x=>!stockOk(x)).map(x=>txt(x)+' | '+x.r.stockNote).join(' || '));
 /* controls: what the fix must NOT change */
-const Z=[one('may stock ba ng robot gan 100w?'),one('may robot gan 20w ba?')];
-chk('Z1 a spec that removes every line SKU never becomes a "wala" (name anchors only partly identify a line; baseline subject answer kept)',
-  Z.every(x=>!FALSE_WALA.test(x.r.note) && sameSet(x.r.codes,lineSubject)), Z.map(txt).join(' || '));
+const Z=[one('may stock ba ng robot gan 100w?'),one('may robot gan 20w ba?')], W100=LINE_EQ.filter(c=>watts(c)===100);
+chk('Z1 (STOCK-2 contract, O7) a wattage outside the 30W / 65W name members → the exact family member when one exists (100W via "GaNTech"), else labelled alternatives at that wattage — never the whole line as a false yes, never "Meron —" on alternatives',
+  W100.length>=1 && sameSet(Z[0].r.codes,W100) && Z[1].r.codes.length && Z[1].r.codes.every(c=>watts(c)===20 && LINE_EQ.indexOf(c)<0) &&
+  /^Walang naka-listang Robot GaN na 20W\. .*\(hindi Robot GaN\):$/.test(Z[1].r.note) && !/^(?:Meron|Oo|Yes) —/.test(Z[1].r.note) && Z.every(x=>!sameSet(x.r.codes,lineSubject)), Z.map(txt).join(' || '));
 const SK=[one('May PD ba ang X755?')];
 chk('Z2 single-SKU feature question ("May PD ba ang X755?") keeps the subject answer (never a "wala" from unknown evidence)',
   SK.every(x=>x.r.codes.length===1 && !FALSE_WALA.test(x.r.note)), SK.map(txt).join(' || '));
@@ -103,7 +105,7 @@ const JJ=J65.concat([J30]);
 chk('J2 stock-count answers use the "listed" framing (never a leading number that reads as a stock count) + the quantity caveat, no fake quantity',
   JJ.every(x=>/Naka-lista|listed/i.test(x.r.note) && !/^\s*\d/.test(x.r.note) && stockOk(x) && /ilan|how many/i.test(x.r.stockNote)), JJ.map(x=>txt(x)+' | '+x.r.stockNote).join(' || '));
 const JH=one('ilan ang stock ng robot gan?'), JZ=one('ilan ang stock ng robot gan 100w?');
-chk('J3 stock-count without wattage / with a wattage that removes every line SKU keeps the baseline subject answer', sameSet(JH.r.codes,lineSubject) && /^Naka-lista ang /.test(JH.r.note) && sameSet(JZ.r.codes,lineSubject) && !FALSE_WALA.test(JZ.r.note), [JH,JZ].map(txt).join(' || '));
+chk('J3 stock-count without wattage keeps the whole-line answer; with a wattage outside the 30W / 65W name members → the exact family member, "listed" framing, quantity caveat (STOCK-2 contract, O7)', sameSet(JH.r.codes,lineSubject) && /^Naka-lista ang /.test(JH.r.note) && sameSet(JZ.r.codes,W100) && /Naka-lista|listed/.test(JZ.r.note) && !/^\s*\d/.test(JZ.r.note) && stockOk(JZ) && /ilan|how many/i.test(JZ.r.stockNote), [JH,JZ].map(txt).join(' || '));
 /* scope controls (derived): a model whose SKUs differ in length / colour — those qualifiers are NOT part of this fix */
 const MODELS={}; PUB.forEach(p=>{ const m=String(p.model||'').trim(); if(m) (MODELS[m]=MODELS[m]||[]).push(String(p.item_code)); });
 const partial=q=>Object.keys(MODELS).filter(m=>MODELS[m].length>=2).map(m=>one(q.replace('{m}',m))).filter(x=>x.r.plan.intent==='exist' && x.r.plan.subject.length>=2 && x.r.plan.result.executor==='subject' && x.r.plan.result.codes.length>0 && x.r.plan.result.codes.length<x.r.plan.subject.length)[0];
@@ -144,8 +146,8 @@ if(!MUTANT){
       "if(plan.flags.stock) res.stockNote=T(lang,plan.flags.invQty?'stockQty':'stock');",""],
     ['fake inventory quantity introduced','js/vero-compose.js',
       "if(plan.flags.stock) res.stockNote=T(lang,plan.flags.invQty?'stockQty':'stock');","if(plan.flags.stock) res.stockNote=T(lang,plan.flags.invQty?'stockQty':'stock')+' 12 units left.';"],
-    ['zero-result narrowing turned into a "wala" (R.codes.length>0 guard removed)','js/vero-compose.js',
-      "R.executor==='subject' && R.codes.length>0 &&","R.executor==='subject' &&"],
+    ['zero-result family + wattage falls back to the whole line (STOCK-2 resolution disabled; re-targeted by O7)','js/vero-plan.js',
+      "var fw=familyWattage(plan,products,idx,subject,X,c,R,fromSubject); if(fw) return fw;","var fw=null;"],
     ['any qualifier narrows an existence answer (wattage-only guard removed)','js/vero-compose.js',
       "plan.filters.some(function(f){ return f.attr==='watts'; }) &&",""],
     ['length / mAh also narrow an existence answer (guard widened beyond wattage)','js/vero-compose.js',

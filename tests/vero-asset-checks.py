@@ -29,7 +29,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
                  # NEW-P2R3A-STOCK-1 (baseline d6b8bd34 = live): live p2r3a fix — a parsed wattage never extends a product-name phrase at
                  # its edge (word order), and an existence question about a line answers with the wattage-narrowed set. NO data.
-                 'js/vero-plan.js', 'js/vero-compose.js', 'index.html', 'tests/vero-p2r3a-stock1.test.js'}
+                 'js/vero-plan.js', 'js/vero-compose.js', 'index.html', 'tests/vero-p2r3a-stock1.test.js',
+                 # NEW-P2R3A-STOCK-2 (stacked on STOCK-1, same live baseline, owner decisions O1-O8 2026-10-15): family + exact
+                 # wattage → exact (name ∪ explicit description evidence) / labelled alternatives / can't confirm; GaNTech ≡ GaN
+                 # Tech for name matching only; price questions included; STOCK-1 tests H / Z1 / J3 / M12 updated. NO data.
+                 'tests/vero-p2r3a-stock2.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'

@@ -162,12 +162,17 @@
   /* ---------- fix-pack 2 #1: product-NAME / line-name anchors, built from the live products (no SKU lists; new SKUs join automatically) ---------- */
   var NIX={ key:null, idx:null };
   function nameToks(txt){ return normalize(txt).replace(/[()\[\]{}“”"'’,;:|/+&*]/g,' ').split(/[^a-z0-9.-]+/).map(function(w){ return w.replace(/^[.-]+|[.-]+$/g,''); }).filter(Boolean); }
+  /* NEW-P2R3A-STOCK-2: name-matching equivalences for glued name tokens ("Robot GaNTech" ≡ "Robot GaN Tech"). Matching only:
+     product names and the query text are never rewritten; a name holding a glued token is indexed in BOTH forms. */
+  var NAME_ALIAS={ gantech:['gan','tech'] };
   function nameIndex(products,key){
     if(NIX.key===key && NIX.idx) return NIX.idx;
-    var post={}, toks={}, df={};
+    var post={}, toks={}, df={}, alt={};
     products.forEach(function(p){ if(!p) return; var code=String(p.item_code), tk=nameToks(p.product_name); toks[code]=tk;
-      var seen={}; tk.forEach(function(w,i){ (post[w]=post[w]||[]).push([code,i]); if(!seen[w]){ seen[w]=1; df[w]=(df[w]||0)+1; } }); });
-    NIX={ key:key, idx:{ post:post, toks:toks, df:df } }; return NIX.idx;
+      var seen={}; tk.forEach(function(w,i){ (post[w]=post[w]||[]).push([code,i]); if(!seen[w]){ seen[w]=1; df[w]=(df[w]||0)+1; } });
+      if(tk.some(function(w){ return NAME_ALIAS[w]; })){ var ta=[]; tk.forEach(function(w){ if(NAME_ALIAS[w]) ta.push.apply(ta,NAME_ALIAS[w]); else ta.push(w); }); alt[code]=ta;
+        ta.forEach(function(w,i){ (post[w]=post[w]||[]).push([code,i,1]); if(!seen[w]){ seen[w]=1; df[w]=(df[w]||0)+1; } }); } });
+    NIX={ key:key, idx:{ post:post, toks:toks, df:df, alt:alt } }; return NIX.idx;
   }
   /* a word that can identify products by NAME: not explained by the lexicon, not generic, not a spec, rare enough in names */
   function nameWord(w,c,ni){ return !!(ni.df[w] && ni.df[w]<=40 && /[a-z]/.test(w) && (w.length>=4 || (/\d/.test(w) && w.length>=3) || (w.length===3 && ni.df[w]<=5)) && !c.vocab[w] && !c.nameGeneric[w] && !SPEC_TOKEN.test(w)); }
@@ -176,7 +181,7 @@
     var q=[], out=[], used={}; specToks=specToks||{};
     nameToks(t).forEach(function(w){ if(/-/.test(w) && !ni.df[w]) w.split('-').forEach(function(x){ if(x) q.push(x); }); else q.push(w); });   /* "open-ear" → open ear */
     /* join split brand words ("fit buds" -> fitbuds, "max 5s" -> max5s) */
-    for(var i=0;i+1<q.length;i++){ var j=q[i]+q[i+1]; if(ni.df[j] && !ni.df[q[i]+' '] && nameWord(j,c,ni) && !(nameWord(q[i],c,ni)&&nameWord(q[i+1],c,ni))){ q.splice(i,2,j); } }
+    for(var i=0;i+1<q.length;i++){ var j=q[i]+q[i+1]; if(!NAME_ALIAS[j] && ni.df[j] && !ni.df[q[i]+' '] && nameWord(j,c,ni) && !(nameWord(q[i],c,ni)&&nameWord(q[i+1],c,ni))){ q.splice(i,2,j); } }
     for(var a=0;a<q.length;a++){
       if(used[a] || !nameWord(q[a],c,ni)) continue;
       var best=null;
@@ -186,7 +191,7 @@
         if(win.length>1 && win.indexOf('to')>=0) continue;   /* "X to Y" is a direction; names write it both ways ("M.2 to PCI-E" / "PCIe … to M.2"), so "to" never glues a name phrase */
         if(win.length>1 && (specToks[win[0]] || specToks[win[win.length-1]])) continue;   /* NEW-P2R3A-STOCK-1: a wattage already parsed as a filter ("65w") never extends a name phrase at its edge — the filter applies it, independent of word order */
         if(win.some(function(w){ return !ni.df[w]; })) continue;
-        var codes=[]; (ni.post[win[0]]||[]).forEach(function(pp){ var tk=ni.toks[pp[0]]; for(var k=1;k<win.length;k++){ if(tk[pp[1]+k]!==win[k]) return; } if(codes.indexOf(pp[0])<0) codes.push(pp[0]); });
+        var codes=[]; (ni.post[win[0]]||[]).forEach(function(pp){ var tk=pp[2]?ni.alt[pp[0]]:ni.toks[pp[0]]; for(var k=1;k<win.length;k++){ if(tk[pp[1]+k]!==win[k]) return; } if(codes.indexOf(pp[0])<0) codes.push(pp[0]); });
         if(codes.length){ /* edge words that are only vocabulary add nothing: keep them only when they narrow the match */ best={ lo:lo, hi:hi, codes:codes, text:win.join(' ') }; }
       } }
       if(!best) continue;
@@ -1067,6 +1072,9 @@
       var dropped=plan.match.filter(function(m){ return m.soft; }).map(function(m){ return m.v; });
       var sr=execute(sp,products,idx,subject,X,c); if(sr.codes.length){ sr.droppedQualifiers=dropped; return sr; }
     }
+    /* NEW-P2R3A-STOCK-2: a product family + an exact wattage → exact family matches (name + explicit description evidence),
+       labelled alternatives, or "can't confirm" — never the whole family as a false yes, never a title-only "wala" */
+    var fw=familyWattage(plan,products,idx,subject,X,c,R,fromSubject); if(fw) return fw;
     /* laptop use (ordering hint only, architecture §10): power products >= 45W first */
     if(!fromSubject && plan.flags.devices.classes.indexOf('laptop')>=0 && plan.type && (plan.type.family==='charger'||plan.type.family==='power_bank') && !plan.sort){
       var lw=function(x){ var a=idx.byCode[x].attrs.watts.value||0; return (a>=45?1000:0)+a; };
@@ -1089,6 +1097,75 @@
       R.codes=keep; R.top=plan.limit?keep.slice(0,plan.limit):keep.slice(); R.executor='rank';
     }
     return R;
+  }
+  /* ---------- NEW-P2R3A-STOCK-2: product family + exact wattage ---------- */
+  /* Scope (owner decisions O1–O8, 2026-10-15): a family named by a product-NAME phrase (anchor or name-phrase filter), one
+     product type, an exact wattage, asked as exist / list / stock lookup / price. Exact = family members (name, or explicit
+     description evidence) at that wattage; else "can't confirm" when a family member has no listed wattage (or only an
+     unconfirmed description mention exists at that wattage); else same-type alternatives at that wattage, labelled as not the
+     family. Single SKU / model anchors, mixed-type families, ranges and other qualifiers are unchanged. */
+  var PRICE_ATTR={ srp:1, dp:1, dp_volume:1, price:1 }, WATT_TYPES={ charger:1, power_bank:1 };
+  function familyWattage(plan,products,idx,subject,X,c,R,fromSubject){
+    if(plan._famRun || plan._softRun || plan._facetRun || !plan.type || (R.mentioned||[]).length) return null;
+    if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;   /* a device named → compatibility question, unchanged */
+    var I=plan.intent, wf=plan.filters.filter(function(f){ return f.attr==='watts' && f.op==='eq'; })[0];
+    if(!wf || !(I==='exist' || I==='list' || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;
+    var phrase, famCodes, npm=null;
+    if(fromSubject){
+      var an=plan.anchors.filter(function(a){ return a.codes.length; });
+      if(an.length!==1 || an[0].via!=='name' || (plan.refs||[]).length) return null;
+      phrase=an[0].raw; famCodes=subject.slice();
+    } else {
+      npm=plan.match.filter(function(m){ return m.k==='namephrase' && !m.soft; });
+      if(npm.length!==1) return null;
+      phrase=npm[0].v; famCodes=(npm[0].codes||[]).filter(function(x){ var F=idx.byCode[x]; return F && F.type.family===plan.type.family; });
+    }
+    var T=plan.type.family;
+    if(!WATT_TYPES[T]) return null;   /* wattage = the product's own output (not a hub's PD pass-through or a cable rating) */
+    if(famCodes.length<2 || !famCodes.every(function(x){ var F=idx.byCode[x]; return F && F.type.family===T; })) return null;   /* a product line (≥ 2 SKUs, one type); mixed-type family → unchanged */
+    /* a name-phrase FILTER (type word typed) is often a generic name fragment ("7-in-1", "two-way"): it is resolved only when every
+       member has a listed wattage; "can't confirm" is reserved for a product-line anchor */
+    if(!fromSubject && !famCodes.every(function(x){ return idx.byCode[x].attrs.watts.value; })) return null;
+    var W=wf.value, ev=familyEvidence(phrase,T,products,idx,famCodes);
+    var evAt=ev.admit.filter(function(e){ return idx.byCode[e.code].attrs.watts.value===W; });
+    if(R.codes.length && !evAt.length) return null;   /* name members at that wattage already answer it (NEW-P2R3A-STOCK-1 path) */
+    var famAll=famCodes.concat(ev.admit.map(function(e){ return e.code; })), meta={ phrase:phrase, watts:W, members:famAll.slice() };
+    var lw={}; famAll.forEach(function(x){ var v=idx.byCode[x].attrs.watts.value; if(v) lw[v]=1; }); meta.lineWatts=Object.keys(lw).map(Number).sort(function(a,b){ return a-b; });
+    function rerun(match,subj){ var p2={}; for(var k in plan) p2[k]=plan[k]; p2._famRun=true; if(match) p2.match=match; return execute(p2,products,idx,subj,X,c); }
+    /* 1 exact: family members incl. explicit description evidence, every other constraint of the question still applied */
+    if(evAt.length){
+      var ex=fromSubject?rerun(null,uniq(famCodes.concat(evAt.map(function(e){ return e.code; })))):
+        rerun(plan.match.map(function(m){ return m===npm[0]?{ k:'namephrase', v:m.v, codes:uniq((m.codes||[]).concat(evAt.map(function(e){ return e.code; }))), label:m.label, withLabel:m.withLabel }:m; }),subject);
+      if(ex.codes.length){ ex.family=meta; meta.mode='exact'; meta.evidence={}; evAt.forEach(function(e){ if(ex.codes.indexOf(e.code)>=0) meta.evidence[e.code]=e.phrase; }); return ex; }
+    }
+    if(R.codes.length) return null;
+    /* 2 can't confirm: a same-type family member has no listed wattage, or only an unconfirmed description mention exists at W */
+    var unk=famAll.filter(function(x){ return !idx.byCode[x].attrs.watts.value; }).concat(ev.reject.filter(function(e){ return idx.byCode[e.code].attrs.watts.value===W; }).map(function(e){ return e.code; }));
+    if(unk.length){ var ui={ executor:R.executor, codes:uniq(unk), mentioned:[], related:[], unknown:0, evidence:{}, notes:[], caveats:R.caveats.slice() }; meta.mode='insufficient'; ui.family=meta; return ui; }
+    /* 3 alternatives: same type + wattage + the question's other constraints, family members excluded (cap 8) */
+    var alt=fromSubject?rerun(null,[]):rerun(plan.match.filter(function(m){ return m!==npm[0]; }),subject);
+    alt.codes=alt.codes.filter(function(x){ return famAll.indexOf(x)<0; }).slice(0,8);
+    meta.mode=alt.codes.length?'alternatives':'none'; alt.family=meta; return alt;
+  }
+  /* Explicit description evidence (O1 / design §4): the FULL family phrase in a self-reference — followed by an optional series
+     word and the product's OWN wattage, or by the product's OWN type noun — never after comparison / compatibility wording.
+     Never a wattage source; never makes a negative; product names untouched. */
+  var EV_TYPE={ charger:'(?:usb[- ]?c )?(?:fast |wall |desktop |gan )*charger', power_bank:'power ?bank' };
+  var EV_SERIES='(?:(pro|air|mini|max|series) )?', EV_NEG=/(?:compatible with|works with|pair(?:ed)? with|use with|for use with|than|unlike|vs\.?|compared to|instead of)\s*$/;
+  var EVC={ key:null, map:{} };
+  function familyEvidence(phrase,T,products,idx,famCodes){
+    if(EVC.key!==idx.key){ EVC.key=idx.key; EVC.map={}; }
+    var ck=phrase+'|'+T; if(EVC.map[ck]) return EVC.map[ck];
+    var f=phrase.split(' ').map(esc).join(' ?'), tn=EV_TYPE[T], out={ admit:[], reject:[] };
+    var reW=new RegExp('[^a-z0-9](?:ugreen )?('+f+') '+EV_SERIES+'(\\d+)w(?![a-z0-9])','g'), reT=tn?new RegExp('[^a-z0-9](?:ugreen )?('+f+') '+EV_SERIES+'(?:\\d+w )?(?:usb[- ]?c )?'+tn+'(?![a-z0-9])','g'):null, reAny=new RegExp('[^a-z0-9]'+f+'(?![a-z0-9])');
+    products.forEach(function(p){ var code=String(p.item_code), F=idx.byCode[code]; if(!F || F.type.family!==T || famCodes.indexOf(code)>=0) return;
+      var t=' '+(String(p.description||'')+' '+(Array.isArray(p.features)?p.features.join(' '):String(p.features||''))).toLowerCase().replace(/gantech/g,'gan tech').replace(/\s+/g,' ')+' ';
+      if(!reAny.test(t)) return;
+      var w=F.attrs.watts.value, hit=null, m;
+      reW.lastIndex=0; while(!hit && (m=reW.exec(t))){ if(!EV_NEG.test(t.slice(Math.max(0,m.index-30),m.index+1)) && w && +m[3]===w) hit=m[1]+(m[2]?' '+m[2]:'')+' '+m[3]+'w'; }
+      if(reT){ reT.lastIndex=0; while(!hit && (m=reT.exec(t))){ if(!EV_NEG.test(t.slice(Math.max(0,m.index-30),m.index+1))) hit=m[1]+(m[2]?' '+m[2]:''); } }
+      (hit?out.admit:out.reject).push({ code:code, phrase:hit||'' }); });
+    EVC.map[ck]=out; return out;
   }
   /* ---------- p2r3a helpers: standards, attribute values, "same but …" ---------- */
   function standardCheck(F,sd,c){
@@ -1251,6 +1328,8 @@
     else if(subj.length && plan.intent!=='attribute'){ ctx.focus=subj.slice(0,6); }
     else if(subj.length && plan.attrFromContext!=='results'){ ctx.focus=subj.slice(0,6); }
     else if(res.length===1){ ctx.focus=res.slice(); }
+    if(subj.length && res.length && res.length<subj.length && res.every(function(x){ return subj.indexOf(x)>=0; }) && (plan.filters||[]).some(function(f){ return f.attr==='watts'; }) && (plan.intent==='exist' || plan.intent==='lookup' || plan.intent==='list')) ctx.focus=res.slice(0,6);   /* NEW-P2R3A-STOCK-2 fix round 2: a wattage-narrowed line answer ("robot gan 100w" → its one 100W SKU) — follow-ups refer to the codes shown, not the first 6 line SKUs */
+    if(plan.result && plan.result.family) ctx.focus=res.length===1?res.slice():[];   /* NEW-P2R3A-STOCK-2: follow-ups refer to the codes just shown (exact / alternatives), never to the name-matched line */
     if(plan.intent==='alternative' && plan.alternative && plan.alternative.executable){ ctx.focus=subj.slice(0,1); ctx.results=res.slice(0,12); }
     else ctx.results=((plan.intent==='rank')?res:((plan.result&&plan.result.top)||res)).slice(0,12);
     if(plan.attrFromContext==='results') ctx.results=subj.slice(0,12);

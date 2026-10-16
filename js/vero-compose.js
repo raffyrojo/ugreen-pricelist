@@ -207,15 +207,37 @@
       if(base==null){ res.type='clarify'; res.codes=[]; res.note=T(lang,'clarifyAlternative'); return done(); }   /* p2r3a.4 A: never a null base */
       res.type='lookup'; res.codes=[base]; res.note=T(lang,'alternativePending',{ code:base }); return done();
     }
+    /* NEW-P2R3A-STOCK-2: family + wattage results (plan.familyWattage). FM = the family meta; LP = the same plan without the
+       family name phrase (labels, facets); the family name keeps its catalogue casing ("Robot GaN", "Nexode"). */
+    var FM=R.family||null, LP=plan, famName='', reEsc=function(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); };
+    if(FM){ LP={}; for(var kF in plan) LP[kF]=plan[kF];
+      var vars={}; FM.members.forEach(function(x){ var nm=String((byCode[x]||{}).product_name||'').replace(/gantech/ig,function(g){ return g.slice(0,3)+' '+g.slice(3); }); var mm=nm.match(new RegExp('(^|[^A-Za-z0-9])('+FM.phrase.split(' ').map(reEsc).join('\\s?')+')(?![A-Za-z0-9])','i')); if(mm) vars[mm[2]]=(vars[mm[2]]||0)+1; });
+      famName=Object.keys(vars).sort(function(a,b){ return (b.replace(/[^A-Z]/g,'').length-a.replace(/[^A-Z]/g,'').length) || (vars[b]-vars[a]); })[0] || FM.phrase.replace(/\b\w/g,function(x){ return x.toUpperCase(); });
+      LP.match=plan.match.filter(function(m){ return !(m.k==='namephrase' && m.v===FM.phrase); });
+      LP.result=R; }
+    function famNote(n){   /* the approved EN / TL sentences (design review §7a) */
+      var fw=FM.watts+'W', tl=lang==='tl';
+      if(FM.mode==='alternatives') return tl?'Walang naka-listang '+famName+' na '+fw+'. Mga '+label(LP,false)+' na pwedeng alternatibo (hindi '+famName+'):':'No '+famName+' '+fw+' is listed. '+label(LP,true).replace(/^./,function(x){ return x.toUpperCase(); })+' you could offer instead (not '+famName+'):';
+      if(FM.mode==='insufficient') return tl?'Hindi ko makumpirma sa pricelist kung may '+famName+' na '+fw+' — walang naka-listang wattage ang mga ito:':'I can’t confirm a '+fw+' '+famName+' from the pricelist — these have no listed wattage:';
+      if(FM.mode==='exact'){ var nn=nounOf(LP,n!==1);
+        if(plan.flags.stock) return tl?'Naka-lista sa current pricelist ang mga '+famName+' '+fw+' '+nounOf(LP,false)+' na ito:':'These '+famName+' '+fw+' '+nounOf(LP,true)+' are listed in the current pricelist:';
+        if(I==='exist') return tl?'Meron — '+n+' na '+famName+' '+fw+' sa current pricelist:':'Yes — '+n+' '+famName+' '+fw+' '+nn+' in the current pricelist:';
+        return tl?n+' na '+famName+' '+fw+' '+nounOf(LP,false)+':':n+' '+famName+' '+fw+' '+nn+':'; }
+      return null; }
+    function famCards(){ if(FM && FM.mode==='exact') Object.keys(FM.evidence||{}).forEach(function(cd){ if(res.codes.indexOf(cd)<0) return;
+      var ph=FM.evidence[cd].split(' ').map(function(w){ return /^\d+w$/.test(w)?w.toUpperCase():w.charAt(0).toUpperCase()+w.slice(1); }).join(' ').replace(new RegExp('^'+reEsc(FM.phrase),'i'),famName);
+      res.detail[cd]=ph+(lang==='tl'?' — ayon sa product description':' — per product description'); }); }
     if(I==='attribute'){
       var A=plan.attribute, codes=(plan.subject.length?plan.subject:R.codes).slice();
-      if(R.codes && R.codes.length && plan.subject.length) codes=R.codes.slice();
+      if((R.codes && R.codes.length && plan.subject.length) || FM) codes=R.codes.slice();
       var FIELDS={ srp:['srp'], dp:['dp'], dp_volume:['dp_volume'], moq:['moq'], price:['srp','dp','dp_volume'], sku:[] };
       if(FIELDS[A]){ var fl=[]; (plan.attributes&&plan.attributes.length?plan.attributes:[A]).forEach(function(a){ (FIELDS[a]||[]).forEach(function(f){ if(fl.indexOf(f)<0) fl.push(f); }); }); res.fields=fl; res.codes=codes; res.type=codes.length===1?'lookup':'list';
         if(A==='sku' && codes.length===1){ var p0=byCode[codes[0]]; res.note='SKU '+codes[0]+' — '+String(p0&&p0.product_name||'').replace(/\s+/g,' ').trim()+':'; }
         else if(A==='sku') res.note=codes.length+' '+label(plan,true)+(lang==='tl'?' — nasa bawat card ang item code:':' — item codes on each card:');
         else if(codes.length>1 && plan.attrFromContext==='results') res.note=(lang==='tl'?'Heto ang '+A.toUpperCase()+' ng huling results:':A.toUpperCase().replace('DP_VOLUME','DP Vol')+' for your last results:');
         else if(codes.length>1){ var ra2=plan.anchors.filter(function(a){ return a.codes.length; }), m0=oneModel(codes,byCode); res.note=(ra2.length===1&&m0?'Model '+m0+' has '+codes.length+' SKUs:':(ra2.length>=1?codes.length+' SKUs for '+ra2.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':':'')); }
+        if(FM){ if(FM.mode==='none'){ var lb0=label(LP,false); res.type='text'; res.note=T(lang,'existNo',{ a:article(lb0)+' ', label:lb0, tail:'' }).replace('  ',' '); var fc0=facets(LP,idx); if(fc0){ res.note+=' '+T(lang,'facets',{ family:lang==='tl'?fc0.family:fc0.family.replace(/^./,function(x){ return x.toUpperCase(); }), values:fc0.text }); res.chips=fc0.chips; } }
+          else if(FM.mode!=='exact') res.note=famNote(codes.length); famCards(); }
         return done(); }
       if(A==='description'){ var pd=byCode[codes[0]]; res.type='lookup'; res.codes=codes.slice(0,1);
         res.note=codes[0]+' — '+String((pd&&(pd.description||pd.short_desc))||(lang==='tl'?'walang description sa pricelist':'no description in the pricelist')).replace(/\s+/g,' ').trim().slice(0,320); return done(); }
@@ -243,7 +265,7 @@
     var subjNarrowed=(I==='exist' || (I==='lookup' && plan.flags.stock)) && plan.subject.length && R.executor==='subject' && R.codes.length>0 &&
       plan.filters.some(function(f){ return f.attr==='watts'; }) &&
       (R.codes.length!==plan.subject.length || R.codes.some(function(x){ return plan.subject.indexOf(x)<0; }));
-    if((I==='lookup'||I==='exist'||I==='compat'||I==='recommend') && plan.subject.length && !subjNarrowed){
+    if((I==='lookup'||I==='exist'||I==='compat'||I==='recommend') && plan.subject.length && !subjNarrowed && !FM){
       codes2=plan.subject.slice(); res.type=codes2.length===1?'lookup':'list'; res.codes=codes2;
       if(plan.flags.stock && (I==='exist'||I==='lookup')){ var ra0=plan.anchors.filter(function(a){ return a.codes.length; }), p0=byCode[codes2[0]];
         var one0=ra0.length===1 && (ra0[0].via==='model'||ra0[0].via==='name') && oneModel(codes2,byCode);
@@ -257,13 +279,13 @@
       if(rt==='AI_CATALOG'||rt==='WEB'){ res.needsAI=true; res.aiReason='recommendation/compatibility'; }
       return done();
     }
-    var many=codes2.length!==1, lab=label(plan,many), lab1=label(plan,false), tail=evidenceTail(plan,R,lang,codes2,idx);
+    var many=codes2.length!==1, lab=label(LP,many), lab1=label(LP,false), tail=evidenceTail(plan,R,lang,codes2,idx);
     res.detail=detailMap(R);
     if(plan.sort && plan.sort[0] && /^(srp|dp|dp_volume)$/.test(plan.sort[0].by)) res.fields=[plan.sort[0].by];
     else if(plan.filters.some(function(f){ return f.attr==='price'; })) res.fields=[plan.priceField];
     var related=(R.related||[]).filter(function(c){ return codes2.indexOf(c)<0; });
     if(!codes2.length){
-      var fc=facets(plan,idx);
+      var fc=facets(LP,idx);
       res.type=related.length?'list':'text';
       if(plan.catalogTotal) res.note=T(lang,'count',{ n:fmtNum(plan.catalogTotal), label:'products', tail:'' }).replace(/:$/,'.');   /* P0 guard 1: generic catalogue noun → listed total */
       else if(plan.flags.stock) res.note=T(lang,'invNone',{ label:plan.unknownNoun||lab1 });
@@ -293,6 +315,7 @@
     else if(I==='exist') res.note=T(lang,'existYes',{ n:codes2.length, label:lab, tail:tail });
     else res.note=T(lang,'list',{ n:codes2.length, label:lab, tail:tail });
     if(plan.unconfirmed && plan.unconfirmed.length) res.note=res.note.replace(/:$/,'')+' ('+T(lang,'unconfirmed',{ x:plan.unconfirmed.join(', '), label:nounOf(plan,true) })+'):';
+    if(FM){ res.note=famNote(codes2.length)||res.note; famCards(); }
     if(R.droppedQualifiers && R.droppedQualifiers.length) res.note=res.note.replace(/:$/,'')+(lang==='tl'?' (walang product na may “'+R.droppedQualifiers.join(', ')+'” sa pangalan — lahat ng '+nounOf(plan,true)+' ang pinapakita):':' (no product named “'+R.droppedQualifiers.join(', ')+'” — showing all '+nounOf(plan,true)+'):');
     if(related.length) res.note=res.note.replace(/:$/,'.')+' '+T(lang,'magnetic',{ n:related.length, label:nounOf(plan,related.length!==1), them:related.length===1?'this item':'these items' });
     return done();
