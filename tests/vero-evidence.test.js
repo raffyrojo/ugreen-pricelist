@@ -1256,12 +1256,15 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   const QTY=new Set(['RATING','TOTAL','ANY_SINGLE','NAMED_PORT','EACH_MEMBER','CABLE','DEVICE','SIMULTANEOUS','INPUT','PASSTHROUGH','WIRELESS','COMPAT_SOURCE','PROTOCOL','PROTOCOL_OTHER','TYPICAL','RATING+ANY_SINGLE','EACH_MEMBER+SIMULTANEOUS']);
   const OUT=new Set(['YES','NO','UNKNOWN']);
   /* re-baseline 6672902d (2026-10-15, NA-11): the previous baseline (1164f6be, itself re-baselined from 56296068) is kept under rebaselinedFrom.previous */
-  const PREV=ORA.baseline && ORA.baseline.rebaselinedFrom && ORA.baseline.rebaselinedFrom.previous;
-  chk('P2M1.1 oracle schema / milestone / baseline (re-baselined on live main 6672902d after the 2026-10-14 CMS Publishes and data releases; history kept)', ORA.schema==='uno-power-oracle/1' && ORA.milestone==='P2-M1' && ORA.baseline &&
-    ORA.baseline.r1ProvisionalFingerprint==='d72aa8ada2795eb4a1b9261e45c0db677dd3f309a7129894e940aee7cbab440b' && ORA.baseline.liveMain==='6672902d7dd7c5f7f74c4772e20de935dd14ff4c' &&
-    ORA.baseline.rebaselinedFrom && ORA.baseline.rebaselinedFrom.liveMain==='d87c6e99eff4c9da164031bba5b69fcc0a57d9b1' && ORA.baseline.rebaselinedFrom.oracleBlob==='5f5e91a4f65c4275e95f2e0d09c02c15a344b759' &&
+  /* re-baseline 3582714b (2026-10-16, CMS Publish of 16746 / 16748-16752, Screen Protector): binding only — the 6 SKUs are outside the
+     power-family inventory scope, so inventory, oracle rows and the label ledger are unchanged; the 6672902d baseline is kept one level down */
+  const R1=ORA.baseline && ORA.baseline.rebaselinedFrom, B6=R1 && R1.previous, PREV=B6 && B6.rebaselinedFrom && B6.rebaselinedFrom.previous;
+  chk('P2M1.1 oracle schema / milestone / baseline (re-baselined on live main 3582714b after the 2026-10-16 CMS Publish; history kept)', ORA.schema==='uno-power-oracle/1' && ORA.milestone==='P2-M1' && ORA.baseline &&
+    ORA.baseline.r1ProvisionalFingerprint==='d72aa8ada2795eb4a1b9261e45c0db677dd3f309a7129894e940aee7cbab440b' && ORA.baseline.liveMain==='3582714bac3f4fd09f19ae58001646ea87ff12c9' &&
+    !!R1 && R1.liveMain==='6672902d7dd7c5f7f74c4772e20de935dd14ff4c' && R1.catalogueSha256==='bb86570ce249ae328e8b2a97ce9376894c687ac9a5e2b2d0df8a6e07b82f0782' && R1.oracleBlob==='7f65930abb5c770789a0ec6fb0d3e3cb18ba2d7a' &&
+    !!B6 && B6.liveMain==='6672902d7dd7c5f7f74c4772e20de935dd14ff4c' && B6.rebaselinedFrom && B6.rebaselinedFrom.liveMain==='d87c6e99eff4c9da164031bba5b69fcc0a57d9b1' && B6.rebaselinedFrom.oracleBlob==='5f5e91a4f65c4275e95f2e0d09c02c15a344b759' &&
     !!PREV && PREV.liveMain==='1164f6be45f728297a4b8a5ad1a0cb4b94e00f9e' && PREV.rebaselinedFrom && PREV.rebaselinedFrom.liveMain==='56296068b12aa22b2a88396cfa52b3b1a7f4a6d9' &&
-    PREV.rebaselinedFrom.p2m1Fingerprint==='19110698a7b70b198c03a02604e68486ec9ff83230e27f70f78e08a958607dfa' && /fix round 1/.test(ORA.revision||'') && /re-baseline to 6672902d/.test(ORA.revision||''), [ORA.baseline, ORA.revision]);
+    PREV.rebaselinedFrom.p2m1Fingerprint==='19110698a7b70b198c03a02604e68486ec9ff83230e27f70f78e08a958607dfa' && /fix round 1/.test(ORA.revision||'') && /re-baseline to 6672902d/.test(ORA.revision||'') && /re-baseline to 3582714b/.test(ORA.revision||''), [ORA.baseline, ORA.revision]);
   chk('P2M1.2 oracle is bound to this exact catalogue (re-build the inventory after any data/products.json change)', ORA.catalogue && ORA.catalogue.sha256===CAT, [ORA.catalogue && ORA.catalogue.sha256, CAT]);
   /* inventory scope: every published record of the power families, each exactly once; no disabled or unknown item code */
   const famOf=c=>{ const f=RF.byCode && RF.byCode[c]; return f && f.type && f.type.family; };

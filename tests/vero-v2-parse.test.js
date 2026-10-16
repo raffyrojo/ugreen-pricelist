@@ -794,7 +794,10 @@ function c2fExecFingerprint(VPm,opts){ const h=require('crypto').createHash('sha
      the new order reproduces this value, new content in the old order reproduces the 99dd595 value
      dae251312a9b384eea7f6ef8498c282bd17b45f644a645464ebfcedfd1d4a053 (report UNO-V2-CMS-Baseline-Reconciliation-2026-10-13.md) */
   /* re-baseline 6672902d (2026-10-15, NA-11): causal audit on d87c6e99 vs 6672902d trees with identical code -- every differing item is explained by the catalogue (15 added SKUs, 55988B re-enabled, rewritten 75177 / power-bank text, catalogue-size counters); 0 route / act changes outside those items; was 0f0bea9e…b877 on 1164f6be */
-  chk('C2F.X2 executeFrame output byte-identical to the 99dd595 behaviour on catalogue 6672902d over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='07fb267d878a2bc63096133c4424505725a7c11ea43a13865a3af94d1a7fd31b', fp);
+  /* re-baseline 3582714b (2026-10-16, CMS Publish +16746 / 16748-16752): causal audit on 23436231 vs 3582714b trees with identical code -- 3 / 75
+     frames differ, only in catalogue-size counters (+6: "keyboard" flood / ladder 812 -> 818, alsoUnconfirmed of "retractable cable" 804 -> 810
+     and "usb-c to dp alt mode" 809 -> 815); 0 route / kind / code changes; was 07fb267d…d31b on 6672902d */
+  chk('C2F.X2 executeFrame output byte-identical to the 99dd595 behaviour on catalogue 3582714b over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='c62549e027bac7cb72b96728b94412ebaafae74b1dd3dae6693faab02088235a', fp);
   /* X3 G3 same-span binding survives the discourse store (source span -> provenance { turn, span }); never across turns */
   const fr=TF('hub with 2 usb-c gen 1'), hubs=famCodes('hub_dock');
   const asStored=(f,turnOf)=>Object.assign({},f,{ constraints:f.constraints.map(c=>{ const x=JSON.parse(JSON.stringify(c)); delete x.source; x.provenance={ turn:turnOf(c), span:c.source&&c.source.span, act:'SELECT' }; return x; }) });

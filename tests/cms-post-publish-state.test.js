@@ -144,17 +144,18 @@ async function suite(adminSrc, saveSrc, log) {
   T('A6', () => {
     const sb = makeSandbox(adminSrc, saveSrc);
     const other = String(CATALOG[0].item_code);
-    chk('A6 catalogue has 826 products incl. the 3 restored SKUs', CATALOG.length === 826 && STALE.every(c => CATALOG.some(p => String(p.item_code) === c)), CATALOG.length);
+    /* re-baseline 3582714b (2026-10-16): CMS Publish added 16746 / 16748-16752 (826 -> 832; was 826 / 825 at 6672902d) */
+    chk('A6 catalogue has 832 products incl. the 3 restored SKUs', CATALOG.length === 832 && STALE.every(c => CATALOG.some(p => String(p.item_code) === c)), CATALOG.length);
     sb.ALL_PRODUCTS = JSON.parse(JSON.stringify(CATALOG));
     sb._store.set('ugreen_deleted', json(['35605B', '45089', '35856', other]));
     ev(sb, 'applyPendingOverlay()');
     const c = codes(sb);
     chk('A6 after load the 3 SKUs are visible', STALE.every(x => c.includes(x)), STALE.filter(x => !c.includes(x)));
-    chk('A6 the other deletion is still applied (825 shown)', c.length === 825 && !c.includes(other), c.length);
+    chk('A6 the other deletion is still applied (831 shown)', c.length === 831 && !c.includes(other), c.length);
     chk('A6 Removed Products holds only the other code', json(delCodes(sb)) === json([other]), delCodes(sb));
     chk('A6 storage keeps only the other code', sb._store.get('ugreen_deleted') === json([other]));
     sb.ALL_PRODUCTS = JSON.parse(JSON.stringify(CATALOG)); ev(sb, 'DELETED_PRODUCTS.length = 0; applyPendingOverlay()');
-    chk('A6 reload: still 825 and the 3 SKUs visible', codes(sb).length === 825 && STALE.every(x => codes(sb).includes(x)));
+    chk('A6 reload: still 831 and the 3 SKUs visible', codes(sb).length === 831 &&STALE.every(x => codes(sb).includes(x)));
   });
 
   /* ---- R. NA-26 Version-History restore ---- */

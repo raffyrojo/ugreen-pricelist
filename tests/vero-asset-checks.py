@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'd6b8bd34'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '3582714b'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,13 +27,12 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # NEW-P2R3A-STOCK-1 (baseline d6b8bd34 = live): live p2r3a fix — a parsed wattage never extends a product-name phrase at
-                 # its edge (word order), and an existence question about a line answers with the wattage-narrowed set. NO data.
-                 'js/vero-plan.js', 'js/vero-compose.js', 'index.html', 'tests/vero-p2r3a-stock1.test.js',
-                 # NEW-P2R3A-STOCK-2 (stacked on STOCK-1, same live baseline, owner decisions O1-O8 2026-10-15): family + exact
-                 # wattage → exact (name ∪ explicit description evidence) / labelled alternatives / can't confirm; GaNTech ≡ GaN
-                 # Tech for name matching only; price questions included; STOCK-1 tests H / Z1 / J3 / M12 updated. NO data.
-                 'tests/vero-p2r3a-stock2.test.js'}
+                 # R1-CATALOGUE-REBASELINE-2 (baseline 3582714b = live, after the 2026-10-16 CMS Publish of 16746 / 16748-16752):
+                 # tests-only re-pin of catalogue-bound checks after a causal audit (identical code on 23436231 vs 3582714b; every
+                 # difference is explained by the 6 added SKUs). NO runtime, NO data.
+                 'tests/cms-post-publish-state.test.js', 'tests/new-arrival.test.js',
+                 'tests/vero-evidence-power-oracle.json', 'tests/vero-evidence.test.js',
+                 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'

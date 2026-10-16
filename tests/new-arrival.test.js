@@ -260,7 +260,8 @@ const STRIP_25683 = ['previousSRP','priceChangeSRP','srpChangeDate','previousDP'
   chk('data: 25683 has no price-change badge / history keys', p && !pcRecent(p) && !STRIP_25683.some(k => has(p, k)));
   chk('data: 25683 keeps its current prices (1239 / 991 / 929)', p && p.srp === 1239 && p.dp === 991 && p.dp_volume === 929);
   chk('data: 25683 keeps its creation fields (dateAdded 1791964097363, created_at null, isNew true)', p && p.dateAdded === 1791964097363 && has(p, 'created_at') && p.created_at === null && p.isNew === true);
-  chk('data: 826 products, unique item codes', fixed.length === 826 && new Set(fixed.map(x => String(x.item_code))).size === 826);
+  // re-baseline 3582714b (2026-10-16): CMS Publish added 16746 / 16748-16752 (826 -> 832)
+  chk('data: 832 products, unique item codes', fixed.length === 832 && new Set(fixed.map(x => String(x.item_code))).size === 832);
   const naCount = fixed.filter(x => !x.disabled && isNA(x)).length;
   chk('data: 18 New Arrivals after the correction (fixed now 2026-10-14 15:00Z)', naCount === 18, naCount);
   // Exactly the approved 33 keys differ (key presence aware) between the current data and the corrected data.
