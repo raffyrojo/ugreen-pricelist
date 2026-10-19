@@ -9,6 +9,9 @@
        exact) | "can't confirm" (a same-type family member has no listed wattage) | honest "nothing at that wattage"
      - exist / list / stock lookup / price questions (O6); single SKU / model anchors, mixed-type families (Star Rail),
        ranges and non-wattage qualifiers unchanged; stock caveat on every stock answer, never a quantity
+     NEW-P2R3A-STOCK-6A (owner S6-1 … S6-4, 2026-10-16) supersedes three of these scope limits — tested in
+     tests/vero-p2r3a-stock6a.test.js: the alias is two-way (A2 below), count questions and wattage ranges resolve (removed
+     from G), and a single-SKU name resolves when description evidence adds a member (the one-SKU mutant now targets that guard)
    Expectations are DERIVED from data/products.json; synthetic in-memory SKUs (prefix ZZS2-) test the evidence rules, the
    alternatives cap and "can't confirm" without touching the catalogue file.
    Equivalent mutants (documented, not tested): O1 "evidence only with a wattage" is structural (familyWattage returns null
@@ -65,7 +68,8 @@ const A1=['robot gan 100w','100w robot gan','may robot gan 100w ba?','may stock 
 chk('A1 every Robot GaN 100W phrasing → exactly the derived 100W member(s) of the line (the "GaNTech" SKU)', A1.every(x=>same(x.r.codes,L100)), A1.map(txt).join(' || '));
 chk('A1b the stock phrasings keep the "listed" framing + the no-live-inventory caveat, never a quantity', A1.filter(x=>x.r.plan.flags.stock).every(stockOk) && A1.filter(x=>x.r.plan.flags.stock).length>=3, A1.map(x=>txt(x)+' | '+x.r.stockNote).join(' || '));
 const A2=[ask('gantech'),ask('gantech 100w'),ask('robot gantech')];
-chk('A2 the literal glued word still finds the glued product ("gantech", "gantech 100w", "robot gantech")', A2.every(x=>same(x.r.codes,GLUED)), A2.map(txt).join(' || '));
+/* STOCK-6A (S6-2): the typed glued word now also finds names written "GaN Tech" — the glued product must still be in every answer */
+chk('A2 the literal glued word still finds the glued product ("gantech", "gantech 100w", "robot gantech")', A2.every(x=>GLUED.every(c=>x.r.codes.indexOf(c)>=0)), A2.map(txt).join(' || '));
 const pasted=PUB.filter(p=>/\bGaN\s+Tech\b/.test(p.product_name) && W(String(p.item_code)) && fam(String(p.item_code))==='charger').slice(0,6).map(p=>ask(String(p.product_name)));
 chk('A3 pasted product names with "GaN Tech" are never glued into "gantech" (no false "wala"; the pasted SKU is in the answer)', pasted.length>=3 && pasted.every(x=>x.r.codes.length && x.r.codes.some(c=>norm((PUB.find(p=>String(p.item_code)===c)||{}).product_name)===norm(x.q))), pasted.map(txt).join(' || '));
 chk('A4 product names are never rewritten (catalogue objects unchanged after every query)', JSON.stringify(PUB.map(p=>p.product_name))===NAMES_BEFORE);
@@ -131,7 +135,8 @@ chk('E4 price question with name members at that wattage is unchanged (the 65W R
 const G=[ask('robot gan 65w'),ask('may stock ba ng robot gan 65w?'),ask('CD361 30w'),ask('may CD361 30w ba?'),ask('how many star rail 20w in stock?'),ask('May PD ba ang X755?'),ask('may 2m ba ng AV102?'),ask('65W charger'),
   ask('7-in-1 USB-C hub, 4K HDMI, USB-A/USB-C data, SD reader, 100W.'),ask('7-in-1 magnetic USB-C hub, 4K@60Hz HDMI, SD 4.0, 100W PD.'),ask('may gantech 65w ba?'),ask('20,000mAh power bank, 20W two-way USB-C, charges 3 devices.'),ask('*Wireless Charging Output Power: iPhone 25.0W Max, AirPods 5.0W Max'),ask('nexode 65w for macbook'),
   /* fix round 1 (QA pins): device class, ranges, other question types, name members at the wattage in a family that HAS description evidence */
-  ask('may nexode 65w para sa laptop?'),ask('may nexode 65w pataas ba?'),ask('nexode 65w pababa'),ask('ilan ang nexode 65w?'),ask('recommend nexode 65w'),ask('best robot gan 20w'),ask('nexode 65w details'),
+  /* STOCK-6A (S6-3 / S6-4): "may nexode 65w pataas ba?", "nexode 65w pababa", "ilan ang nexode 65w?" now resolve — see tests/vero-p2r3a-stock6a.test.js C / D */
+  ask('may nexode 65w para sa laptop?'),ask('recommend nexode 65w'),ask('best robot gan 20w'),ask('nexode 65w details'),
   ask('nexode 20w'),ask('may nexode 20w ba?'),ask('may stock ba ng nexode 20w?'),ask('may nexode 45w ba?')];
 chk('G1 STOCK-2 never fires for name members at the wattage, model / SKU anchors, mixed-type families (Star Rail), feature or length questions, plain type questions, hubs (PD pass-through), a one-SKU "line", a name fragment with an unlisted wattage, device-named (compatibility) questions', G.every(x=>!x.r.plan.result.family), G.filter(x=>x.r.plan.result.family).map(txt).join(' || '));
 chk('G2 the 65W Robot GaN answers keep the STOCK-1 set', same(G[0].r.codes,L65) && same(G[1].r.codes,L65), '');
@@ -182,12 +187,11 @@ if(!MUTANT){
     ['evidence wattage not compared with the product\'s own wattage','js/vero-plan.js',"w && +m[3]===w) hit=","w) hit="],
     ['one word of a multi-word family accepted as evidence','js/vero-plan.js',"var f=phrase.split(' ').map(esc).join(' ?'), tn=EV_TYPE[T]","var f=esc(phrase.split(' ')[0]), tn=EV_TYPE[T]"],
     ['alternatives framed as exact ("Meron —")','js/vero-compose.js',"return tl?'Walang naka-listang '+famName+' na '+fw+'. Mga '","return tl?'Meron — walang naka-listang '+famName+' na '+fw+'. Mga '"],
-    ['alternatives label "(not {Family})" dropped','js/vero-compose.js',"' na pwedeng alternatibo (hindi '+famName+'):'","' na pwedeng alternatibo:'"],
+    ['alternatives label "(not {Family})" dropped','js/vero-compose.js',"function altTl(){ return ' na pwedeng alternatibo (hindi '+famName+'):'; }","function altTl(){ return ' na pwedeng alternatibo:'; }"],
     ['alternatives cap removed','js/vero-plan.js',"return famAll.indexOf(x)<0; }).slice(0,8);","return famAll.indexOf(x)<0; });"],
     ['"can\'t confirm" removed (unknown-wattage member → alternatives / negative)','js/vero-plan.js',"    if(unk.length){ var ui=","    if(false){ var ui="],
     ['model / SKU anchors included','js/vero-plan.js',"if(an.length!==1 || an[0].via!=='name' || (plan.refs||[]).length) return null;","if(an.length!==1 || (plan.refs||[]).length) return null;"],
     ['wattage families widened to hubs (PD pass-through)','js/vero-plan.js',"WATT_TYPES={ charger:1, power_bank:1 }","WATT_TYPES={ charger:1, power_bank:1, hub_dock:1 }"],
-    ['a one-SKU "line" treated as a family','js/vero-plan.js',"if(famCodes.length<2 || ","if(famCodes.length<1 || "],
     ['name fragment with an unlisted member wattage resolved (cannot-confirm outside a product-line anchor)','js/vero-plan.js',"if(!fromSubject && !famCodes.every(function(x){ return idx.byCode[x].attrs.watts.value; })) return null;",""],
     ['device-named (compatibility) questions included','js/vero-plan.js',"if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;",""],
     ['price questions excluded (O6 reverted)','js/vero-plan.js',"|| (I==='attribute' && PRICE_ATTR[plan.attribute])))","))"],
@@ -197,12 +201,11 @@ if(!MUTANT){
     ['English stock sentence uses a singular noun for one result ("These … charger are")','js/vero-compose.js',"':'These '+famName+' '+fw+' '+nounOf(LP,true)+' are listed","':'These '+famName+' '+fw+' '+nn+' are listed"],
     ['follow-up focus keeps the name-matched line (fix round 1 reverted)','js/vero-plan.js',"    if(plan.result && plan.result.family) ctx.focus=res.length===1?res.slice():[];",""],
     ['device CLASSES no longer exclude a question','js/vero-plan.js',"if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;","if(plan.flags.devices.named.length) return null;"],
-    ['range wattages (≥ / ≤) resolved like an exact wattage','js/vero-plan.js',"wf=plan.filters.filter(function(f){ return f.attr==='watts' && f.op==='eq'; })[0];","wf=plan.filters.filter(function(f){ return f.attr==='watts'; })[0];"],
-    ['question-type limit dropped (count / recommend / details resolved too)','js/vero-plan.js',"if(!wf || !(I==='exist' || I==='list' || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;","if(!wf) return null;"],
-    ['description evidence admitted at any wattage','js/vero-plan.js',"var evAt=ev.admit.filter(function(e){ return idx.byCode[e.code].attrs.watts.value===W; });","var evAt=ev.admit.slice();"],
+    ['question-type limit dropped (count / recommend / details resolved too)','js/vero-plan.js',"if(!wf || !(I==='exist' || I==='list' || I==='count' || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;","if(!wf) return null;"],
+    ['description evidence admitted at any wattage','js/vero-plan.js',"var evAt=ev.admit.filter(function(e){ return wIn(wf,idx.byCode[e.code].attrs.watts.value); });","var evAt=ev.admit.slice();"],
     ['price no-match drops the wattages that exist','js/vero-compose.js',"var fc0=facets(LP,idx); if(fc0){","var fc0=null; if(fc0){"],
-    ['a 2-SKU line no longer a family (minimum raised to 3)','js/vero-plan.js',"if(famCodes.length<2 || ","if(famCodes.length<3 || "],
-    ['failed description mentions at the asked wattage ignored by "can\'t confirm"','js/vero-plan.js',".concat(ev.reject.filter(function(e){ return idx.byCode[e.code].attrs.watts.value===W; }).map(function(e){ return e.code; }))",""],
+    ['a 2-SKU line no longer a family (minimum raised to 3)','js/vero-plan.js',"if(famCodes.length<2 && !ev.admit.length) return null;","if(famCodes.length<3 && !ev.admit.length) return null;"],
+    ['failed description mentions at the asked wattage ignored by "can\'t confirm"','js/vero-plan.js',".concat(ev.reject.filter(function(e){ return wIn(wf,idx.byCode[e.code].attrs.watts.value); }).map(function(e){ return e.code; }))",""],
     ['wattage-narrowed line answers keep the first 6 line SKUs as follow-up focus (fix round 2 reverted)','js/vero-plan.js',"(plan.intent==='exist' || plan.intent==='lookup' || plan.intent==='list')) ctx.focus=res.slice(0,6);","(plan.intent==='exist' || plan.intent==='lookup' || plan.intent==='list')) ctx.focus=ctx.focus;"],
     ['power banks dropped from the wattage families','js/vero-plan.js',"WATT_TYPES={ charger:1, power_bank:1 }","WATT_TYPES={ charger:1 }"],
     ['evidence card shows the raw lower-case phrase','js/vero-compose.js',"res.detail[cd]=ph+(lang==='tl'","res.detail[cd]=FM.evidence[cd]+(lang==='tl'"],

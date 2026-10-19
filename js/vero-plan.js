@@ -165,6 +165,8 @@
   /* NEW-P2R3A-STOCK-2: name-matching equivalences for glued name tokens ("Robot GaNTech" ≡ "Robot GaN Tech"). Matching only:
      product names and the query text are never rewritten; a name holding a glued token is indexed in BOTH forms. */
   var NAME_ALIAS={ gantech:['gan','tech'] };
+  /* NEW-P2R3A-STOCK-6A fix round 1: the query text with each glued alias in its spaced form, for feature words only ("gantech" → GaN) */
+  function aliasSpaced(t){ return String(t||'').replace(/[a-z]+/g,function(w){ return NAME_ALIAS[w]?NAME_ALIAS[w].join(' '):w; }); }
   function nameIndex(products,key){
     if(NIX.key===key && NIX.idx) return NIX.idx;
     var post={}, toks={}, df={}, alt={};
@@ -174,16 +176,34 @@
         ta.forEach(function(w,i){ (post[w]=post[w]||[]).push([code,i,1]); if(!seen[w]){ seen[w]=1; df[w]=(df[w]||0)+1; } }); } });
     NIX={ key:key, idx:{ post:post, toks:toks, df:df, alt:alt } }; return NIX.idx;
   }
+  /* NEW-P2R3A-STOCK-6A (S6-2): the catalogue casing of an alias phrase for labels ("gan tech" → "GaN Tech"), read from the
+     product names (a glued form counts as the spaced phrase); falls back to the typed words */
+  function aliasCase(ph,products){ var re=new RegExp('(^|[^a-z0-9])('+ph.split(' ').map(esc).join('\\s?')+')(?![a-z0-9])','i'), seen={};
+    (products||[]).forEach(function(p){ var m=String(p&&p.product_name||'').match(re); if(m && /\s/.test(m[2])) seen[m[2]]=(seen[m[2]]||0)+1; });
+    return Object.keys(seen).sort(function(a,b){ return seen[b]-seen[a] || (a<b?-1:1); })[0]||ph; }
   /* a word that can identify products by NAME: not explained by the lexicon, not generic, not a spec, rare enough in names */
   function nameWord(w,c,ni){ return !!(ni.df[w] && ni.df[w]<=40 && /[a-z]/.test(w) && (w.length>=4 || (/\d/.test(w) && w.length>=3) || (w.length===3 && ni.df[w]<=5)) && !c.vocab[w] && !c.nameGeneric[w] && !SPEC_TOKEN.test(w)); }
+  /* the codes whose name (or its alias token stream) holds the words of `win` contiguously */
+  function nameCodes(ni,win){ var codes=[]; (ni.post[win[0]]||[]).forEach(function(pp){ var tk=pp[2]?ni.alt[pp[0]]:ni.toks[pp[0]]; for(var k=1;k<win.length;k++){ if(tk[pp[1]+k]!==win[k]) return; } if(codes.indexOf(pp[0])<0) codes.push(pp[0]); }); return codes; }
   /* longest contiguous query window that appears contiguously in product names and holds >= 1 name word */
   function findNames(t,c,ni,trace,specToks){
     var q=[], out=[], used={}; specToks=specToks||{};
-    nameToks(t).forEach(function(w){ if(/-/.test(w) && !ni.df[w]) w.split('-').forEach(function(x){ if(x) q.push(x); }); else q.push(w); });   /* "open-ear" → open ear */
+    nameToks(t).forEach(function(w){ if(/-/.test(w) && !ni.df[w]) w.split('-').forEach(function(x){ if(x) q.push(x); }); else if(NAME_ALIAS[w]) q.push.apply(q,NAME_ALIAS[w]); else q.push(w); });   /* "open-ear" → open ear; NEW-P2R3A-STOCK-6A (S6-2): a typed glued alias ("gantech") is read in its spaced form */
     /* join split brand words ("fit buds" -> fitbuds, "max 5s" -> max5s) */
     for(var i=0;i+1<q.length;i++){ var j=q[i]+q[i+1]; if(!NAME_ALIAS[j] && ni.df[j] && !ni.df[q[i]+' '] && nameWord(j,c,ni) && !(nameWord(q[i],c,ni)&&nameWord(q[i+1],c,ni))){ q.splice(i,2,j); } }
+    /* NEW-P2R3A-STOCK-6A (S6-2): an alias phrase ("gan tech") names the products whose NAME carries it in either form
+       ("GaN Tech" / "GaNTech"), although its words are generic; a longer name window around a real name word still wins */
+    var ALIAS_PH={}; Object.keys(NAME_ALIAS).forEach(function(k){ ALIAS_PH[NAME_ALIAS[k].join(' ')]=NAME_ALIAS[k]; });
+    function aliasAt(a){ for(var ph in ALIAS_PH){ var pw=ALIAS_PH[ph]; if(q.slice(a,a+pw.length).join(' ')===ph) return pw.length; } return 0; }
     for(var a=0;a<q.length;a++){
-      if(used[a] || !nameWord(q[a],c,ni)) continue;
+      if(used[a]) continue;
+      var aw=nameWord(q[a],c,ni)?0:aliasAt(a);
+      if(!nameWord(q[a],c,ni) && !aw) continue;
+      if(aw){ var hasName=false; for(var b=Math.max(0,a-3);b<Math.min(q.length,a+aw+3);b++){ if((b<a||b>=a+aw) && !used[b] && nameWord(q[b],c,ni)) hasName=true; }
+        if(hasName) continue;   /* a real name word nearby builds the window itself ("robot gan tech") */
+        var awin=q.slice(a,a+aw), acodes=nameCodes(ni,awin);
+        if(acodes.length){ for(var u2=a;u2<a+aw;u2++) used[u2]=1; out.push({ lo:a, hi:a+aw-1, codes:acodes, text:awin.join(' '), alias:true }); trace.push('name:"'+awin.join(' ')+'"→'+acodes.length+' (alias)'); }
+        continue; }
       var best=null;
       for(var lo=a;lo>=Math.max(0,a-3);lo--){ for(var hi=a;hi<Math.min(q.length,a+4);hi++){
         if(hi-lo+1<= (best?best.hi-best.lo+1:0)) continue;
@@ -191,7 +211,7 @@
         if(win.length>1 && win.indexOf('to')>=0) continue;   /* "X to Y" is a direction; names write it both ways ("M.2 to PCI-E" / "PCIe … to M.2"), so "to" never glues a name phrase */
         if(win.length>1 && (specToks[win[0]] || specToks[win[win.length-1]])) continue;   /* NEW-P2R3A-STOCK-1: a wattage already parsed as a filter ("65w") never extends a name phrase at its edge — the filter applies it, independent of word order */
         if(win.some(function(w){ return !ni.df[w]; })) continue;
-        var codes=[]; (ni.post[win[0]]||[]).forEach(function(pp){ var tk=pp[2]?ni.alt[pp[0]]:ni.toks[pp[0]]; for(var k=1;k<win.length;k++){ if(tk[pp[1]+k]!==win[k]) return; } if(codes.indexOf(pp[0])<0) codes.push(pp[0]); });
+        var codes=nameCodes(ni,win);
         if(codes.length){ /* edge words that are only vocabulary add nothing: keep them only when they narrow the match */ best={ lo:lo, hi:hi, codes:codes, text:win.join(' ') }; }
       } }
       if(!best) continue;
@@ -388,7 +408,7 @@
     else if(/\bqi\b/.test(t)){ X.unsupported.push({ attr:'qi', note:'Qi is not Qi2; no Qi flag is indexed' }); trace.push('qi≠qi2'); }
     if(/\bmagsafe\b/.test(t)) X.match.push({ k:'flag', v:'magsafe' });
     else if(/\bmagnetic\b/.test(t)) trace.push('magnetic (related to MagSafe, never equivalent)');
-    if(/\bgan\b/.test(t)) X.match.push({ k:'flag', v:'gan' });
+    if(/\bgan\b/.test(aliasSpaced(t))) X.match.push({ k:'flag', v:'gan' });   /* STOCK-6A fix round 1: a typed "gantech" is GaN like "gan tech" */
     if(/\bpd\b(?!\s?vol)/.test(t)) X.match.push({ k:'flag', v:'pd' });
     /* ---- colour ---- */
     for(var i=0;i<c.colors.length;i++){ if(c.colors[i].re.test(t)){ X.match.push({ k:'color', v:c.colors[i].k }); break; } }
@@ -653,8 +673,8 @@
       plan.anchors=plan.anchors.filter(function(a){ return a.codes.length || words.indexOf(a.raw)<0 && n.text.replace(/ /g,'').indexOf(a.raw.replace(/ /g,''))<0; });
       if(X.bareNumber!=null && words.indexOf(String(X.bareNumber))>=0){ X.bareNumber=null; }
       if(!typeWord && n.codes.length<=8 && !plan.anchors.some(function(a){ return a.codes.length; })) plan.anchors.push({ raw:n.text, via:'name', codes:n.codes.slice() });
-      else { var core=words.filter(function(w){ return nameWord(w,c,NI); }).join(' ')||n.text, withQ=new RegExp('\\b(?:with|may|na may)\\s+(?:\\S+\\s+)?'+esc(core.split(' ')[0])+'\\b').test(X.t);
-        X.match.push({ k:'namephrase', v:n.text, codes:n.codes.slice(), label:(withQ?'for ':'')+core, withLabel:withQ }); }
+      else { var core=n.alias?aliasCase(n.text,products):(words.filter(function(w){ return nameWord(w,c,NI); }).join(' ')||n.text), withQ=new RegExp('\\b(?:with|may|na may)\\s+(?:\\S+\\s+)?'+esc(core.split(' ')[0])+'\\b').test(X.t);
+        X.match.push({ k:'namephrase', v:n.text, codes:n.codes.slice(), label:(withQ?'for ':'')+core, withLabel:withQ, soft:!!n.alias, alias:!!n.alias }); }   /* STOCK-6A: an alias phrase with no match is dropped with a note (the GaN feature still applies) */
     });
     plan.names=names.map(function(n){ return { text:n.text, n:n.codes.length }; });
     var resolved=plan.anchors.filter(function(a){ return a.codes.length; });
@@ -782,7 +802,7 @@
       if(tm){ var pre=(' '+X.t+' ').slice(0,tm.index).trim().split(/\s+/).slice(-2), post=(' '+X.t+' ').slice(tm.index+tm[0].length).trim().split(/\s+/);
         var postQ=[]; if(/^(?:with|may|na|w\/)$/.test(post[0]||'')){ postQ=post.slice(1,3); if(postQ[0]==='may'||postQ[0]==='with') postQ=postQ.slice(1); }
         pre.concat(postQ).forEach(function(w){ w=String(w||'').replace(/[^a-z0-9-]/g,''); if(!w || w.length<3 || /\d/.test(w)) return;
-          var inName=function(x){ return plan.match.some(function(m){ return m.k==='namephrase' && m.v.split(' ').indexOf(x)>=0; }); };
+          var inName=function(x){ return plan.match.some(function(m){ var vw=m.k==='namephrase'?m.v.split(' '):[]; return (NAME_ALIAS[x]||[x]).every(function(y){ return vw.indexOf(y)>=0; }); }); };   /* STOCK-6A fix round 1: a glued alias word is in its spaced name phrase */
           var known=function(x){ var y=x.replace(/(?:ng|g)$/,''); return !x || x.length<3 || c.vocab[x] || c.nameGeneric[x] || inName(x) || (y!==x && (c.vocab[y] || c.vocab[x.replace(/ng$/,'n')])); };   /* Tagalog -ng / -g ligature: kayong → kayo, ibang → iba */ if(known(w) || w.split('-').every(known) || w.split('-').some(function(x){ return x.length>=3 && inName(x); })) return; if(qual.indexOf(w)<0) qual.push(w); }); }
       if(qual.length){ plan.unconfirmed=qual; trace.push('qualifier not confirmed: '+qual.join(',')); }
     }
@@ -1103,13 +1123,21 @@
      product type, an exact wattage, asked as exist / list / stock lookup / price. Exact = family members (name, or explicit
      description evidence) at that wattage; else "can't confirm" when a family member has no listed wattage (or only an
      unconfirmed description mention exists at that wattage); else same-type alternatives at that wattage, labelled as not the
-     family. Single SKU / model anchors, mixed-type families, ranges and other qualifiers are unchanged. */
-  var PRICE_ATTR={ srp:1, dp:1, dp_volume:1, price:1 }, WATT_TYPES={ charger:1, power_bank:1 };
+     family. Single SKU / model anchors, mixed-type families, ranges and other qualifiers are unchanged.
+     NEW-P2R3A-STOCK-6A (owner S6-1 / S6-3 / S6-4, 2026-10-16): a single-SKU name family resolves too when explicit description
+     evidence adds at least one member ("Nexode Pro": one SKU by name + Pro members by description); count questions and
+     wattage ranges (≥ / > / ≤ / < / between, inclusive as in the filters) use the same modes. Device-named questions, model
+     anchors, mixed-type families and sub-line words stay unchanged (STOCK-6B … 6D). */
+  var PRICE_ATTR={ srp:1, dp:1, dp_volume:1, price:1 }, WATT_TYPES={ charger:1, power_bank:1 }, W_OPS={ eq:1, ge:1, gt:1, le:1, lt:1, between:1 };
+  function wIn(f,v){ if(v==null) return false; var x=f.value;
+    switch(f.op){ case 'eq': return v===x; case 'ge': return v>=x; case 'gt': return v>x; case 'le': return v<=x; case 'lt': return v<x;
+      case 'between': return Array.isArray(x) && v>=x[0] && v<=x[1]; } return false; }
+  function wLabel(f){ return f.op==='between'?(f.value[0]+'–'+f.value[1]+'W'):({ ge:'≥', gt:'>', le:'≤', lt:'<' }[f.op]||'')+f.value+'W'; }
   function familyWattage(plan,products,idx,subject,X,c,R,fromSubject){
     if(plan._famRun || plan._softRun || plan._facetRun || !plan.type || (R.mentioned||[]).length) return null;
     if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;   /* a device named → compatibility question, unchanged */
-    var I=plan.intent, wf=plan.filters.filter(function(f){ return f.attr==='watts' && f.op==='eq'; })[0];
-    if(!wf || !(I==='exist' || I==='list' || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;
+    var I=plan.intent, wfs=plan.filters.filter(function(f){ return f.attr==='watts'; }), wf=wfs.length===1 && W_OPS[wfs[0].op]?wfs[0]:null;
+    if(!wf || !(I==='exist' || I==='list' || I==='count' || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;
     var phrase, famCodes, npm=null;
     if(fromSubject){
       var an=plan.anchors.filter(function(a){ return a.codes.length; });
@@ -1122,14 +1150,16 @@
     }
     var T=plan.type.family;
     if(!WATT_TYPES[T]) return null;   /* wattage = the product's own output (not a hub's PD pass-through or a cable rating) */
-    if(famCodes.length<2 || !famCodes.every(function(x){ var F=idx.byCode[x]; return F && F.type.family===T; })) return null;   /* a product line (≥ 2 SKUs, one type); mixed-type family → unchanged */
+    if(!famCodes.length || !famCodes.every(function(x){ var F=idx.byCode[x]; return F && F.type.family===T; })) return null;   /* one type; mixed-type family → unchanged */
     /* a name-phrase FILTER (type word typed) is often a generic name fragment ("7-in-1", "two-way"): it is resolved only when every
        member has a listed wattage; "can't confirm" is reserved for a product-line anchor */
     if(!fromSubject && !famCodes.every(function(x){ return idx.byCode[x].attrs.watts.value; })) return null;
     var W=wf.value, ev=familyEvidence(phrase,T,products,idx,famCodes);
-    var evAt=ev.admit.filter(function(e){ return idx.byCode[e.code].attrs.watts.value===W; });
+    /* a product line: ≥ 2 SKUs by name, or (S6-1) one SKU by name + at least one explicit description member */
+    if(famCodes.length<2 && !ev.admit.length) return null;
+    var evAt=ev.admit.filter(function(e){ return wIn(wf,idx.byCode[e.code].attrs.watts.value); });
     if(R.codes.length && !evAt.length) return null;   /* name members at that wattage already answer it (NEW-P2R3A-STOCK-1 path) */
-    var famAll=famCodes.concat(ev.admit.map(function(e){ return e.code; })), meta={ phrase:phrase, watts:W, members:famAll.slice() };
+    var famAll=famCodes.concat(ev.admit.map(function(e){ return e.code; })), meta={ phrase:phrase, watts:W, wop:wf.op, wLabel:wLabel(wf), members:famAll.slice() };
     var lw={}; famAll.forEach(function(x){ var v=idx.byCode[x].attrs.watts.value; if(v) lw[v]=1; }); meta.lineWatts=Object.keys(lw).map(Number).sort(function(a,b){ return a-b; });
     function rerun(match,subj){ var p2={}; for(var k in plan) p2[k]=plan[k]; p2._famRun=true; if(match) p2.match=match; return execute(p2,products,idx,subj,X,c); }
     /* 1 exact: family members incl. explicit description evidence, every other constraint of the question still applied */
@@ -1140,7 +1170,7 @@
     }
     if(R.codes.length) return null;
     /* 2 can't confirm: a same-type family member has no listed wattage, or only an unconfirmed description mention exists at W */
-    var unk=famAll.filter(function(x){ return !idx.byCode[x].attrs.watts.value; }).concat(ev.reject.filter(function(e){ return idx.byCode[e.code].attrs.watts.value===W; }).map(function(e){ return e.code; }));
+    var unk=famAll.filter(function(x){ return !idx.byCode[x].attrs.watts.value; }).concat(ev.reject.filter(function(e){ return wIn(wf,idx.byCode[e.code].attrs.watts.value); }).map(function(e){ return e.code; }));
     if(unk.length){ var ui={ executor:R.executor, codes:uniq(unk), mentioned:[], related:[], unknown:0, evidence:{}, notes:[], caveats:R.caveats.slice() }; meta.mode='insufficient'; ui.family=meta; return ui; }
     /* 3 alternatives: same type + wattage + the question's other constraints, family members excluded (cap 8) */
     var alt=fromSubject?rerun(null,[]):rerun(plan.match.filter(function(m){ return m!==npm[0]; }),subject);
