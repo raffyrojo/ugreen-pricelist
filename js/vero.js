@@ -319,6 +319,7 @@
     }
     if(r.chips&&r.chips.length&&r.type!=='clarify') out+=chipsHtml(m,r);                     /* p2r3a: facet / suggestion chips on any answer */
     if(r.echo) out='<p class="vero-echo">'+e(r.echo)+'</p>'+out;                           /* p2r3a: context transparency ("Using: …") */
+    if(r.compatNote){ out+='<p class="vero-fine">'+e(r.compatNote)+'</p>'; }   /* NEW-P2R3A-STOCK-6B: listed ≠ compatible with the named device */
     if(r.stockNote){ out+='<p class="vero-fine">'+e(r.stockNote)+'</p>'; }   /* p2r1/p2r2: no inventory data -> never imply stock */
     if(m.offer){ out+='<button type="button" class="vero-chip vero-askai" data-act="askai" data-idx="'+m.idx+'">\u2726 Ask UNO AI</button>'; }
     if(r.needsAI && !aiForUser() && r.type!=='compare'){

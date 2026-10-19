@@ -95,11 +95,14 @@
     if(!Object.keys(fams).length) return codes||[];
     return (codes||[]).filter(function(c){ var F=idx.byCode[c]; return F && fams[F.type.family]; });
   }
+  /* NEW-P2R3A-STOCK-6B: a family + wattage question with a device named (family result, or the plan's family-question flag) —
+     the device disclaimer is its own line (res.compatNote) instead of the inline compatibility clause */
+  function devFam(plan,R){ return !!((R && R.family && R.family.device) || plan.devFamilyQ); }
   function evidenceTail(plan,R,lang,shown,idx){
     var parts=[], ment=sameFamily(R.mentioned,shown,plan,idx);
     if(R.medium) parts.push(T(lang,'perFeatures',{ n:R.medium }));
     if(ment.length) parts.push(T(lang,'mentioned',{ codes:ment.slice(0,5).join(', ')+(ment.length>5?' …':'') }));
-    var dev=plan.flags.devices; if(dev.named.length||dev.classes.length) parts.push(T(lang,'compat',{ device:devLabel((dev.named[0]&&dev.named[0].label)||dev.classes[0]) }));
+    var dev=plan.flags.devices; if((dev.named.length||dev.classes.length) && !devFam(plan,R)) parts.push(T(lang,'compat',{ device:devLabel((dev.named[0]&&dev.named[0].label)||dev.classes[0]) }));
     return parts.length?' ('+parts.join('; ')+')':'';
   }
   function detailMap(R){ var d={}; Object.keys(R.evidence||{}).forEach(function(c){ d[c]='Per product features: “'+String(R.evidence[c]).trim().slice(0,110)+'”'; }); return d; }
@@ -130,6 +133,10 @@
     if(plan.flags.stock) res.stockNote=T(lang,plan.flags.invQty?'stockQty':'stock');
     var hi=plan.greeting?T(lang,'hiPrefix'):'', negSaid=false;
     function done(){
+      /* NEW-P2R3A-STOCK-6B (owner wording, 2026-10-19): a family + wattage answer for a named device / device class carries the
+         device disclaimer as its own line (like the stock caveat); listed ≠ compatible */
+      if(devFam(plan,R) && res.type!=='clarify'){ var dv=plan.flags.devices, dl=devLabel((dv.named[0]&&dv.named[0].label)||dv.classes[0]);
+        res.compatNote=lang==='tl'?'Note: Hindi pa confirmed ang compatibility sa '+dl+' mo base sa available product information.':'Note: Compatibility with your '+dl+' is not confirmed by the available product information.'; }
       /* p2r3a.4 A: a null / undefined / empty code never reaches a card ("Here's ;", "no longer in this pricelist") */
       var before=(res.codes||[]).length; res.codes=(res.codes||[]).filter(function(x){ return x!=null && String(x)!==''; });
       if(res.codes.length<before && !res.codes.length && res.type==='lookup'){ res.type='clarify'; res.note=T(lang,'clarifyTarget'); }
@@ -225,8 +232,23 @@
     function noW(many){ var cp={}; for(var k in LP) cp[k]=LP[k]; cp.filters=LP.filters.filter(function(f){ return f.attr!=='watts'; }); return label(cp,many); }
     function famNoneTl(){ return 'Wala tayong '+noW(false)+' na '+tw+' sa current pricelist.'; }
     function altTl(){ return ' na pwedeng alternatibo (hindi '+famName+'):'; }   /* the Tagalog alternatives label (exact and range sentences) */
+    /* fix round 1 (FR2): the question's other qualifiers ("with 2 ports") stay in the device none / alternatives sentence — never a
+       wider "No Nexode 65W charger" when Nexode 65W chargers exist; words already in the family name ("GaN") are not repeated */
+    function devQual(many){ var fw0=famName.toLowerCase().split(' '), q=noW(!!many).split(' ').filter(function(w){ return fw0.indexOf(w.toLowerCase())<0; }).join(' ');
+      return q && q!==nounOf(LP,!!many)?q:''; }
+    function famNoneDev(){ var fwN=FM.wLabel||(FM.watts+'W'), qN=devQual();   /* NEW-P2R3A-STOCK-6B honest none (owner wording) */
+      return lang==='tl'?'Walang naka-listang '+famName+(qN?' '+qN:'')+' na '+(famRange?tw:fwN)+' sa current pricelist.':'No '+famName+' '+fwN+' '+(qN||nounOf(LP,false))+' is listed in the current pricelist.'; }
     function famNote(n){   /* the approved EN / TL sentences (design review §7a) */
       var fw=FM.wLabel||(FM.watts+'W'), tl=lang==='tl';
+      /* NEW-P2R3A-STOCK-6B (owner wording, 2026-10-19): a device named with the family + wattage; ranges keep the STOCK-6A
+         forms ("≥65W"; Tagalog "{noun} na 65W pataas"); the device disclaimer is res.compatNote (see done()) */
+      if(FM.device && (FM.mode==='exact' || FM.mode==='alternatives')){ var dn=devQual(n!==1)||nounOf(LP,n!==1), d1=devQual(false)||nounOf(LP,false), dTl=famRange?famName+' '+d1+' na '+tw:famName+' '+fw+' '+d1;   /* fix round 2 (FR5): qualifiers kept ("charger with 2 ports") */
+        if(FM.mode==='alternatives'){ var qA=devQual(); return tl?'Walang naka-listang '+famName+(qA?' '+qA:'')+' na '+(famRange?tw:fw)+'. Mga posibleng alternatibo (hindi '+famName+'):':'No '+famName+' '+fw+' '+(qA||d1)+' is listed. Here are possible alternatives (not '+famName+'):'; }
+        if(plan.flags.stock) return tl?'Naka-lista sa current pricelist ang mga sumusunod na '+dTl+':':'The following '+famName+' '+fw+' '+dn+(n===1?' is':' are')+' listed in the current pricelist:';
+        /* fix round 1 (FR3, owner-approved): "Yes — / Meron —" only answers an explicit existence question ("may … ba?", "do you
+           have …?"); list, price, compatibility, "will it charge …" and "safe for …" questions get the count sentence */
+        if(I==='exist') return tl?'Meron — '+n+' na '+dTl+' sa current pricelist:':'Yes — '+n+' '+famName+' '+fw+' '+dn+' listed in the current pricelist:';
+        return tl?n+' na '+dTl+' sa current pricelist:':n+' '+famName+' '+fw+' '+dn+' listed in the current pricelist:'; }
       if(tl && famRange){ var nr=nounOf(LP,false);
         if(FM.mode==='alternatives') return 'Walang naka-listang '+famName+' na '+tw+'. Mga '+noW(false)+' na '+tw+altTl();
         if(FM.mode==='insufficient') return 'Hindi ko makumpirma sa pricelist kung may '+famName+' na '+tw+' — walang naka-listang wattage ang mga ito:';
@@ -257,8 +279,8 @@
         else if(A==='sku') res.note=codes.length+' '+label(plan,true)+(lang==='tl'?' — nasa bawat card ang item code:':' — item codes on each card:');
         else if(codes.length>1 && plan.attrFromContext==='results') res.note=(lang==='tl'?'Heto ang '+A.toUpperCase()+' ng huling results:':A.toUpperCase().replace('DP_VOLUME','DP Vol')+' for your last results:');
         else if(codes.length>1){ var ra2=plan.anchors.filter(function(a){ return a.codes.length; }), m0=oneModel(codes,byCode); res.note=(ra2.length===1&&m0?'Model '+m0+' has '+codes.length+' SKUs:':(ra2.length>=1?codes.length+' SKUs for '+ra2.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':':'')); }
-        if(FM){ if(FM.mode==='none'){ var lb0=label(LP,false); res.type='text'; res.note=(famRange && lang==='tl')?famNoneTl():T(lang,'existNo',{ a:article(lb0)+' ', label:lb0, tail:'' }).replace('  ',' '); var fc0=facets(LP,idx); if(fc0){ res.note+=' '+T(lang,'facets',{ family:lang==='tl'?fc0.family:fc0.family.replace(/^./,function(x){ return x.toUpperCase(); }), values:fc0.text }); res.chips=fc0.chips; } }
-          else if(FM.mode!=='exact') res.note=famNote(codes.length); famCards(); }
+        if(FM){ if(FM.mode==='none'){ var lb0=label(LP,false); res.type='text'; res.note=FM.device?famNoneDev():(famRange && lang==='tl')?famNoneTl():T(lang,'existNo',{ a:article(lb0)+' ', label:lb0, tail:'' }).replace('  ',' '); var fc0=facets(LP,idx); if(fc0){ res.note+=' '+T(lang,'facets',{ family:lang==='tl'?fc0.family:fc0.family.replace(/^./,function(x){ return x.toUpperCase(); }), values:fc0.text }); res.chips=fc0.chips; } }
+          else if(FM.mode!=='exact' || FM.device) res.note=famNote(codes.length); famCards(); }
         return done(); }
       if(A==='description'){ var pd=byCode[codes[0]]; res.type='lookup'; res.codes=codes.slice(0,1);
         res.note=codes[0]+' — '+String((pd&&(pd.description||pd.short_desc))||(lang==='tl'?'walang description sa pricelist':'no description in the pricelist')).replace(/\s+/g,' ').trim().slice(0,320); return done(); }
@@ -296,7 +318,7 @@
       else if(I==='exist') res.note=(lang==='tl'?'Oo — ':'Yes — ')+T(lang,'listed').replace(/^./,function(x){ return x.toLowerCase(); });
       else if(codes2.length>1){ var ra=plan.anchors.filter(function(a){ return a.codes.length; }), mm=oneModel(codes2,byCode);
         res.note=(ra.length===1 && mm)?('Model '+mm+' has '+codes2.length+' SKUs:'):(ra.length>=1?(lang==='tl'?codes2.length+' na SKU para sa '+ra.map(function(a){ return a.raw.toUpperCase(); }).join(' at ')+':':codes2.length+' SKUs for '+ra.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':'):''); }
-      if(I==='compat'||I==='recommend'){ var d2=plan.flags.devices; if(d2.named.length||d2.classes.length) res.note=(res.note?res.note+' ':'')+T(lang,'compat',{ device:devLabel((d2.named[0]&&d2.named[0].label)||d2.classes[0]) })+'.'; }
+      if((I==='compat'||I==='recommend') && !devFam(plan,R)){ var d2=plan.flags.devices; if(d2.named.length||d2.classes.length) res.note=(res.note?res.note+' ':'')+T(lang,'compat',{ device:devLabel((d2.named[0]&&d2.named[0].label)||d2.classes[0]) })+'.'; }
       if(rt==='AI_CATALOG'||rt==='WEB'){ res.needsAI=true; res.aiReason='recommendation/compatibility'; }
       return done();
     }
@@ -313,10 +335,11 @@
       else if(plan.unknownNoun) res.note=T(lang,'noNoun',{ x:plan.unknownNoun });
       else res.note=(I==='count'?'0 — ':'')+T(lang,'existNo',{ a:article(lab1)+' ', label:lab1, tail:'' }).replace('  ',' ');
       if(FM && famRange && lang==='tl' && !plan.catalogTotal && !plan.unknownNoun) res.note=plan.flags.stock?'Walang '+noW(false)+' na '+tw+' na naka-lista sa current pricelist.':(I==='count'?'0 — ':'')+famNoneTl();   /* STOCK-6A Tagalog range wording */
+      if(FM && FM.device && !plan.catalogTotal && !plan.unknownNoun) res.note=famNoneDev();   /* STOCK-6B: device named → owner none wording */
       if(fc){ var famN=fc.family; res.note+=' '+T(lang,'facets',{ family:lang==='tl'?famN:famN.replace(/^./,function(x){ return x.toUpperCase(); }), values:fc.text }); res.chips=fc.chips; }
       if(related.length){ res.codes=related; related.forEach(function(c){ res.detail[c]='Magnetic wireless (product name) — MagSafe not explicitly confirmed'; });
         res.note+=' '+T(lang,'magnetic',{ n:related.length, label:nounOf(plan,related.length!==1), them:related.length===1?'this item':'these items' }); }
-      if(plan.flags.devices.named.length||plan.flags.devices.classes.length) res.note+=' '+T(lang,'compat',{ device:devLabel((plan.flags.devices.named[0]&&plan.flags.devices.named[0].label)||plan.flags.devices.classes[0]) })+'.';
+      if((plan.flags.devices.named.length||plan.flags.devices.classes.length) && !devFam(plan,R)) res.note+=' '+T(lang,'compat',{ device:devLabel((plan.flags.devices.named[0]&&plan.flags.devices.named[0].label)||plan.flags.devices.classes[0]) })+'.';
       return done();
     }
     res.type='list'; res.codes=codes2.slice();
@@ -346,7 +369,23 @@
       var atw=wfA?(wfA.op==='between'?aw:({ ge:wfA.value+'W pataas', le:wfA.value+'W pababa', gt:'lampas '+wfA.value+'W', lt:'mas mababa sa '+wfA.value+'W' }[wfA.op]||aw)):'';
       var tlRange=!!(wfA && wfA.op!=='eq'); plA.filters=tlRange?plan.filters.filter(function(f){ return f!==wfA; }):plan.filters;
       res.note=lang==='tl'?'Walang naka-listang '+an+(atw?' na '+atw:'')+'. Mga '+label(plA,false)+(tlRange?' na '+atw:'')+' na pwedeng alternatibo (hindi '+an+'):':
-        'No '+an+(aw?' '+aw:'')+' is listed. '+label(plan,true).replace(/^./,function(x){ return x.toUpperCase(); })+' you could offer instead (not '+an+'):'; }
+        'No '+an+(aw?' '+aw:'')+' is listed. '+label(plan,true).replace(/^./,function(x){ return x.toUpperCase(); })+' you could offer instead (not '+an+'):';
+      /* NEW-P2R3A-STOCK-6B: device named → the owner's device alternatives wording */
+      if(plan.devFamilyQ) res.note=lang==='tl'?'Walang naka-listang '+an+(atw?' na '+atw:'')+'. Mga posibleng alternatibo (hindi '+an+'):':'No '+an+(aw?' '+aw:'')+' '+nounOf(plan,false)+' is listed. Here are possible alternatives (not '+an+'):'; }
+    else if(plan.devFamilyQ && !FM && !(R.droppedQualifiers||[]).length){
+      /* NEW-P2R3A-STOCK-6B: an alias family ("GaN Tech") answered on the filter path with a device named → the owner's device
+         wording; only when every shown code carries the alias phrase in its name (never a family claim for other products) */
+      var amD=plan.match.filter(function(m){ return m.k==='namephrase' && m.alias; })[0], wfD=plan.filters.filter(function(f){ return f.attr==='watts'; })[0];
+      if(amD && wfD && codes2.every(function(x){ return (amD.codes||[]).indexOf(x)>=0; })){ var fD=String(amD.label||amD.v).replace(/^for /,''), nD=codes2.length;
+        var wE=wfD.op==='between'?wfD.value[0]+'–'+wfD.value[1]+'W':({ ge:'≥', gt:'>', le:'≤', lt:'<' }[wfD.op]||'')+wfD.value+'W';
+        /* fix round 2 (FR5): the other qualifiers stay in the noun phrase ("purple charger", "charger with 3 ports"); family words not repeated */
+        var aqD=function(many){ var cp={}; for(var kq in plan) cp[kq]=plan[kq]; cp.filters=plan.filters.filter(function(f){ return f.attr!=='watts'; }); cp.match=plan.match.filter(function(m){ return m!==amD; });
+          var fw0=fD.toLowerCase().split(' '); return label(cp,many).split(' ').filter(function(w){ return fw0.indexOf(w.toLowerCase())<0; }).join(' ')||nounOf(plan,many); };
+        var tD=wfD.op==='eq'?fD+' '+wE+' '+aqD(false):fD+' '+aqD(false)+' na '+(wfD.op==='between'?wE:({ ge:wfD.value+'W pataas', le:wfD.value+'W pababa', gt:'lampas '+wfD.value+'W', lt:'mas mababa sa '+wfD.value+'W' }[wfD.op]||wE));
+        var eD=fD+' '+wE+' '+aqD(nD!==1);
+        if(plan.flags.stock) res.note=lang==='tl'?'Naka-lista sa current pricelist ang mga sumusunod na '+tD+':':'The following '+eD+(nD===1?' is':' are')+' listed in the current pricelist:';
+        else if(I==='exist') res.note=lang==='tl'?'Meron — '+nD+' na '+tD+' sa current pricelist:':'Yes — '+nD+' '+eD+' listed in the current pricelist:';   /* FR3 */
+        else res.note=lang==='tl'?nD+' na '+tD+' sa current pricelist:':nD+' '+eD+' listed in the current pricelist:'; } }
     else if(R.droppedQualifiers && R.droppedQualifiers.length) res.note=res.note.replace(/:$/,'')+(lang==='tl'?' (walang product na may “'+R.droppedQualifiers.join(', ')+'” sa pangalan — lahat ng '+nounOf(plan,true)+' ang pinapakita):':' (no product named “'+R.droppedQualifiers.join(', ')+'” — showing all '+nounOf(plan,true)+'):');
     if(related.length) res.note=res.note.replace(/:$/,'.')+' '+T(lang,'magnetic',{ n:related.length, label:nounOf(plan,related.length!==1), them:related.length===1?'this item':'these items' });
     return done();

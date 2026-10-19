@@ -8,7 +8,8 @@
      S6-3 count questions answer with the count of the exact set; stock-worded counts keep "listed" + the no-live-inventory caveat
           and never a stock quantity; zero → labelled alternatives / honest none, never "0 — Wala" while alternatives exist
      S6-4 wattage ranges (≥ / > / ≤ / < / between) use the same exact / alternatives / none modes, inclusive like the filters
-   Unchanged (STOCK-6B … 6D): device-named questions, model anchors, mixed-type families, sub-line words.
+   Unchanged (STOCK-6C / 6D): model anchors, mixed-type families, sub-line words. Device-named questions: STOCK-6B (owner decision 4,
+   2026-10-19; rows moved from G, device-guard mutant retired) — tests/vero-p2r3a-stock6b.test.js.
    Expectations are DERIVED from data/products.json; synthetic in-memory SKUs (prefix ZZS6-) test the single-SKU boundary. */
 const fs=require('fs'), path=require('path'), os=require('os'), cp=require('child_process');
 const ROOT=path.join(__dirname,'..'), CODE=process.env.STOCK6A_CODE_ROOT||ROOT, MUTANT=process.env.STOCK6A_MUTANT||'';
@@ -146,10 +147,11 @@ chk('D4b inclusive upper bound keeps the description member AT the bound ("nexod
 const D5=ask('may nexode pro 200w pataas ba?');
 chk('D5 no family member in the range → labelled same-type alternatives in the range (or honest none)', (mode(D5)==='alternatives' && D5.r.codes.every(c=>W(c)>=200 && CH(c) && PRO_ALL.indexOf(c)<0) && /\(hindi Nexode Pro\):$/.test(D5.r.note)) || (mode(D5)==='none' && !D5.r.codes.length), txt(D5));
 
-/* ---------- G unchanged by design (STOCK-6B … 6D) ---------- */
-const G=[ask('nexode 65w for macbook'),ask('may nexode 65w para sa laptop?'),ask('may nexode 100w para sa macbook pro?'),ask('CD361 30w'),ask('may CD361 30w ba?'),ask('how many star rail 20w in stock?'),ask('star rail 20w'),
+/* ---------- G unchanged by design (STOCK-6C / 6D) ---------- */
+/* STOCK-6B (owner decision 4, 2026-10-19): the three device-named rows now resolve — see tests/vero-p2r3a-stock6b.test.js */
+const G=[ask('CD361 30w'),ask('may CD361 30w ba?'),ask('how many star rail 20w in stock?'),ask('star rail 20w'),
   ask('robot gan 65w'),ask('may stock ba ng robot gan 65w?'),ask('nexode 20w'),ask('may nexode 45w ba?'),ask('recommend nexode 65w'),ask('nexode 65w details')];
-chk('G1 STOCK-6A never fires for device-named / device-class questions, model anchors, mixed-type families, name members at the wattage, recommendations or details', G.every(x=>!fm(x)), G.filter(fm).map(txt).join(' || '));
+chk('G1 STOCK-6A never fires for model anchors, mixed-type families, name members at the wattage, recommendations or details', G.every(x=>!fm(x)), G.filter(fm).map(txt).join(' || '));
 const G2=[ask('may nexode 65w ba?'),ask('may robot gan 100w ba?'),ask('may robot gan 20w ba?')];
 chk('G2 STOCK-2 answers keep their sets (Nexode 65W exact, Robot GaN 100W, Robot GaN 20W alternatives)', same(G2[0].r.codes,at(NEX_ALL,'eq',65)) && same(G2[1].r.codes,at(LINE,'eq',100)) && mode(G2[2])==='alternatives', G2.map(txt).join(' || '));
 
@@ -170,7 +172,7 @@ if(!MUTANT){
     ['typed "gantech" no longer sets the GaN feature (fix round 1 F1 reverted)','js/vero-plan.js',"if(/\\bgan\\b/.test(aliasSpaced(t))) X.match.push","if(/\\bgan\\b/.test(t)) X.match.push"],
     ['typed glued alias reported as an unconfirmed qualifier (fix round 1 F2 reverted)','js/vero-plan.js',"return (NAME_ALIAS[x]||[x]).every(function(y){ return vw.indexOf(y)>=0; });","return vw.indexOf(x)>=0;"],
     ['alias no-match falls back to the generic dropped-qualifier note (fix round 1 F3 reverted)','js/vero-compose.js',"    if(aliasDrop){ var an=","    if(false){ var an="],
-    ['alias alternatives sentence loses "(not GaN Tech)"','js/vero-compose.js',"' you could offer instead (not '+an+'):'; }","' you could offer instead:'; }"],
+    ['alias alternatives sentence loses "(not GaN Tech)"','js/vero-compose.js',"' you could offer instead (not '+an+'):';","' you could offer instead:';"],
     ['upper range bound exclusive','js/vero-plan.js',"case 'le': return v<=x;","case 'le': return v<x;"],
     ['alias consumed although a real name word is next to it','js/vero-plan.js',"        if(hasName) continue;","        if(false) continue;"],
     ['alias phrase with no match is a hard filter (false "wala" for "gan tech 25w")','js/vero-plan.js',"withLabel:withQ, soft:!!n.alias, alias:!!n.alias });","withLabel:withQ, alias:!!n.alias });"],
@@ -178,16 +180,15 @@ if(!MUTANT){
     ['flag repeated next to the alias label ("GaN GaN Tech")','js/vero-compose.js',"if(npLab && new RegExp(","if(false && new RegExp("],
     ['single-SKU family disabled (S6-1 reverted)','js/vero-plan.js',"if(famCodes.length<2 && !ev.admit.length) return null;","if(famCodes.length<2) return null;"],
     ['single SKU without a description member treated as a family','js/vero-plan.js',"if(famCodes.length<2 && !ev.admit.length) return null;",""],
-    ['count questions excluded (S6-3 reverted)','js/vero-plan.js',"I==='list' || I==='count' || (I==='lookup'","I==='list' || (I==='lookup'"],
+    ['count questions excluded (S6-3 reverted)','js/vero-plan.js',"I==='list' || I==='count' || (dev","I==='list' || (dev"],
     ['count sentence without the number','js/vero-compose.js',"if(I==='count') return tl?n+' na '+famName","if(I==='count') return tl?'Mga '+famName"],
     ['ranges excluded (S6-4 reverted)','js/vero-plan.js',"wf=wfs.length===1 && W_OPS[wfs[0].op]?wfs[0]:null;","wf=wfs.length===1 && wfs[0].op==='eq'?wfs[0]:null;"],
     ['range lower bound exclusive','js/vero-plan.js',"case 'ge': return v>=x;","case 'ge': return v>x;"],
     ['Tagalog range sentences use the ≥ / ≤ symbols again','js/vero-compose.js',"if(tl && famRange){ var nr=nounOf(LP,false);","if(false){ var nr=nounOf(LP,false);"],
     ['Tagalog "pababa" / "pataas" swapped','js/vero-compose.js',"ge:wv+'W pataas', le:wv+'W pababa'","ge:wv+'W pababa', le:wv+'W pataas'"],
-    ['Tagalog range none answer uses the symbol label','js/vero-compose.js',"res.note=(famRange && lang==='tl')?famNoneTl():T(lang,'existNo'","res.note=T(lang,'existNo'"],
+    ['Tagalog range none answer uses the symbol label','js/vero-compose.js',"(famRange && lang==='tl')?famNoneTl():T(lang,'existNo'","T(lang,'existNo'"],
     ['range shown as an exact wattage in the sentence','js/vero-compose.js',"var fw=FM.wLabel||(FM.watts+'W'), tl=lang==='tl';","var fw=FM.watts+'W', tl=lang==='tl';"],
     ['description evidence admitted at any wattage','js/vero-plan.js',"var evAt=ev.admit.filter(function(e){ return wIn(wf,idx.byCode[e.code].attrs.watts.value); });","var evAt=ev.admit.slice();"],
-    ['device-named questions included','js/vero-plan.js',"if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;",""],
     ['model anchors included','js/vero-plan.js',"if(an.length!==1 || an[0].via!=='name' || (plan.refs||[]).length) return null;","if(an.length!==1 || (plan.refs||[]).length) return null;"],
     ['stock caveat removed','js/vero-compose.js',"if(plan.flags.stock) res.stockNote=T(lang,plan.flags.invQty?'stockQty':'stock');",""],
   ];

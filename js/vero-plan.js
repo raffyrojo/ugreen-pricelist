@@ -761,7 +761,19 @@
     else if(subject.length) I='lookup';
     else I='clarify';
     if(I==='list' && !plan.type && !plan.form && plan.useCase && !subject.length) I='recommend';
-    if(specificDevice && !subject.length && (I==='list'||I==='exist'||I==='recommend')){ I='compat'; trace.push('named device → device-fit question'); }
+    /* NEW-P2R3A-STOCK-6B (owner decision 4): a product family named by name phrase + one wattage + a charger / power bank type keeps
+       its family + wattage filters with a device named — a catalogue question answered locally with the device disclaimer, not a
+       device-fit (AI / clarify) question */
+    var npQ=(plan.match||[]).filter(function(m){ return m.k==='namephrase' && (!m.soft || m.alias); });
+    /* no type word: only an ALIAS family ("gantech 65w") takes the name family's one product type, and never when the question names
+       another product form ("… for nintendo switch", "… usb c" → form switch / cable): those keep the device-fit clarify (fix round 1) */
+    var npFam=npQ.length===1 && npQ[0].alias && !plan.form?uniq((npQ[0].codes||[]).map(function(x){ return idx.byCode[x]?idx.byCode[x].type.family:null; })):[];
+    var wattFam=plan.type?plan.type.family:(npFam.length===1?npFam[0]:null);
+    var wattQ=(wattFam==='charger' || wattFam==='power_bank') && plan.filters.filter(function(f){ return f.attr==='watts'; }).length===1;
+    var famWattQ=wattQ && !subject.length && npQ.length===1;
+    var nameAnchorQ=wattQ && subject.length && plan.anchors.filter(function(a){ return a.codes.length; }).length===1 && plan.anchors.filter(function(a){ return a.codes.length; })[0].via==='name';
+    if(specificDevice && !subject.length && (I==='list'||I==='exist'||I==='recommend') && !famWattQ){ I='compat'; trace.push('named device → device-fit question'); }
+    if((X.devices.named.length || X.devices.classes.length) && (famWattQ || nameAnchorQ) && I!=='recommend' && !X.external){ plan.devFamilyQ=true; trace.push('device + family + wattage → catalogue question (STOCK-6B)'); }
 
     /* ---- p2r3a: follow-up intent rules ---- */
     if(plan.followUp){
@@ -1126,8 +1138,10 @@
      family. Single SKU / model anchors, mixed-type families, ranges and other qualifiers are unchanged.
      NEW-P2R3A-STOCK-6A (owner S6-1 / S6-3 / S6-4, 2026-10-16): a single-SKU name family resolves too when explicit description
      evidence adds at least one member ("Nexode Pro": one SKU by name + Pro members by description); count questions and
-     wattage ranges (≥ / > / ≤ / < / between, inclusive as in the filters) use the same modes. Device-named questions, model
-     anchors, mixed-type families and sub-line words stay unchanged (STOCK-6B … 6D). */
+     wattage ranges (≥ / > / ≤ / < / between, inclusive as in the filters) use the same modes. Model anchors, mixed-type
+     families and sub-line words stay unchanged (STOCK-6C / 6D).
+     NEW-P2R3A-STOCK-6B (owner decision 4, 2026-10-19): device-named / device-class questions use the same modes; the device
+     never narrows the set, and compose adds the device disclaimer (never a compatibility claim). */
   var PRICE_ATTR={ srp:1, dp:1, dp_volume:1, price:1 }, WATT_TYPES={ charger:1, power_bank:1 }, W_OPS={ eq:1, ge:1, gt:1, le:1, lt:1, between:1 };
   function wIn(f,v){ if(v==null) return false; var x=f.value;
     switch(f.op){ case 'eq': return v===x; case 'ge': return v>=x; case 'gt': return v>x; case 'le': return v<=x; case 'lt': return v<x;
@@ -1135,9 +1149,11 @@
   function wLabel(f){ return f.op==='between'?(f.value[0]+'–'+f.value[1]+'W'):({ ge:'≥', gt:'>', le:'≤', lt:'<' }[f.op]||'')+f.value+'W'; }
   function familyWattage(plan,products,idx,subject,X,c,R,fromSubject){
     if(plan._famRun || plan._softRun || plan._facetRun || !plan.type || (R.mentioned||[]).length) return null;
-    if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;   /* a device named → compatibility question, unchanged */
+    /* NEW-P2R3A-STOCK-6B (owner decision 4, 2026-10-19): a named device / device class keeps the family + wattage filters (same
+       modes); the device never narrows the set and is never a compatibility claim — compose adds the device disclaimer */
+    var dev=!!(plan.flags.devices.named.length || plan.flags.devices.classes.length);
     var I=plan.intent, wfs=plan.filters.filter(function(f){ return f.attr==='watts'; }), wf=wfs.length===1 && W_OPS[wfs[0].op]?wfs[0]:null;
-    if(!wf || !(I==='exist' || I==='list' || I==='count' || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;
+    if(!wf || !(I==='exist' || I==='list' || I==='count' || (dev && I==='compat' && plan.devFamilyQ) || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;
     var phrase, famCodes, npm=null;
     if(fromSubject){
       var an=plan.anchors.filter(function(a){ return a.codes.length; });
@@ -1158,9 +1174,13 @@
     /* a product line: ≥ 2 SKUs by name, or (S6-1) one SKU by name + at least one explicit description member */
     if(famCodes.length<2 && !ev.admit.length) return null;
     var evAt=ev.admit.filter(function(e){ return wIn(wf,idx.byCode[e.code].attrs.watts.value); });
-    if(R.codes.length && !evAt.length) return null;   /* name members at that wattage already answer it (NEW-P2R3A-STOCK-1 path) */
-    var famAll=famCodes.concat(ev.admit.map(function(e){ return e.code; })), meta={ phrase:phrase, watts:W, wop:wf.op, wLabel:wLabel(wf), members:famAll.slice() };
+    var famAll=famCodes.concat(ev.admit.map(function(e){ return e.code; })), meta={ phrase:phrase, watts:W, wop:wf.op, wLabel:wLabel(wf), members:famAll.slice(), device:dev };
     var lw={}; famAll.forEach(function(x){ var v=idx.byCode[x].attrs.watts.value; if(v) lw[v]=1; }); meta.lineWatts=Object.keys(lw).map(Number).sort(function(a,b){ return a-b; });
+    if(R.codes.length && !evAt.length){   /* name members at that wattage already answer it (NEW-P2R3A-STOCK-1 path) */
+      /* STOCK-6B: with a device named, the same set is labelled as the exact family result (device wording) — only when every
+         shown code is a family member at the asked wattage */
+      if(!dev || !R.codes.every(function(x){ return famAll.indexOf(x)>=0 && wIn(wf,idx.byCode[x].attrs.watts.value); })) return null;
+      R.family=meta; meta.mode='exact'; meta.evidence={}; return R; }
     function rerun(match,subj){ var p2={}; for(var k in plan) p2[k]=plan[k]; p2._famRun=true; if(match) p2.match=match; return execute(p2,products,idx,subj,X,c); }
     /* 1 exact: family members incl. explicit description evidence, every other constraint of the question still applied */
     if(evAt.length){
@@ -1318,7 +1338,8 @@
     if(I==='coach') return set(ROUTES.COACH,'R1 coach');
     if(I==='price_history') return set(ROUTES.LOCAL,'R2 history');
     var specific=plan.flags.devices.named.length>0 && !plan.deviceNamed;   /* products NAMED for the device line = catalogue fact */
-    if(I==='compat' || (specific && !subject.length && (I==='recommend'||I==='list'||I==='exist'||I==='lookup'))){
+    /* NEW-P2R3A-STOCK-6B: a family + wattage question with a device named stays LOCAL (owner rule: no AI / web lookup) */
+    if(!plan.devFamilyQ && (I==='compat' || (specific && !subject.length && (I==='recommend'||I==='list'||I==='exist'||I==='lookup')))){
       if(!hasProduct) return set(ROUTES.CLARIFY,'R3 compat without product');
       out.candidates=cands();
       if(out.candidates.length>=2) return set(ROUTES.WEB,'R3 compat/device/external → WEB');
@@ -1326,7 +1347,7 @@
       return set(ROUTES.CLARIFY,'R3 compat, no candidate');
     }
     if(plan.ambiguity.some(function(a){ return a.slot==='target'||a.slot==='type'||a.slot==='number'||a.slot==='cable'||a.slot==='name'||a.slot==='negation'; }) && I!=='recommend') return set(ROUTES.CLARIFY,'R4 ambiguity');
-    if(['lookup','exist','count','list','rank','compare','attribute','alternative'].indexOf(I)>=0){
+    if(['lookup','exist','count','list','rank','compare','attribute','alternative'].indexOf(I)>=0 || (I==='compat' && plan.devFamilyQ)){   /* STOCK-6B: device + family + wattage → local */
       if(I==='lookup' && !subject.length) return set(ROUTES.CLARIFY,'R4 unresolved anchor');
       return set(ROUTES.LOCAL,'R5 local intent');
     }

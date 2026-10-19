@@ -9,6 +9,8 @@
        exact) | "can't confirm" (a same-type family member has no listed wattage) | honest "nothing at that wattage"
      - exist / list / stock lookup / price questions (O6); single SKU / model anchors, mixed-type families (Star Rail),
        ranges and non-wattage qualifiers unchanged; stock caveat on every stock answer, never a quantity
+     NEW-P2R3A-STOCK-6B (owner decision 4, 2026-10-19) supersedes the device-named scope limit (rows removed from G1, the two
+     device-guard mutants retired; device behaviour + mutants in tests/vero-p2r3a-stock6b.test.js)
      NEW-P2R3A-STOCK-6A (owner S6-1 … S6-4, 2026-10-16) supersedes three of these scope limits — tested in
      tests/vero-p2r3a-stock6a.test.js: the alias is two-way (A2 below), count questions and wattage ranges resolve (removed
      from G), and a single-SKU name resolves when description evidence adds a member (the one-SKU mutant now targets that guard)
@@ -133,12 +135,13 @@ chk('E4 price question with name members at that wattage is unchanged (the 65W R
 
 /* ---------- G unchanged by design (scope) ---------- */
 const G=[ask('robot gan 65w'),ask('may stock ba ng robot gan 65w?'),ask('CD361 30w'),ask('may CD361 30w ba?'),ask('how many star rail 20w in stock?'),ask('May PD ba ang X755?'),ask('may 2m ba ng AV102?'),ask('65W charger'),
-  ask('7-in-1 USB-C hub, 4K HDMI, USB-A/USB-C data, SD reader, 100W.'),ask('7-in-1 magnetic USB-C hub, 4K@60Hz HDMI, SD 4.0, 100W PD.'),ask('may gantech 65w ba?'),ask('20,000mAh power bank, 20W two-way USB-C, charges 3 devices.'),ask('*Wireless Charging Output Power: iPhone 25.0W Max, AirPods 5.0W Max'),ask('nexode 65w for macbook'),
+  ask('7-in-1 USB-C hub, 4K HDMI, USB-A/USB-C data, SD reader, 100W.'),ask('7-in-1 magnetic USB-C hub, 4K@60Hz HDMI, SD 4.0, 100W PD.'),ask('may gantech 65w ba?'),ask('20,000mAh power bank, 20W two-way USB-C, charges 3 devices.'),ask('*Wireless Charging Output Power: iPhone 25.0W Max, AirPods 5.0W Max'),
   /* fix round 1 (QA pins): device class, ranges, other question types, name members at the wattage in a family that HAS description evidence */
   /* STOCK-6A (S6-3 / S6-4): "may nexode 65w pataas ba?", "nexode 65w pababa", "ilan ang nexode 65w?" now resolve — see tests/vero-p2r3a-stock6a.test.js C / D */
-  ask('may nexode 65w para sa laptop?'),ask('recommend nexode 65w'),ask('best robot gan 20w'),ask('nexode 65w details'),
+  /* STOCK-6B (owner decision 4, 2026-10-19): device-named / device-class questions now resolve — see tests/vero-p2r3a-stock6b.test.js */
+  ask('recommend nexode 65w'),ask('best robot gan 20w'),ask('nexode 65w details'),
   ask('nexode 20w'),ask('may nexode 20w ba?'),ask('may stock ba ng nexode 20w?'),ask('may nexode 45w ba?')];
-chk('G1 STOCK-2 never fires for name members at the wattage, model / SKU anchors, mixed-type families (Star Rail), feature or length questions, plain type questions, hubs (PD pass-through), a one-SKU "line", a name fragment with an unlisted wattage, device-named (compatibility) questions', G.every(x=>!x.r.plan.result.family), G.filter(x=>x.r.plan.result.family).map(txt).join(' || '));
+chk('G1 STOCK-2 never fires for name members at the wattage, model / SKU anchors, mixed-type families (Star Rail), feature or length questions, plain type questions, hubs (PD pass-through), a one-SKU "line", a name fragment with an unlisted wattage', G.every(x=>!x.r.plan.result.family), G.filter(x=>x.r.plan.result.family).map(txt).join(' || '));
 chk('G2 the 65W Robot GaN answers keep the STOCK-1 set', same(G[0].r.codes,L65) && same(G[1].r.codes,L65), '');
 
 /* ---------- synthetic catalogue: evidence rules E1–E4, alternatives cap, "can't confirm" ---------- */
@@ -193,15 +196,13 @@ if(!MUTANT){
     ['model / SKU anchors included','js/vero-plan.js',"if(an.length!==1 || an[0].via!=='name' || (plan.refs||[]).length) return null;","if(an.length!==1 || (plan.refs||[]).length) return null;"],
     ['wattage families widened to hubs (PD pass-through)','js/vero-plan.js',"WATT_TYPES={ charger:1, power_bank:1 }","WATT_TYPES={ charger:1, power_bank:1, hub_dock:1 }"],
     ['name fragment with an unlisted member wattage resolved (cannot-confirm outside a product-line anchor)','js/vero-plan.js',"if(!fromSubject && !famCodes.every(function(x){ return idx.byCode[x].attrs.watts.value; })) return null;",""],
-    ['device-named (compatibility) questions included','js/vero-plan.js',"if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;",""],
     ['price questions excluded (O6 reverted)','js/vero-plan.js',"|| (I==='attribute' && PRICE_ATTR[plan.attribute])))","))"],
     ['zero-result family + wattage falls back to the whole line (STOCK-2 resolution disabled)','js/vero-plan.js',"var fw=familyWattage(plan,products,idx,subject,X,c,R,fromSubject); if(fw) return fw;","var fw=null;"],
     ['evidence card note removed','js/vero-compose.js',"res.detail[cd]=ph+(lang==='tl'?' — ayon sa product description':' — per product description');","res.detail[cd]='';"],
     ['family name missing from the exact sentence','js/vero-compose.js',"if(I==='exist') return tl?'Meron — '+n+' na '+famName+' '+fw+' sa current pricelist:'","if(I==='exist') return tl?'Meron — '+n+' na '+fw+' sa current pricelist:'"],
     ['English stock sentence uses a singular noun for one result ("These … charger are")','js/vero-compose.js',"':'These '+famName+' '+fw+' '+nounOf(LP,true)+' are listed","':'These '+famName+' '+fw+' '+nn+' are listed"],
     ['follow-up focus keeps the name-matched line (fix round 1 reverted)','js/vero-plan.js',"    if(plan.result && plan.result.family) ctx.focus=res.length===1?res.slice():[];",""],
-    ['device CLASSES no longer exclude a question','js/vero-plan.js',"if(plan.flags.devices.named.length || plan.flags.devices.classes.length) return null;","if(plan.flags.devices.named.length) return null;"],
-    ['question-type limit dropped (count / recommend / details resolved too)','js/vero-plan.js',"if(!wf || !(I==='exist' || I==='list' || I==='count' || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;","if(!wf) return null;"],
+    ['question-type limit dropped (count / recommend / details resolved too)','js/vero-plan.js',"if(!wf || !(I==='exist' || I==='list' || I==='count' || (dev && I==='compat' && plan.devFamilyQ) || (I==='lookup' && plan.flags.stock) || (I==='attribute' && PRICE_ATTR[plan.attribute]))) return null;","if(!wf) return null;"],
     ['description evidence admitted at any wattage','js/vero-plan.js',"var evAt=ev.admit.filter(function(e){ return wIn(wf,idx.byCode[e.code].attrs.watts.value); });","var evAt=ev.admit.slice();"],
     ['price no-match drops the wattages that exist','js/vero-compose.js',"var fc0=facets(LP,idx); if(fc0){","var fc0=null; if(fc0){"],
     ['a 2-SKU line no longer a family (minimum raised to 3)','js/vero-plan.js',"if(famCodes.length<2 && !ev.admit.length) return null;","if(famCodes.length<3 && !ev.admit.length) return null;"],

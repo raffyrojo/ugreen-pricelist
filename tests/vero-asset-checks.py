@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '41d39ade'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'afe146e3'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -27,11 +27,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # NEW-P2R3A-STOCK-6A (baseline 41d39ade = live; owner S6-1 … S6-4, 2026-10-16): single-SKU name family via
-                 # description evidence, two-way GaNTech ≡ GaN Tech alias for typed queries, count questions and wattage ranges
-                 # through the STOCK-2 modes; STOCK-2 test pins A2 / G1 + superseded mutant anchors updated. NO data.
-                 'js/vero-plan.js', 'js/vero-compose.js', 'index.html',
-                 'tests/vero-p2r3a-stock2.test.js', 'tests/vero-p2r3a-stock6a.test.js'}
+                 # NEW-P2R3A-STOCK-6B (baseline afe146e3 = live; owner decision 4 wording, 2026-10-19): family + wattage + a named
+                 # device / device class keeps the family modes, stays LOCAL, device disclaimer line (res.compatNote, rendered by
+                 # js/vero.js); STOCK-2 G1 / STOCK-6A G device pins + superseded device-guard mutants updated. NO data.
+                 'js/vero-plan.js', 'js/vero-compose.js', 'js/vero.js', 'index.html',
+                 'tests/vero-p2r3a-stock2.test.js', 'tests/vero-p2r3a-stock6a.test.js', 'tests/vero-p2r3a-stock6b.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
