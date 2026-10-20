@@ -1,6 +1,16 @@
 name = "ugreen-pricelist-cms"
 main = "worker.js"
 compatibility_date = "2026-07-04"
+# Values in this file mirror PRODUCTION (live dashboard audit 2026-10-20, NEW-DEPLOY-1-FIX). A change here is a production
+# change: edit it only in an approved checkpoint, and update this file after any dashboard variable change.
+# Approved deploy route: code-only through the Cloudflare dashboard (Git builds are not connected). A `wrangler deploy`
+# needs its own approval and a `--dry-run` comparison with the live settings first.
+# keep_vars: a wrangler deploy keeps variables that exist only in the dashboard instead of deleting them.
+keep_vars = true
+
+# Workers Logs on (live: logs + invocation logs enabled, traces off)
+[observability]
+enabled = true
 
 # Non-secret config — safe to commit:
 [vars]

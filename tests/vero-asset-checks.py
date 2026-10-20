@@ -16,23 +16,24 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '1bd1c6e8'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '9bd5273d'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
 PUBLISH_WORKER_SHA = 'f3d7159f5bf7152e798b98afbd02af1e28da5255f6bf06a194d679a3ce2510e8'  # Worker ugreen-pricelist-cms
+# Worker configs = mirrors of the live dashboard settings (NEW-DEPLOY-1-FIX, live audit 2026-10-20); re-pin only in an approved config release
+VERO_WRANGLER_SHA = 'a2ba39911254294d44df42a24b8ea97e7274729da8bb3c68b6f2f7c1e5685e22'     # backend/vero/wrangler.toml
+PUBLISH_WRANGLER_SHA = 'bd2cc181f81301627bbd4f3f6fc6f95c0946c15ac8d706ced9c87fa8434bbfde'  # backend/wrangler.toml
 AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 
 # ===================== RELEASE SCOPE (edit per release; empty between releases) =====================
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # NEW-P2R3A-STOCK-15 (baseline 1bd1c6e8 = live; owner decisions D1–D6, 2026-10-19): the family frame — one
-                 # wattage + one single-type (non-alias) family name + no other product-form word — supplies the product type;
-                 # inside it only, AirPods / Apple Watch (lexicon devices.lines) and "for / para sa switch" are devices; an
-                 # explicit connector stays in the family noun (D5); STOCK-6B FR1 pin revised (D1). NO data.
-                 'js/vero-plan.js', 'js/vero-lexicon.js', 'js/vero-compose.js', 'index.html',
-                 'tests/vero-p2r3a-stock6b.test.js', 'tests/vero-p2r3a-stock15.test.js'}
+                 # NEW-DEPLOY-1-FIX (baseline 9bd5273d = live; owner-approved rows 1–6, 2026-10-20): both wrangler.toml files
+                 # mirror the live dashboard settings (AI_ENABLED / WEB_ENABLED "true", keep_vars, CMS [observability]);
+                 # G15b pins their sha256. No Worker source, migration, front-end or data change; nothing is deployed. NO data.
+                 'backend/vero/wrangler.toml', 'backend/wrangler.toml'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -139,7 +140,10 @@ bcss = (base('css/vero.css') or b'').decode('utf-8').splitlines(); ncss = rd('cs
 chk('G12 css/vero.css: additive only (every baseline line kept; new rules only if css/vero.css is in RELEASE_SCOPE)', all(l in ncss for l in bcss) and (ncss == bcss or 'css/vero.css' in RELEASE_SCOPE))
 chk('G13 VERO Worker source sha256 == pinned ugreen-vero source 368d7430…1b2c (UNO Phase E, prompt v5)', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
 chk('G14 publish Worker source sha256 == deployed ugreen-pricelist-cms baseline f3d7159f…', sha(rd('backend/worker.js')) == PUBLISH_WORKER_SHA)
-# G15: backend/ paths may differ only if listed in RELEASE_SCOPE (this release: exactly backend/vero/worker.js); empty = all unchanged
+chk('G15b Worker configs == pinned live mirrors (backend/vero/wrangler.toml a2ba3991…, backend/wrangler.toml bd2cc181…)',
+    sha(rd('backend/vero/wrangler.toml')) == VERO_WRANGLER_SHA and sha(rd('backend/wrangler.toml')) == PUBLISH_WRANGLER_SHA,
+    [f for f, h in (('backend/vero/wrangler.toml', VERO_WRANGLER_SHA), ('backend/wrangler.toml', PUBLISH_WRANGLER_SHA)) if sha(rd(f)) != h])
+# G15: backend/ paths may differ only if listed in RELEASE_SCOPE (this release: exactly the two wrangler.toml files); empty = all unchanged
 BACKEND_SCOPE = {f for f in RELEASE_SCOPE if f.startswith('backend/')}
 backend_changed = {f for f in changed if f.startswith('backend/')}
 chk('G15 backend/ (both Workers, wrangler configs = budgets/limits/vars) unchanged vs baseline except ' + (', '.join(sorted(BACKEND_SCOPE)) or 'nothing'),

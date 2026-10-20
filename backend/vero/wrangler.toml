@@ -2,6 +2,12 @@ name = "ugreen-vero"
 main = "worker.js"
 # Keep identical to Cloudflare > ugreen-vero > Settings > Runtime.
 compatibility_date = "2026-10-06"
+# Values in this file mirror PRODUCTION (live dashboard audit 2026-10-20, NEW-DEPLOY-1-FIX). A change here is a production
+# change: edit it only in an approved checkpoint, and update this file after any dashboard variable change.
+# Approved deploy route: code-only through the Cloudflare dashboard. A `wrangler deploy` needs its own approval and a
+# `--dry-run` comparison with the live settings first.
+# keep_vars: a wrangler deploy keeps variables that exist only in the dashboard instead of deleting them.
+keep_vars = true
 
 # Workers Logs on (needed to read per-request CPU time during the pilot)
 [observability]
@@ -20,8 +26,8 @@ migrations_dir = "migrations"
 # Non-secret config — safe to commit. Keep identical to Cloudflare > Worker > Settings > Variables.
 [vars]
 ALLOW_ORIGIN = "https://raffyrojo.github.io"
-AI_ENABLED = "false"            # kill switch: "true" only when the pilot opens
-WEB_ENABLED = "false"           # web-search kill switch (independent of AI_ENABLED)
+AI_ENABLED = "true"             # live value; kill switch = set "false" in the dashboard (then update this file)
+WEB_ENABLED = "true"            # live value; web-search kill switch (independent of AI_ENABLED), same rule
 PROVIDER = "openai"
 MODEL = "gpt-6-luna"             # change here + dashboard to switch model (see README)
 OPENAI_BASE_URL = "https://api.openai.com"
