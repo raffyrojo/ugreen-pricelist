@@ -176,6 +176,48 @@
         ta.forEach(function(w,i){ (post[w]=post[w]||[]).push([code,i,1]); if(!seen[w]){ seen[w]=1; df[w]=(df[w]||0)+1; } }); } });
     NIX={ key:key, idx:{ post:post, toks:toks, df:df, alt:alt } }; return NIX.idx;
   }
+  /* NEW-P2R3A-STOCK-15 fix round 1: the family frame admits a question only when every word left beside the family name, the
+     wattage, a power connector (USB-C / USB-A) and the device phrase is harmless. A word blocks the frame when it is a lexicon word
+     of a non-power product type, a product-NAME word found only outside chargers / power banks ("cover", "pouch", "protector"),
+     or a word neither the lexicon nor any product name knows ("kable", "brick"); a non-power connector or an "A to B" pair blocks
+     it too. Derived from the lexicon and the catalogue (cached per catalogue), never a hand-kept noun list. */
+  var FWC={ key:null, names:null, lex:null, L:null };
+  function frameWords(products,idx,c){
+    if(FWC.key===idx.key && FWC.L===c.L) return FWC;
+    var names={}, POWER={ charger:1, power_bank:1 }, pw={}, lex={}, words=function(t,o){ String(t||'').toLowerCase().split(/[^a-z0-9]+/).forEach(function(w){ if(w) o[w]=1; }); };
+    products.forEach(function(p){ var F=idx.byCode[String(p.item_code)]; if(!F) return; var b=POWER[F.type.family]?1:2; nameToks(p.product_name).forEach(function(w){ names[w]=(names[w]||0)|b; }); });
+    c.L.taxonomy.families.forEach(function(f){ var o=POWER[f.id]?pw:lex; words(f.label,o); words(f.plural,o); (f.nameCues||[]).forEach(function(x){ words(x,o); }); (f.subtypes||[]).forEach(function(s){ words(s.label,o); }); });
+    c.L.aliases.forEach(function(a){ var ns=String(a.to).split('.')[0]; if(ns==='connector'||ns==='flag') return; words(a.term,POWER[ns]?pw:lex); });
+    var spec={}; [c.L.metrics||{},c.L.attributes||{},c.L.colors||{}].forEach(function(o){ Object.keys(o).forEach(function(k){ words(k,spec); (o[k]||[]).forEach(function(x){ words(x,spec); }); }); });   /* "3 ports", "black": qualifiers, not product words */
+    Object.keys(pw).concat(Object.keys(spec)).forEach(function(w){ delete lex[w]; });
+    Object.keys(c.L.forms||{}).forEach(function(k){ if(k!=='charger') c.L.forms[k].forEach(function(x){ words(x,lex); }); });   /* product forms ("adapter", "cable", "stand") always block */
+    (c.L.displayWords||[]).forEach(function(x){ words(x,lex); });                                                               /* "monitor", "screen" */
+    c.L.taxonomy.families.forEach(function(f){ if(POWER[f.id]) (f.subtypes||[]).forEach(function(s){ if(s.id!=='wall') words(s.label,lex); }); });   /* "wireless", "car", "strip": a subtype the family may not have */
+    Object.keys(c.L.nameQualifiers||{}).forEach(function(w){ words(w,lex); });                                               /* "magnetic", "slim": name qualifiers the frame would drop */
+    delete lex.charger; delete lex.chargers;
+    /* words the lexicon knows only as grammar / intent / conversation (never a product word) */
+    var gram={}; Object.keys(c.L.language||{}).forEach(function(g){ (c.L.language[g]||[]).forEach(function(x){ words(x,gram); }); });
+    [c.L.smalltalkFiller,c.L.followUpCues,c.L.topicSwitchCues,c.L.inventoryWords,c.L.taglishMarkers,((c.L.historyDir||{}).up||[]),((c.L.historyDir||{}).down||[])].forEach(function(a){ (a||[]).forEach(function(x){ words(x,gram); }); });
+    Object.keys(c.L.smalltalk||{}).forEach(function(k){ (c.L.smalltalk[k]||[]).forEach(function(x){ words(x,gram); }); });
+    FU_KNOWN.concat(NOUN_STOP).forEach(function(x){ words(x,gram); });   /* not EXTRA_STOP: it also lists product words ("hdd", "monitor") */
+    /* fix round 2 (QA G1): the family type's OWN words ("chargers", "power banks"; family level, not subtypes) are the type itself */
+    var own={}, one=function(t,o){ t=String(t||'').toLowerCase().trim(); if(t && !/[^a-z0-9]/.test(t)) o[t]=1; };   /* single-word terms only: "charging station" adds nothing */
+    c.L.taxonomy.families.forEach(function(f){ if(!POWER[f.id]) return; var o=own[f.id]={}; one(f.label,o); one(f.plural,o); (f.nameCues||[]).forEach(function(x){ one(x,o); }); });
+    c.L.aliases.forEach(function(a){ var p=String(a.to).split('.'); if(own[p[0]] && !p[1]) one(a.term,own[p[0]]); });
+    FWC={ key:idx.key, names:names, lex:lex, spec:spec, gram:gram, own:own, L:c.L }; return FWC; }
+  function frameLeftoverOk(t,famText,famType,X,c,products,idx){
+    if(X.pair || X.connectors.some(function(k){ return k.k!=='usb_c' && k.k!=='usb_a'; })) return false;
+    var rt=resolveType({ t:t, ports:[] },c,[]); if(rt && (rt.family!==famType || rt.subtype)) return false;   /* "nexode 65w power bank" / "… wireless charger": another type or subtype */
+    var FW=frameWords(products,idx,c), fam={}; famText.split(' ').forEach(function(w){ fam[w]=1; });
+    var rest=t.replace(/\b(?:usb[\s-]?c|type[\s-]?c|usbc|typec|usb[\s-]?a|type[\s-]?a)\b/g,' ');
+    return rest.split(/[^a-z0-9]+/).every(function(w){
+      if(!w || fam[w] || /^\d+(?:\.\d+)?(?:w|watts?|m|cm|ft|mah|v|a)?$/.test(w) || w==='w' || w==='watt' || w==='watts') return true;
+      if(FW.lex[w]) return false;
+      if((FW.own[famType]||{})[w]) return true;          /* "chargers": the family's own type word */
+      if(FW.spec[w]) return true;                       /* spec / colour words ("3 ports", "black") are qualifiers */
+      if(FW.names[w]) return (FW.names[w]&1)===1;     /* a word of charger / power-bank NAMES is fine; one found only elsewhere ("cover") is not */
+      return !!FW.gram[w]; });                          /* otherwise only grammar / intent words; unknown ("kable") or other lexicon words ("hdd") block */
+  }
   /* NEW-P2R3A-STOCK-6A (S6-2): the catalogue casing of an alias phrase for labels ("gan tech" → "GaN Tech"), read from the
      product names (a glued form counts as the spaced phrase); falls back to the typed words */
   function aliasCase(ph,products){ var re=new RegExp('(^|[^a-z0-9])('+ph.split(' ').map(esc).join('\\s?')+')(?![a-z0-9])','i'), seen={};
@@ -667,6 +709,23 @@
     var tNm=X.t; X.devices.named.forEach(function(d){ tNm=tNm.replace(new RegExp('(^|[^a-z0-9])'+esc(d.label)+'(?=$|[^a-z0-9])','g'),'$1 '); });   /* a named device ("macbook air m4") is never a product name */
     var specToks={}; X.filters.forEach(function(f){ if(f.attr==='watts') nameToks(String(f.raw||'')).forEach(function(w){ specToks[w]=1; }); });
     var NI=nameIndex(products,idx.key), names=findNames(tNm,c,NI,trace,specToks), typeWord=!!resolveType({ t:X.t, ports:[] },c,[]) || X.connectors.length>0 || /\b(cables?|adapters?|adaptors?|converters?|hubs?|docks?|chargers?|splitters?|switch(?:es|er)?|extenders?|enclosures?|readers?)\b/.test(X.t);
+    /* NEW-P2R3A-STOCK-15 (owner D1–D6, 2026-10-19): the FAMILY FRAME — exactly one wattage + exactly one product family named by a
+       (non-alias) name phrase whose named products are all one wattage type (charger / power bank) + no other product-form word
+       left once the device phrase is set aside. Only inside the frame: a device line that is also a product-name word ("airpods",
+       "apple watch") is the named device, "for / para sa / pang switch" is the device Switch, and the family supplies the product type
+       (below, before the form words) — as if the type word had been typed. Outside the frame nothing changes. */
+    var DLn=((c.L.devices||{}).lines)||{}, lineOf=function(t){ var k0=null; Object.keys(DLn).some(function(k){ return DLn[k].some(function(w){ if(new RegExp('(^|[^a-z0-9])'+esc(w)+'(?=$|[^a-z0-9])').test(t)){ k0={ kind:k, w:w }; return true; } return false; }); }); return k0; };
+    var famN=names.filter(function(n){ if(n.alias || lineOf(n.text)) return false; var ff=uniq(n.codes.map(function(x){ return idx.byCode[x]?idx.byCode[x].type.family:null; })); return ff.length===1 && (ff[0]==='charger'||ff[0]==='power_bank'); });
+    var tFo=tNm.replace(/\b(?:for|para sa|pang)\s+(?:the\s+|my\s+)?(?:nintendo\s+)?switch\b/g,' '), dLine=lineOf(X.t);
+    if(dLine) dLine.w.split(' ').concat(['pro','max','ultra','se']).forEach(function(w){ tFo=tFo.replace(new RegExp('(^|[^a-z0-9])'+esc(w)+'(?=$|[^a-z0-9])','g'),'$1 '); });   /* the device line's words ("apple" may already be masked as a brand) */
+    Object.keys((c.L.devices||{}).classes||{}).forEach(function(k){ c.L.devices.classes[k].forEach(function(w){ tFo=tFo.replace(new RegExp('(^|[^a-z0-9])'+esc(w)+'(?=$|[^a-z0-9])','g'),'$1 '); }); });   /* "para sa laptop" is the device, not a product word */
+    plan.famFrame=X.filters.filter(function(f){ return f.attr==='watts'; }).length===1 && famN.length===1 && frameLeftoverOk(tFo,famN[0].text,idx.byCode[famN[0].codes[0]].type.family,X,c,products,idx);
+    if(plan.famFrame){
+      if(dLine){ var dm=new RegExp('(^|[^a-z0-9])('+esc(dLine.w)+'(?:\\s+(?:pro|max|ultra|se|\\d{1,2}))*)(?=$|[^a-z0-9])').exec(X.t), dlab=dm?dm[2]:dLine.w;
+        X.devices.named=X.devices.named.filter(function(d){ return dlab.indexOf(d.label)!==0; }); X.devices.named.unshift({ kind:dLine.kind, label:dlab });   /* "apple watch", not the ecosystem word "apple" */
+        names=names.filter(function(n){ return !lineOf(n.text); }); trace.push('device line "'+dlab+'" in a family frame → device'); }
+      if(/\b(?:for|para sa|pang)\s+(?:the\s+|my\s+)?switch\b/.test(X.t) && !X.devices.named.some(function(d){ return /switch/.test(d.label); })){ X.devices.named.push({ kind:'console', label:'switch' }); trace.push('"for switch" in a family frame → device'); }
+    }
     names=names.filter(function(n){ return !plan.anchors.some(function(a){ return a.codes.length && n.codes.every(function(x){ return a.codes.indexOf(x)>=0; }); }); });
     names.forEach(function(n){
       var words=n.text.split(' ');
@@ -705,6 +764,9 @@
     if(plan.type && plan.type.family==='charger' && !plan.type.subtype && /\bcar\b/.test(X.t)){ plan.type=Object.assign({},plan.type,{ id:'charger.car', subtype:'car', term:'car charger' }); trace.push('charger + car → car charger'); }
     if(!plan.type && plan.standards.length){ var sf=(c.L.standards[plan.standards[0]]||{}).family; if(sf){ plan.type={ id:sf, family:sf, subtype:null, via:'standard', term:plan.standards[0]+' cable', confidence:'high' }; trace.push('type:'+plan.standards[0]+'→'+sf); if(/\bcables?\b/.test(X.t)) plan.formStrict='cable'; } }
     if(!plan.type && subject.length){ var fams=uniq(subject.map(function(x){ var f=idx.byCode[x]; return f?f.type.family:null; }).filter(Boolean)); if(fams.length===1) plan.type={ id:fams[0], family:fams[0], subtype:null, via:resolved.length?'anchor':'context', confidence:'high' }; }
+    /* NEW-P2R3A-STOCK-15: inside the family frame the family's one product type is the type ("nexode 65w usb c", "… para sa switch") */
+    if(plan.famFrame && !plan.type && !subject.length){ var fnp=X.match.filter(function(m){ return m.k==='namephrase' && !m.soft && !m.alias; });
+      if(fnp.length===1){ var ffT=uniq((fnp[0].codes||[]).map(function(x){ return idx.byCode[x]?idx.byCode[x].type.family:null; })); if(ffT.length===1 && (ffT[0]==='charger'||ffT[0]==='power_bank')){ plan.type={ id:ffT[0], family:ffT[0], subtype:null, via:'family', confidence:'medium' }; trace.push('family frame → type '+ffT[0]); } } }
     if(!plan.type || plan.type.family==='video_cable'){ ['cable','adapter','extender','splitter','switch','enclosure'].some(function(k){ if(new RegExp('\\b'+(k==='adapter'?'(?:adapter|adaptor|converter)':k)+'s?\\b').test(X.t)){ plan.form=k; return true; } return false; }); }
     var UC=c.L.useCases||{};
     if(X.useCases.length) plan.useCase={ id:X.useCases[0], families:(UC[X.useCases[0]]||{}).families||[], minVideoOut:(UC[X.useCases[0]]||{}).minVideoOut||null };

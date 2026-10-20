@@ -145,8 +145,13 @@ chk('G5 TL count sentence for the alias family', same(G5.r.codes,GT65) && G5.r.n
 
 /* ---------- FR fix round 1 (QA / VERO round-1 findings) ---------- */
 const FR1=[ask('nexode 65w for nintendo switch'),ask('may nexode 65w ba para sa nintendo switch?'),ask('robot gan 65w for nintendo switch'),ask('gantech 65w para sa nintendo switch'),ask('nexode 65w usb c for macbook')];
-chk('FR1 a device / leftover word naming another product form never becomes a family question: device-fit clarify as on afe146e3, never "We don’t have / Wala"',
-  FR1.every(x=>!x.r.plan.devFamilyQ && !fm(x) && x.r.plan.route.route==='CLARIFY' && !/We don’t have|Wala tayong|is listed|naka-lista/.test(x.r.note||'')), FR1.map(txt).join(' || '));
+/* revised by NEW-P2R3A-STOCK-15 (owner D1 / D3, 2026-10-19): inside the family frame a normal single-type family answers as if the
+   type word were typed (the 2 Nexode 65W / 3 Robot GaN 65W, USB-C kept, device disclaimer); the alias GaN Tech path keeps the
+   afe146e3 device-fit clarify (D3 deferred) */
+chk('FR1 (revised STOCK-15 D1/D3) a normal family + wattage + "nintendo switch" / "usb c for macbook" → the exact family set with the device disclaimer, local; the alias "gantech … nintendo switch" keeps the device-fit clarify, never "We don’t have / Wala"',
+  [FR1[0],FR1[1],FR1[4]].every(x=>mode(x)==='exact' && same(x.r.codes,N65) && x.r.plan.devFamilyQ && local(x) && /^Note: /.test(x.r.compatNote||'')) && mode(FR1[2])==='exact' && same(FR1[2].r.codes,L65) && local(FR1[2]) &&
+  FR1[0].r.compatNote===EN_NOTE('Nintendo Switch') && FR1[1].r.compatNote===TL_NOTE('Nintendo Switch') && /USB-C chargers listed/.test(FR1[4].r.note) &&
+  !FR1[3].r.plan.devFamilyQ && !fm(FR1[3]) && FR1[3].r.plan.route.route==='CLARIFY' && !/We don’t have|Wala tayong|is listed|naka-lista/.test(FR1[3].r.note||''), FR1.map(txt).join(' || '));
 const FR1b=ask('nexode 65w charger for nintendo switch');
 chk('FR1b with the type word the same question resolves (the 2 Nexode 65W) with a disclaimer line', mode(FR1b)==='exact' && same(FR1b.r.codes,N65) && /^Note: Compatibility with your /.test(FR1b.r.compatNote||'') && local(FR1b), txt(FR1b));
 const FR2a=ask('nexode 65w 2 ports for laptop'), FR2b=ask('may nexode 65w na 2 ports para sa laptop?'), FR2c=ask('nexode pro 30w 2 ports for macbook');

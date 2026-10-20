@@ -34,7 +34,11 @@
   /* ---------- labels ---------- */
   function niceCase(t){ return String(t||'').replace(/\b(hdmi|usb|lan|nas|dp|vga|dvi|gan|pd|sd|tf)\b/g,function(w){ return w.toUpperCase(); }).replace(/\busb-c\b/gi,'USB-C').replace(/\busb-a\b/gi,'USB-A'); }
   var DEV_CASE={ ps5:'PS5', playstation:'PlayStation', iphone:'iPhone', ipad:'iPad', macbook:'MacBook', imac:'iMac', mac:'Mac', xbox:'Xbox', samsung:'Samsung', galaxy:'Galaxy', pixel:'Pixel', thinkpad:'ThinkPad', chromebook:'Chromebook', air:'Air', pro:'Pro', max:'Max', mini:'mini', plus:'Plus', ultra:'Ultra', nintendo:'Nintendo', 'switch':'Switch', steam:'Steam', deck:'Deck' };
-  function devLabel(d){ return String(d||'').split(/\s+/).map(function(w){ return DEV_CASE[w]||(/^[ms]\d/.test(w)?w.toUpperCase():w); }).join(' '); }
+  DEV_CASE.airpods='AirPods';   /* NEW-P2R3A-STOCK-15 (owner D4): device lines named inside a family frame */
+  function devLabel(d){ var s=String(d||''), head='';
+    if(/^apple watch(?![a-z0-9])/.test(s)){ head='Apple Watch'; s=s.slice(11).trim(); }   /* STOCK-15 (D4): the device line keeps its own casing */
+    var rest=s?s.split(/\s+/).map(function(w){ return DEV_CASE[w]||(/^[ms]\d/.test(w)?w.toUpperCase():w); }).join(' '):'';
+    return head+(head&&rest?' ':'')+rest; }
   function familyOf(id){ return (LEX().taxonomy.families.filter(function(f){ return f.id===id; })[0])||null; }
   function plural(w){ if(!w) return w; if(/s$|nas$/i.test(w)) return w; if(/(ch|sh|x)$/.test(w)) return w+'es'; if(/y$/.test(w) && !/[aeiou]y$/.test(w)) return w.slice(0,-1)+'ies'; return w+'s'; }
   function nounOf(plan,many){
@@ -260,6 +264,14 @@
         return null; }
       if(FM.mode==='alternatives') return tl?'Walang naka-listang '+famName+' na '+fw+'. Mga '+label(LP,false)+altTl():'No '+famName+' '+fw+' is listed. '+label(LP,true).replace(/^./,function(x){ return x.toUpperCase(); })+' you could offer instead (not '+famName+'):';
       if(FM.mode==='insufficient') return tl?'Hindi ko makumpirma sa pricelist kung may '+famName+' na '+fw+' — walang naka-listang wattage ang mga ito:':'I can’t confirm a '+fw+' '+famName+' from the pricelist — these have no listed wattage:';
+      /* NEW-P2R3A-STOCK-15 (owner D5): an explicit connector ("usb c") stays in the noun ("2 Nexode 65W USB-C chargers"); the
+         shown codes already carry it in their product NAME (the connector filter) — nothing is inferred. Same sentences as below. */
+      if(FM.mode==='exact' && (LP.connectors||[]).length){ var cq=function(many){ return devQual(many)||nounOf(LP,many); }, head=famName+' '+fw+' ';
+        if(plan.flags.stock) return tl?'Naka-lista sa current pricelist ang mga '+head+cq(false)+' na ito:':'These '+head+cq(true)+' are listed in the current pricelist:';
+        var body=n+(tl?' na ':' ')+head+cq(!tl && n!==1);
+        if(I==='exist') return (tl?'Meron — ':'Yes — ')+body+(tl?' sa current pricelist:':' in the current pricelist:');
+        if(I==='count') return body+(tl?' sa current pricelist:':' in the current pricelist:');
+        return body+':'; }
       if(FM.mode==='exact'){ var nn=nounOf(LP,n!==1);
         if(plan.flags.stock) return tl?'Naka-lista sa current pricelist ang mga '+famName+' '+fw+' '+nounOf(LP,false)+' na ito:':'These '+famName+' '+fw+' '+nounOf(LP,true)+' are listed in the current pricelist:';
         if(I==='exist') return tl?'Meron — '+n+' na '+famName+' '+fw+' sa current pricelist:':'Yes — '+n+' '+famName+' '+fw+' '+nn+' in the current pricelist:';

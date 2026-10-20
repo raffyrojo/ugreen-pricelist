@@ -338,6 +338,9 @@
       classes:{ laptop:['laptop','laptops','notebook'], phone:['phone','phones','smartphone','cellphone','cp','selpon'], tablet:['tablet','tablets'] },
       brands:{ laptop:['macbook','chromebook','thinkpad','zenbook','matebook'], phone:['iphone','samsung','galaxy','pixel','xiaomi','redmi','oppo','vivo','realme','infinix','tecno','huawei','oneplus'],
                tablet:['ipad'], console:['ps5','playstation','xbox','nintendo switch','steam deck'], desktop:['imac','mac mini','mac studio','mac'], ecosystem:['apple','google','android'] },
+      /* NEW-P2R3A-STOCK-15 (owner D4): device lines that are also product-NAME words ("… Wireless Charger for iPhone + AirPods") —
+         a device only inside a family + wattage frame (js/vero-plan.js); everywhere else they stay product-name words */
+      lines:{ audio:['airpods'], wearable:['apple watch'] },
       /* product-NAME words that mean "made for this device line" ("Tracker for Galaxy Series", "Finder 2 for Apple"): a catalogue fact, not a compatibility check */
       nameWords:{ samsung:['galaxy','samsung'], galaxy:['galaxy','samsung'], iphone:['apple','iphone','ios'], ipad:['apple','ipad','ios'], macbook:['apple','macbook','mac'], mac:['apple','mac'], imac:['apple','mac'],
                   apple:['apple','iphone','ios'], google:['google'], pixel:['google','pixel'], android:['android','google'] }
