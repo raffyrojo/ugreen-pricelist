@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '9bd5273d'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'cc73bed0'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
@@ -24,16 +24,19 @@ PUBLISH_WORKER_SHA = 'f3d7159f5bf7152e798b98afbd02af1e28da5255f6bf06a194d679a3ce
 # Worker configs = mirrors of the live dashboard settings (NEW-DEPLOY-1-FIX, live audit 2026-10-20); re-pin only in an approved config release
 VERO_WRANGLER_SHA = 'a2ba39911254294d44df42a24b8ea97e7274729da8bb3c68b6f2f7c1e5685e22'     # backend/vero/wrangler.toml
 PUBLISH_WRANGLER_SHA = 'bd2cc181f81301627bbd4f3f6fc6f95c0946c15ac8d706ced9c87fa8434bbfde'  # backend/wrangler.toml
+# Subresource Integrity of the CDN export libraries (H1, 2026-10-20; hashes cross-checked with cdnjs / jsDelivr published values)
+CDN_SRI = {'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
+           'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js': 'sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR'}
 AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 
 # ===================== RELEASE SCOPE (edit per release; empty between releases) =====================
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # NEW-DEPLOY-1-FIX (baseline 9bd5273d = live; owner-approved rows 1–6, 2026-10-20): both wrangler.toml files
-                 # mirror the live dashboard settings (AI_ENABLED / WEB_ENABLED "true", keep_vars, CMS [observability]);
-                 # G15b pins their sha256. No Worker source, migration, front-end or data change; nothing is deployed. NO data.
-                 'backend/vero/wrangler.toml', 'backend/wrangler.toml'}
+                 # H1 front-end hardening (baseline cc73bed0 = live; owner-approved 2026-10-20): SRI + crossorigin on the two
+                 # CDN export libraries (G25; G04 allows exactly these attributes); search-overlay chips / cards pass their
+                 # value through a data attribute instead of splicing it into an inline JS string (G26); new test. NO data.
+                 'index.html', 'js/search-overlay.js', 'tests/h1-hardening.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -79,10 +82,19 @@ for a in refs:   # cache-buster integrity: EVERY local js/css (tagged or not) wh
 chk('G02 no retired VERO tags (engine / vero.js not at p1/p2/p2r1/p2r2/p2r2.1; css not at p2)', not re.search(r'vero(-engine)?\.js\?v=p(1|2|2r1|2r2|2r2\.1)"', root) and not re.search(r'css/vero\.css\?v=p2"', root))
 missing = [x for x in refs if not os.path.isfile(os.path.join(R, x))]
 chk(f'G03 all {len(refs)} local js/css references exist', not missing, missing)
-strip = lambda h: re.sub(r'((?:src|href)="(?:js|css)/[^"?]+)(?:\?v=[^"]*)?"', r'\1"', re.sub(r'<script src="js/vero[\w-]*\.js\?v=[\w.]+"></script>\n?|<link rel="stylesheet" href="css/vero\.css\?v=[\w.]+">', '', h))
+# G04 normalisation also drops the integrity / crossorigin attributes of the pinned CDN script tags (checked exactly by G25)
+_sri_strip = lambda h: re.sub(r'(<script src="(?:' + '|'.join(re.escape(u) for u in CDN_SRI) + r')") integrity="[^"]*" crossorigin="anonymous"(></script>)', r'\1\2', h)
+strip = lambda h: re.sub(r'((?:src|href)="(?:js|css)/[^"?]+)(?:\?v=[^"]*)?"', r'\1"', re.sub(r'<script src="js/vero[\w-]*\.js\?v=[\w.]+"></script>\n?|<link rel="stylesheet" href="css/vero\.css\?v=[\w.]+">', '', _sri_strip(h)))
 pos = [root.find(f + '?v=') for f in ORDER]
 chk('G04 index.html differs from baseline ONLY in VERO script/css lines and ?v= tags; Local Brain loads lexicon -> nlu -> facts -> plan -> compose -> engine -> vero.js (each once)',
     strip(root) == strip(b_idx) and all(p > 0 for p in pos) and pos == sorted(pos) and all(root.count(f + '?v=') == 1 for f in ORDER), pos)
+_ext = re.findall(r'<script\b[^>]*\bsrc="(https?:[^"]+)"[^>]*></script>', root)
+_ext_ok = [u for u in _ext if re.search(r'<script src="' + re.escape(u) + r'" integrity="' + re.escape(CDN_SRI.get(u, '\x00')) + r'" crossorigin="anonymous"></script>', root)]
+chk('G25 every external <script> in index.html carries its pinned SRI integrity + crossorigin="anonymous" (jsPDF 2.5.1, ExcelJS 4.3.0)',
+    sorted(_ext) == sorted(CDN_SRI) and len(_ext_ok) == len(_ext), sorted(set(_ext) - set(_ext_ok)) or sorted(set(_ext) ^ set(CDN_SRI)))
+_so = rd('js/search-overlay.js').decode('utf-8')
+chk('G26 js/search-overlay.js splices no value into an inline JS string (chips / cards use data-term / data-code + this.dataset)',
+    "\\''+" not in _so and 'soPickTerm(this.dataset.term)' in _so and 'soPickProduct(this.dataset.code)' in _so)
 outside = [f for f in VJS + list(SHADOW) if f not in RELEASE_SCOPE and base(f) != (rd(f) if os.path.isfile(os.path.join(R, f)) else None)]
 chk('G04b VERO runtime + shadow files outside RELEASE_SCOPE are byte-identical to the baseline', not outside, outside)
 CHK_JS = sorted(set(VJS + [f for f in list(SHADOW) if os.path.isfile(os.path.join(R, f))] + [f for f in changed if f.endswith('.js') and f.startswith('js/') and os.path.isfile(os.path.join(R, f))]))

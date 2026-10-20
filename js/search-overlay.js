@@ -148,14 +148,16 @@
     if(tags){
       var terms=topSearches();
       tags.innerHTML=terms.length?terms.map(function(t){
-        return '<button type="button" class="so-tag" onclick="soPickTerm(\''+_esc(t).replace(/'/g,"\\'")+'\')">'+_esc(_title(t))+'</button>';
+        /* the term travels in an HTML-escaped data attribute, never spliced into JS (H1: the browser decodes
+           &#39; before an inline handler runs, so escaping inside a JS string in an attribute cannot work) */
+        return '<button type="button" class="so-tag" data-term="'+_esc(t)+'" onclick="soPickTerm(this.dataset.term)">'+_esc(_title(t))+'</button>';
       }).join(''):'<div class="so-muted">No searches yet — start typing above.</div>';
     }
     var grid=document.getElementById('so-suggest');
     if(grid){
       var ps=suggestedProducts();
       grid.innerHTML=ps.length?ps.map(function(p){
-        return '<button type="button" class="so-card" onclick="soPickProduct(\''+_esc(String(p.item_code)).replace(/'/g,"\\'")+'\')">'+
+        return '<button type="button" class="so-card" data-code="'+_esc(String(p.item_code))+'" onclick="soPickProduct(this.dataset.code)">'+
           '<div class="so-card-img">'+_imgHtml(p)+'</div>'+
           '<div class="so-card-txt"><div class="so-card-name">'+_esc(p.product_name||p.item_code)+'</div>'+
           (p.item_code?'<div class="so-card-code">'+_esc(p.item_code)+'</div>':'')+'</div>'+
