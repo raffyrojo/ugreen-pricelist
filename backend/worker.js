@@ -28,12 +28,12 @@ export default {
     }
     if (request.method !== 'POST') return json({ error: 'POST only' }, 405, cors);
 
-    let payload;
-    try { payload = await request.json(); }
+    let raw, payload;
+    try { raw = await request.text(); payload = JSON.parse(raw); }
     catch (e) { return json({ error: 'Invalid JSON body' }, 400, cors); }
 
     // Public, anonymous telemetry (NO password): a session's viewed codes / searched terms.
-    if (payload && payload.action === 'track') return handleTrack(payload, env, cors);
+    if (payload && payload.action === 'track') return handleTrack(payload, env, cors, request, _enc.encode(raw).length);
     // Admin-only: clear the trending buckets.
     if (payload && payload.action === 'resetTrending') return handleResetTrending(payload, env, cors);
     // Dealer portal: public code exchange + admin CRUD for private dealer price lists.
@@ -41,8 +41,8 @@ export default {
     if (payload && payload.action === 'dealersGet') return handleDealersGet(payload, env, cors);
     if (payload && payload.action === 'dealersSave') return handleDealersSave(payload, env, cors);
 
-    // --- auth: constant-time-ish password check ---
-    if (!payload || !payload.password || payload.password !== env.ADMIN_SAVE_SECRET) {
+    // --- auth: constant-time password check (fails closed when the secret is missing) ---
+    if (!payload || !(await secretOk(payload.password, env.ADMIN_SAVE_SECRET))) {
       return json({ error: 'Unauthorized' }, 401, cors);
     }
     if (!Array.isArray(payload.products)) {
@@ -86,6 +86,22 @@ export default {
   }
 };
 
+/* Constant-time check of the admin save password (B1a, UAD-F2): both sides are SHA-256 hashed so the comparison
+   always runs over 32 bytes, independent of where the strings differ or how long they are. Only a non-empty string
+   can match a non-empty configured secret, exactly as the previous `!==` check accepted; a missing secret fails closed.
+   The hash input is the string's UTF-16 code units (not UTF-8), so two different strings never hash alike - e.g. lone
+   surrogates are not folded into U+FFFD (B1a fix round 1, FR6). */
+const _enc = new TextEncoder();
+function _units(str) { const u = new Uint16Array(str.length); for (let i = 0; i < str.length; i++) u[i] = str.charCodeAt(i); return new Uint8Array(u.buffer); }
+async function secretOk(given, secret) {
+  if (typeof given !== 'string' || !given || typeof secret !== 'string' || !secret) return false;
+  const a = new Uint8Array(await crypto.subtle.digest('SHA-256', _units(given)));
+  const b = new Uint8Array(await crypto.subtle.digest('SHA-256', _units(secret)));
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
+  return d === 0;
+}
+
 /* PUT a file to the repo via the Contents API, creating or updating it.
    Reads the current SHA (needed to update), retries once on 409 conflict. */
 async function putFile(owner, repo, branch, path, base64Content, message, headers) {
@@ -124,38 +140,67 @@ function _recentDayKeys(n) {
   for (let i = 0; i < n; i++) out.push(_dayKey(new Date(now - i * 86400000)));
   return out;
 }
+/* B1a fix round 1 (FR3): count maps never inherit from Object.prototype and keep only finite positive numbers, so
+   keys such as "constructor" / "valueOf" / "__proto__" are ordinary counters and old corrupted values are dropped. */
+function _counts(src) {
+  const o = Object.create(null);
+  if (src && typeof src === 'object') for (const k of Object.keys(src)) { const n = src[k]; if (typeof n === 'number' && isFinite(n) && n > 0) o[k] = n; }
+  return o;
+}
 function _capMap(m, max) {
   const ks = Object.keys(m);
   if (ks.length <= max) return m;
   ks.sort((a, b) => m[b] - m[a]);
-  const out = {};
+  const out = Object.create(null);
   for (let i = 0; i < max; i++) out[ks[i]] = m[ks[i]];
   return out;
 }
-async function handleTrack(payload, env, cors) {
+/* track hardening (B1a, UAD-F1): the request comes from the public page, so everything is validated here.
+   - a request from another site's page (Origin present and not ALLOW_ORIGIN) is refused; body <= 16 KB (UTF-8 bytes);
+   - views: item-code charset only; terms: 3-60 chars of letters / digits / basic punctuation, never an email-like,
+     phone-like or long digit run (no personal data stored in KV); at most 50 of each per request;
+   - nothing valid -> no KV read or write. */
+const TRACK_MAX_BYTES = 16384, TRACK_MAX_ITEMS = 50, MIN_SEARCH_COUNT = 3;
+const TRACK_CODE_RE = /^[A-Za-z0-9-]{1,20}$/;
+/* fix round 1: FR1 wider charset (catalogue names use * ° % @ etc.; combining marks), FR2 NFC normalisation,
+   FR5 phone-like = any digit group of 7+ digits incl. separators (Metro Manila landlines "8123 4567"; also covers any
+   plain run of 7+ digits) */
+const TRACK_TERM_RE = /^[\p{L}\p{M}\p{N} .,'"+\-\/&()#*°%?!₱…“”‘’@_]+$/u;
+const TRACK_EMAIL_RE = /[^\s@]+@[^\s@]+\.[^\s@]{2,}/;
+function _trackTerm(t) {
+  if (typeof t !== 'string') return '';
+  const s = t.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (s.length < 3 || s.length > 60 || !TRACK_TERM_RE.test(s) || TRACK_EMAIL_RE.test(s)) return '';
+  if ((s.match(/\+?\d[\d\s().-]{5,}\d/g) || []).some(m => m.replace(/\D/g, '').length >= 7)) return '';   // phone-like
+  return s;
+}
+async function handleTrack(payload, env, cors, request, rawLength) {
+  const origin = request && request.headers.get('origin');
+  if (origin && env.ALLOW_ORIGIN && origin !== env.ALLOW_ORIGIN) return json({ ok: false, error: 'forbidden_origin' }, 403, cors);
+  if (rawLength > TRACK_MAX_BYTES) return json({ ok: false, error: 'too_large' }, 413, cors);
   if (!env.TRENDING) return json({ ok: true, skipped: 'no-kv' }, 200, cors);
-  const ev = payload.events || {};
-  const views = Array.isArray(ev.views) ? ev.views.slice(0, 300) : [];
-  const searches = Array.isArray(ev.searches) ? ev.searches.slice(0, 300) : [];
+  const ev = (payload.events && typeof payload.events === 'object') ? payload.events : {};
+  const views = [...new Set((Array.isArray(ev.views) ? ev.views : []).slice(0, 300).filter(c => typeof c === 'string' && TRACK_CODE_RE.test(c)))].slice(0, TRACK_MAX_ITEMS);
+  const searches = [...new Set((Array.isArray(ev.searches) ? ev.searches : []).slice(0, 300).map(_trackTerm).filter(Boolean))].slice(0, TRACK_MAX_ITEMS);
   if (!views.length && !searches.length) return json({ ok: true, empty: true }, 200, cors);
   const key = _dayKey(new Date());
   let cur = null;
   try { cur = await env.TRENDING.get(key, 'json'); } catch (e) { cur = null; }
   cur = (cur && typeof cur === 'object') ? cur : {};
-  const v = cur.views || {}, s = cur.searches || {};
-  for (const c of views) { const k = String(c).slice(0, 40); if (k) v[k] = (v[k] || 0) + 1; }
-  for (const t of searches) { const k = String(t).toLowerCase().slice(0, 60).trim(); if (k) s[k] = (s[k] || 0) + 1; }
+  const v = _counts(cur.views), s = _counts(cur.searches);
+  for (const k of views) v[k] = (v[k] || 0) + 1;
+  for (const k of searches) s[k] = (s[k] || 0) + 1;
   cur.views = _capMap(v, 800); cur.searches = _capMap(s, 400);
   try { await env.TRENDING.put(key, JSON.stringify(cur), { expirationTtl: 60 * 60 * 24 * 35 }); } catch (e) {}
-  return json({ ok: true }, 200, cors);
+  return json({ ok: true, accepted: { views: views.length, searches: searches.length } }, 200, cors);
 }
 async function handleTrendingGet(env, cors) {
   if (!env.TRENDING) return json([], 200, cors);
   const keys = _recentDayKeys(30);
   let buckets = [];
   try { buckets = await Promise.all(keys.map(k => env.TRENDING.get(k, 'json').catch(() => null))); } catch (e) { buckets = []; }
-  const totals = {};
-  for (const b of buckets) { if (b && b.views) for (const c in b.views) totals[c] = (totals[c] || 0) + b.views[c]; }
+  const totals = Object.create(null);
+  for (const b of buckets) { if (b) { const m = _counts(b.views); for (const c of Object.keys(m)) totals[c] = (totals[c] || 0) + m[c]; } }
   const top = Object.keys(totals).sort((a, b) => totals[b] - totals[a]).slice(0, 12);
   return json(top, 200, cors); // array of item_codes — same shape as data/trending.json
 }
@@ -164,13 +209,15 @@ async function handleSearchesGet(env, cors) {
   const keys = _recentDayKeys(30);
   let buckets = [];
   try { buckets = await Promise.all(keys.map(k => env.TRENDING.get(k, 'json').catch(() => null))); } catch (e) { buckets = []; }
-  const totals = {};
-  for (const b of buckets) { if (b && b.searches) for (const t in b.searches) totals[t] = (totals[t] || 0) + b.searches[t]; }
-  const top = Object.keys(totals).sort((a, b) => totals[b] - totals[a]).slice(0, 12);
+  const totals = Object.create(null);
+  for (const b of buckets) { if (b) { const m = _counts(b.searches); for (const t of Object.keys(m)) totals[t] = (totals[t] || 0) + m[t]; } }
+  // B1a (owner B1-Q2): a term is published only after >= MIN_SEARCH_COUNT session-counts in the 30-day window,
+  // so a single burst cannot put a term on every visitor's "Top Searches"
+  const top = Object.keys(totals).filter(t => totals[t] >= MIN_SEARCH_COUNT).sort((a, b) => totals[b] - totals[a]).slice(0, 12);
   return json(top, 200, cors); // array of search terms, most-searched first (cross-visitor, 30-day)
 }
 async function handleResetTrending(payload, env, cors) {
-  if (!payload.password || payload.password !== env.ADMIN_SAVE_SECRET) return json({ error: 'Unauthorized' }, 401, cors);
+  if (!(await secretOk(payload.password, env.ADMIN_SAVE_SECRET))) return json({ error: 'Unauthorized' }, 401, cors);
   if (!env.TRENDING) return json({ error: 'No trending KV bound' }, 500, cors);
   const keys = _recentDayKeys(40);
   let cleared = 0;
@@ -205,12 +252,12 @@ async function handleDealerAuth(payload, env, cors) {
   } }, 200, cors);
 }
 async function handleDealersGet(payload, env, cors) {
-  if (!payload.password || payload.password !== env.ADMIN_SAVE_SECRET) return json({ error: 'Unauthorized' }, 401, cors);
+  if (!(await secretOk(payload.password, env.ADMIN_SAVE_SECRET))) return json({ error: 'Unauthorized' }, 401, cors);
   if (!env.DEALERS) return json({ error: 'No DEALERS KV bound' }, 500, cors);
   return json({ ok: true, dealers: await _dealersRead(env) }, 200, cors);
 }
 async function handleDealersSave(payload, env, cors) {
-  if (!payload.password || payload.password !== env.ADMIN_SAVE_SECRET) return json({ error: 'Unauthorized' }, 401, cors);
+  if (!(await secretOk(payload.password, env.ADMIN_SAVE_SECRET))) return json({ error: 'Unauthorized' }, 401, cors);
   if (!env.DEALERS) return json({ error: 'No DEALERS KV bound' }, 500, cors);
   if (!Array.isArray(payload.dealers)) return json({ error: 'dealers array required' }, 400, cors);
   const seen = {};
