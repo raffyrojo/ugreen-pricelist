@@ -10,6 +10,8 @@
  *   POST /ask      { v, q, candidates[], history[], route, trigger }  (Authorization: Bearer <token>)
  *   POST /admin/session { code }      -> { ok, token, role, scope, exp }   (active admin-role codes only; 2 h read token)
  *   POST /admin/whoami                -> { ok, role, scope, exp }          (Authorization: Bearer <admin token>; no data)
+ *   POST /events   { v, sid, role, engine, ev[] } -> { ok, stored }       (B2a: anonymous UNO answer events + wrong-answer
+ *                  feedback; no token; text/plain or JSON; off unless EVENTS_ENABLED = "true"; tables from migration 0003)
  *
  * Token scopes (B1b, owner D27): /session tokens carry no scope claim (AI only, TOKEN_TTL_HOURS); admin tokens carry
  * scope "admin:read" and are refused by /ask. No knowledge write routes yet.
@@ -32,6 +34,7 @@ export function cfg(env) {
     origin: env.ALLOW_ORIGIN || 'https://raffyrojo.github.io',
     aiEnabled: String(env.AI_ENABLED) === 'true',
     webEnabled: String(env.WEB_ENABLED) === 'true',
+    eventsEnabled: String(env.EVENTS_ENABLED) === 'true',   // B2a: absent or anything but "true" = off
     provider: (env.PROVIDER || 'openai').toLowerCase(),
     model: env.MODEL || 'gpt-6-luna',
     baseUrl: (String(env.PROVIDER || 'openai').toLowerCase() === 'anthropic' ? (env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') : (env.OPENAI_BASE_URL || 'https://api.openai.com')).replace(/\/+$/, ''),
@@ -745,6 +748,151 @@ async function handleAdminWhoami(req, env, c, ctx, t) {
   return json(c, { ok: true, role: 'admin', scope: ADMIN_READ_SCOPE, exp: tok.exp });
 }
 
+/* ------------------------------------------------------------------ UNO events (B2a) */
+/* Anonymous answer events + wrong-answer feedback from the UNO drawer (sent in batches on page hide). Owner decisions
+   D3 / D4 / D5 / D14 / D18, B2-Q1…Q6, fix round 1 FR1–FR6. Never stored: IP / IP hash, user agent, prices, dealer identity,
+   username, access codes, tokens, reply text, feedback text. Limits are code constants (no new env var); EVENTS_ENABLED is
+   the kill switch. D1 write budget (Free plan 100,000 rows / day, index writes count): an accepted request writes its event
+   rows (row + day index each) and two counter updates in ONE batch; a refusal writes nothing, except one "dropped" count per
+   IP per isolate per day for a per-IP refusal. */
+export const EVENTS_MAX_BYTES = 4096, EVENTS_MAX_BATCH = 12, EVENTS_IP_PER_MIN = 6, EVENTS_IP_PER_DAY = 200, EVENTS_GLOBAL_PER_DAY = 10000;
+const EV_ROLES = ['anon', 'dealer', 'sales', 'admin', 'admin_ui'];
+const EV_TYPES = ['lookup', 'list', 'compare', 'clarify', 'none', 'text', 'smalltalk'];
+const EV_OUTCOMES = ['answered', 'clarify', 'honest_negative', 'no_match', 'error', 'smalltalk'];
+const EV_ROUTES = ['local', 'ai', 'web'], EV_TRIGGERS = ['none', 'auto', 'manual'], EV_LANGS = ['en', 'tl'], EV_ACTS = ['none', 'details', 'chip', 'more'];
+const EV_REASONS = ['wrong_product', 'wrong_spec', 'missing_product', 'other'];
+const EV_SID_RE = /^[A-Za-z0-9_-]{16,32}$/, EV_ENGINE_RE = /^[A-Za-z0-9._-]{1,32}$/, EV_CODE_RE = /^[A-Za-z0-9-]{1,20}$/;
+/* Access codes pasted into a question (FR2, fix round 2). Issued format (tools/vero-code.mjs): "VERO-" + 5 groups of 4 [0-9A-Z];
+   /session strips every non-letter / non-digit, so any separator is a valid spelling. In this order:
+   (1) "vero" + exactly 20 letters / digits with up to 3 non-letter / non-digit characters between any two (any grouping and
+       separator when there is no whitespace; with whitespace only as 5 groups of 4 holding a digit, so "vero do you have a 65w
+       charger" stays);
+   (2) one unbroken 16–40 letter / digit token with 2+ digits and 2+ letters;
+   (3) a run of 5+ groups of exactly 4 letters / digits joined by 1–3 non-letter / non-digit characters (space, / : , + | – …)
+       with 2+ mixed letter-and-digit groups, 2+ groups holding 2+ letters and at most 1 all-digit group (random code groups
+       nearly always qualify), so spec words ("usb4 dock with hdmi port"), year lists, sizes ("2230 2242 2260 2280"),
+       resolutions ("7680*4320@30Hz", "720P, 576P, 576i, 480P") and "1080@60Hz. With this HDMI" stay;
+   (4) one unbroken 20-character token with a digit and a letter (an issued code joined).
+   Groups are never split inside a word. Applied after whitespace / control-character normalisation and before any length cut,
+   so a code is never cut in half first. Limits: an unprefixed, separated code failing the group tests in (3) (~1.3 % of issued
+   codes), an unprefixed code in other groupings (e.g. 10 + 10) and a partial code are not recognised. */
+const evGroups = m => m.split(/[^0-9a-z]+/i).filter(Boolean);
+const EV_CODE_RULES = [
+  [/\bvero(?:[^0-9a-z]{0,3}[0-9a-z]){20}\b/gi, m => !/\s/.test(m.slice(4))
+    || (/\d/.test(m.slice(4)) && m.slice(4).split(/[^0-9a-z]+/i).filter(Boolean).every((g, i, a) => a.length === 5 && g.length === 4))],
+  [/\b[0-9a-z]{16,40}\b/gi, m => (m.match(/\d/g) || []).length >= 2 && (m.match(/[a-z]/gi) || []).length >= 2],
+  [/\b[0-9a-z]{4}(?:[^0-9a-z]{1,3}[0-9a-z]{4}){4,}\b/gi, m => { const g = evGroups(m);
+    return g.filter(x => /\d/.test(x) && /[a-z]/i.test(x)).length >= 2 && g.filter(x => (x.match(/[a-z]/gi) || []).length >= 2).length >= 2
+      && g.filter(x => /^\d+$/.test(x)).length <= 1; }],
+  [/\b[0-9a-z]{20}\b/gi, m => /\d/.test(m) && /[a-z]/i.test(m)],
+];
+export function redactEvent(q) {
+  let s = String(q || '').replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ').replace(/\p{Cf}/gu, '').replace(/\s+/g, ' ').trim();   // FR3
+  for (const [re, ok] of EV_CODE_RULES) s = s.replace(re, m => (ok(m) ? '[code]' : m));
+  return redact(s).replace(/[\uD800-\uDBFF]$/, '');                       // never end on half of a surrogate pair (FR3)
+}
+const evInt = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
+const evOne = (v, list, d) => (list.indexOf(v) >= 0 ? v : d);
+/* In-isolate state: the per-IP minute limit (in memory only, FR1), the "global cap reached today" flag and the
+   "dropped already counted" mark, so a flood is refused before any D1 statement. */
+const EV_MEM = { day: '', capped: false, ip: new Map() };
+
+async function readCapped(req, max) {
+  if (!req.body) return '';
+  const reader = req.body.getReader(), parts = []; let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.byteLength;
+    if (n > max) { try { await reader.cancel(); } catch (_) {} return null; }
+    parts.push(value);
+  }
+  const all = new Uint8Array(n); let o = 0; for (const p of parts) { all.set(p, o); o += p.byteLength; }
+  return utf8.decode(all);
+}
+function addCountStmt(db, scope, subject, win, k, expires) {
+  return db.prepare('INSERT INTO counters (scope, subject, win, n, expires) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (scope, subject, win) DO UPDATE SET n = n + ?4')
+    .bind(scope, subject, win, k, expires);
+}
+
+async function handleEvents(req, env, c, ctx, t, ipHash) {
+  if (!c.eventsEnabled) return fail(c, 503, 'events_off');                    // kill switch: before the body and before any D1 statement
+  const raw = await readCapped(req, EVENTS_MAX_BYTES);
+  if (raw === null) return fail(c, 413, 'too_large');
+  let b; try { b = JSON.parse(raw); } catch (_) { return fail(c, 400, 'bad_request'); }
+  if (!b || typeof b !== 'object' || b.v !== 1 || typeof b.sid !== 'string' || !EV_SID_RE.test(b.sid) || EV_ROLES.indexOf(b.role) < 0
+      || typeof b.engine !== 'string' || !EV_ENGINE_RE.test(b.engine) || !Array.isArray(b.ev) || !b.ev.length || b.ev.length > EVENTS_MAX_BATCH) return fail(c, 400, 'bad_request');
+  const evs = [];
+  for (const e of b.ev) {
+    if (!e || typeof e !== 'object') continue;
+    const seq = evInt(e.seq, 0, 999); if (seq === null) continue;
+    if (e.kind === 'fb') { if (EV_REASONS.indexOf(e.reason) >= 0) evs.push({ fb: true, seq, reason: e.reason }); continue; }
+    if (e.kind !== 'q' || typeof e.q !== 'string' || EV_TYPES.indexOf(e.type) < 0 || EV_OUTCOMES.indexOf(e.outcome) < 0) continue;
+    const q = redactEvent(e.q); if (!q) continue;
+    const codes = [...new Set((Array.isArray(e.codes) ? e.codes : []).filter(x => typeof x === 'string' && EV_CODE_RE.test(x)))].slice(0, 12);   // FR4: de-duplicated
+    evs.push({ fb: false, seq, q, chip: e.chip === true ? 1 : 0, type: e.type, outcome: e.outcome, codes, nCodes: evInt(e.n_codes, 0, 999),
+      route: evOne(e.route, EV_ROUTES, 'local'), trigger: evOne(e.ai_trigger, EV_TRIGGERS, 'none'), lang: evOne(e.lang, EV_LANGS, 'en'),
+      followup: e.followup === true ? 1 : 0, act: evOne(e.act, EV_ACTS, 'none') });
+  }
+  if (!evs.length) return fail(c, 400, 'bad_request');
+
+  const day = manilaDay(t, c.dayOffsetMin), minute = manilaMinute(t, c.dayOffsetMin), k = evs.length;
+  if (EV_MEM.day !== day) { EV_MEM.day = day; EV_MEM.capped = false; EV_MEM.ip.clear(); }
+  if (EV_MEM.capped) return fail(c, 429, 'rate_limited');
+  const m = EV_MEM.ip.get(ipHash) || { min: '', n: 0, dropped: false };
+  if (m.min === minute && m.n >= EVENTS_IP_PER_MIN) return fail(c, 429, 'rate_limited');
+  if (EV_MEM.ip.size > 5000) EV_MEM.ip.clear();
+  EV_MEM.ip.set(ipHash, { min: minute, n: m.min === minute ? m.n + 1 : 1, dropped: m.dropped });
+
+  /* One read batch: the two daily counters, the catalogue ETag and the codes (<= 90 bound parameters per query, D1 limit 100). */
+  const db = env.DB;
+  const all = [...new Set(evs.flatMap(e => (e.fb ? [] : e.codes)))], chunks = [];
+  for (let i = 0; i < all.length; i += 90) chunks.push(all.slice(i, i + 90));
+  const res = await db.batch([
+    db.prepare("SELECT scope, n FROM counters WHERE ((scope = 'ev_ip_day' AND subject = ?1) OR (scope = 'ev_global_day' AND subject = 'all')) AND win = ?2").bind(ipHash, day),
+    db.prepare("SELECT k, v FROM meta WHERE k IN ('catalog_version', 'catalog_checked_at')"),
+  ].concat(chunks.map(ch => db.prepare(`SELECT item_code, category FROM product_text WHERE item_code IN (${ch.map((_, i) => '?' + (i + 1)).join(', ')})`).bind(...ch))));
+  const cnt = {}; rows(res[0]).forEach(r => { cnt[r.scope] = Number(r.n) || 0; });
+  if ((cnt.ev_global_day || 0) + k > EVENTS_GLOBAL_PER_DAY) { EV_MEM.capped = true; return fail(c, 429, 'rate_limited'); }   // no write at all
+  if ((cnt.ev_ip_day || 0) + k > EVENTS_IP_PER_DAY) {
+    const cur = EV_MEM.ip.get(ipHash);
+    if (cur && !cur.dropped) {                                                   // at most one "dropped" write per IP per isolate per day
+      cur.dropped = true;
+      ctx.waitUntil(db.prepare("INSERT INTO uno_daily (day, metric, dim, n) VALUES (?1, 'dropped', '', ?2) ON CONFLICT (day, metric, dim) DO UPDATE SET n = n + ?2")
+        .bind(day, k).run().catch(() => {}));
+    }
+    return fail(c, 429, 'rate_limited');
+  }
+  const cat = new Map(res.slice(2).flatMap(r => rows(r)).map(r => [String(r.item_code), r.category || '']));
+  const mv = {}; rows(res[1]).forEach(r => { mv[r.k] = r.v; });
+  const ver = mv.catalog_version || null;
+  const checked = mv.catalog_checked_at && Number.isFinite(Number(mv.catalog_checked_at)) ? nowIso(Number(mv.catalog_checked_at)) : null;
+  const ts = nowIso(t);
+  /* One write batch (a D1 transaction): both counters, then the rows - each inserted only while both counters are within their
+     caps, so concurrent requests can never store more than the caps allow (a racing loser only moves the counters). */
+  const guard = " WHERE (SELECT n FROM counters WHERE scope = 'ev_global_day' AND subject = 'all' AND win = ?2) <= " + EVENTS_GLOBAL_PER_DAY +
+    " AND (SELECT n FROM counters WHERE scope = 'ev_ip_day' AND subject = ?3 AND win = ?2) <= " + EVENTS_IP_PER_DAY + ' RETURNING id';
+  const writes = [addCountStmt(db, 'ev_ip_day', ipHash, day, k, plusDays(t, 2)), addCountStmt(db, 'ev_global_day', 'all', day, k, plusDays(t, 2))];
+  evs.forEach(e => {
+    if (e.fb) {
+      writes.push(db.prepare('INSERT INTO uno_feedback (ts, day, sid, seq, role, engine, data_ver, reason) SELECT ?1, ?2, ?4, ?5, ?6, ?7, ?8, ?9' + guard)
+        .bind(ts, day, ipHash, b.sid, e.seq, b.role, b.engine, ver, e.reason));
+      return;
+    }
+    const codes = e.codes.filter(x => cat.has(x)), tally = new Map();
+    codes.forEach(x => { const g = cat.get(x); if (g) tally.set(g, (tally.get(g) || 0) + 1); });
+    let category = null, best = 0; tally.forEach((n, g) => { if (n > best) { best = n; category = g; } });
+    writes.push(db.prepare('INSERT INTO uno_events (ts, day, sid, seq, role, engine, data_ver, data_checked_at, q_redacted, chip, type, outcome, codes, n_codes, category, route, ai_trigger, lang, followup, act) ' +
+      'SELECT ?1, ?2, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21' + guard)
+      .bind(ts, day, ipHash, b.sid, e.seq, b.role, b.engine, ver, checked, e.q, e.chip, e.type, e.outcome, codes.length ? codes.join(',') : null,
+        e.nCodes === null ? codes.length : e.nCodes, category, e.route, e.trigger, e.lang, e.followup, e.act));
+  });
+  const out = await db.batch(writes);
+  const stored = out.slice(2).filter(r => rows(r).length > 0).length;
+  if (!stored) return fail(c, 429, 'rate_limited');
+  return json(c, { ok: true, stored });
+}
+
 async function handleAsk(req, env, c, ctx, t, ipHash) {
   const db = env.DB, t0 = Date.now();
   if (!c.aiEnabled) return fail(c, 503, 'ai_disabled');
@@ -926,6 +1074,28 @@ export async function cleanup(env, c, t) {
     db.prepare('DELETE FROM spend WHERE month < ?1').bind(new Date(t - 400 * 86400000).toISOString().slice(0, 7)),
     db.prepare("INSERT INTO meta (k, v) VALUES ('last_cleanup_day', ?1) ON CONFLICT (k) DO UPDATE SET v = ?1").bind(today),
   ]);
+  await cleanupUno(env, c, t).catch(() => {});   // B2a: separate batch; a missing uno_* table never affects the retention above
+}
+/* B2a: roll every not-yet-rolled day before today up into uno_daily (counts only; idempotent: recomputed from the raw rows),
+   then delete raw events / feedback older than LOG_RETENTION_DAYS and daily counts older than 400 days. */
+export async function cleanupUno(env, c, t) {
+  const db = env.DB, today = manilaDay(t, c.dayOffsetMin);
+  const cut = d => manilaDay(t - d * 86400000, c.dayOffsetMin);
+  const m = await db.prepare("SELECT v FROM meta WHERE k = 'uno_rollup_day'").first();
+  const from = (m && m.v) || '';
+  const roll = (metric, dim, table) => db.prepare(
+    `INSERT INTO uno_daily (day, metric, dim, n) SELECT day, '${metric}', ${dim}, COUNT(*) FROM ${table} WHERE day > ?1 AND day < ?2 GROUP BY day, ${dim} ` +
+    'ON CONFLICT (day, metric, dim) DO UPDATE SET n = excluded.n').bind(from, today);
+  await db.batch([
+    roll('outcome', 'outcome', 'uno_events'), roll('route', 'route', 'uno_events'), roll('lang', 'lang', 'uno_events'), roll('role', 'role', 'uno_events'),
+    roll('feedback', 'reason', 'uno_feedback'),
+    db.prepare("INSERT INTO uno_daily (day, metric, dim, n) SELECT day, 'sessions', '', COUNT(DISTINCT sid) FROM uno_events WHERE day > ?1 AND day < ?2 GROUP BY day " +
+      'ON CONFLICT (day, metric, dim) DO UPDATE SET n = excluded.n').bind(from, today),
+    db.prepare("INSERT INTO meta (k, v) VALUES ('uno_rollup_day', ?1) ON CONFLICT (k) DO UPDATE SET v = MAX(v, ?1)").bind(cut(1)),
+    db.prepare('DELETE FROM uno_events WHERE day < ?1').bind(cut(c.logDays)),
+    db.prepare('DELETE FROM uno_feedback WHERE day < ?1').bind(cut(c.logDays)),
+    db.prepare('DELETE FROM uno_daily WHERE day < ?1').bind(cut(400)),
+  ]);
 }
 /* Daily (cron): rebuild the product-text cache only if the catalog version changed (or the cache is empty),
    and drop rows of any other version. Errors are swallowed: requests fall back to the catalog path. */
@@ -982,6 +1152,7 @@ export default {
       if (url.pathname === '/ask') return await handleAsk(req, env, c, ctx, t, ipHash);
       if (url.pathname === '/admin/session') return await handleAdminSession(req, env, c, ctx, t, ipHash);
       if (url.pathname === '/admin/whoami') return await handleAdminWhoami(req, env, c, ctx, t);
+      if (url.pathname === '/events') return await handleEvents(req, env, c, ctx, t, ipHash);
       return fail(c, 404, 'not_found');
     } catch (e) {
       logLine({ path: url.pathname, outcome: 'exception' });

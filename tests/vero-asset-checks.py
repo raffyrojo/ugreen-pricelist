@@ -16,10 +16,11 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '12f73846'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '20abb45a'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
-VERO_WORKER_SHA = 'a048460c8a32de771602ea5e0866c79d954e93582b9de3bc1fb4b291be66ae58'   # Worker ugreen-vero, B1b source (admin session + scopes, prompt v5 unchanged); deployed baseline 368d7430…1b2c (UNO Phase E, live verified 2026-10-20) until the approved B1b dashboard deploy
+VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
+VERO_MIGRATION_0003_SHA = '1c4e17ab0b73f5c1d2380a282cb43b02187a533f51c7a6e1b55b7b9ea209b034'   # backend/vero/migrations/0003_uno_events.sql (B2a, additive; applied only by the owner in the D1 console after approval)
 PUBLISH_WORKER_SHA = '6c1a02784dab0e0bda7351a2d7935129958c97afe35384d4bc642ec82a154465'  # Worker ugreen-pricelist-cms, B1a source (deployed baseline f3d7159f… until the approved B1a dashboard deploy; live f3d7159f verified 2026-10-20)
 # Worker configs = mirrors of the live dashboard settings (NEW-DEPLOY-1-FIX, live audit 2026-10-20); re-pin only in an approved config release
 VERO_WRANGLER_SHA = 'a2ba39911254294d44df42a24b8ea97e7274729da8bb3c68b6f2f7c1e5685e22'     # backend/vero/wrangler.toml
@@ -33,12 +34,12 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # B1b VERO Worker admin session with scopes (baseline 12f73846 = live; owner-approved 2026-10-20, D2 / D15 / D27):
-                 # POST /admin/session (active admin-role codes only, 2 h admin:read token, shared lockout), POST /admin/whoami
-                 # (signature, expiry, scope, role, active, token_epoch); /ask refuses scoped tokens; /session unchanged (12 h, no
-                 # scope); no knowledge write routes. G13 re-pinned to the reviewed source; new G27; new test. No front-end,
-                 # wrangler.toml, migration or data change. NO data.
-                 'backend/vero/worker.js', 'tests/uno-admin-auth.test.mjs'}
+                 # B2a UNO events (baseline 20abb45a = live; owner-approved 2026-10-21, D3 / D4 / D5 / D14 / D18, B2-Q1…Q6):
+                 # VERO Worker POST /events (anonymous answer events + wrong-answer feedback; kill switch EVENTS_ENABLED, absent =
+                 # off; redaction, catalogue code filter, ETag stamp, D1-counter rate limits) + uno_* rollup / retention in a separate
+                 # cleanup batch; additive migration 0003. G13 re-pinned, G16 allows 0003 (pinned), G27 adds /events, new G28; new
+                 # test. No front-end, config.js, wrangler.toml or data change. NO data.
+                 'backend/vero/worker.js', 'backend/vero/migrations/0003_uno_events.sql', 'tests/uno-events.test.mjs'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -152,7 +153,7 @@ chk(f'G11 data/: field changes == APPROVED_DATA exactly ({len(_dd)} found, {len(
 DATA_CHANGED = len(_dd) > 0 or bool(_added)
 bcss = (base('css/vero.css') or b'').decode('utf-8').splitlines(); ncss = rd('css/vero.css').decode('utf-8').splitlines()
 chk('G12 css/vero.css: additive only (every baseline line kept; new rules only if css/vero.css is in RELEASE_SCOPE)', all(l in ncss for l in bcss) and (ncss == bcss or 'css/vero.css' in RELEASE_SCOPE))
-chk('G13 VERO Worker source sha256 == pinned ugreen-vero source a048460c… (B1b admin session + scopes)', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
+chk('G13 VERO Worker source sha256 == pinned ugreen-vero source 1412d77b… (B2a /events; B1b admin session + scopes)', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
 chk('G14 publish Worker source sha256 == pinned ugreen-pricelist-cms source 6c1a0278… (B1a, fix round 1)', sha(rd('backend/worker.js')) == PUBLISH_WORKER_SHA)
 chk('G15b Worker configs == pinned live mirrors (backend/vero/wrangler.toml a2ba3991…, backend/wrangler.toml bd2cc181…)',
     sha(rd('backend/vero/wrangler.toml')) == VERO_WRANGLER_SHA and sha(rd('backend/wrangler.toml')) == PUBLISH_WRANGLER_SHA,
@@ -163,7 +164,7 @@ backend_changed = {f for f in changed if f.startswith('backend/')}
 chk('G15 backend/ (both Workers, wrangler configs = budgets/limits/vars) unchanged vs baseline except ' + (', '.join(sorted(BACKEND_SCOPE)) or 'nothing'),
     backend_changed <= BACKEND_SCOPE, sorted(backend_changed - BACKEND_SCOPE))
 mig = sorted(os.listdir(os.path.join(R, 'backend/vero/migrations')))
-chk('G16 D1 migrations: only 0001/0002, unchanged (no schema change)', mig == ['0001_init.sql', '0002_product_text_cache.sql'] and all(base(f'backend/vero/migrations/{m}') == rd(f'backend/vero/migrations/{m}') for m in mig), mig)
+chk('G16 D1 migrations: exactly 0001 / 0002 (unchanged vs baseline) + 0003 (sha256 pinned, additive B2a)', mig == ['0001_init.sql', '0002_product_text_cache.sql', '0003_uno_events.sql'] and all(base(f'backend/vero/migrations/{m}') == rd(f'backend/vero/migrations/{m}') for m in mig[:2]) and sha(rd('backend/vero/migrations/0003_uno_events.sql')) == VERO_MIGRATION_0003_SHA, mig)
 vjs = rd('js/vero.js').decode('utf-8'); bvjs = (base('js/vero.js') or b'').decode('utf-8')
 payload = lambda t: t[t.find('var body='):t.find("fetch(a.url+'/ask'")]
 chk('G17 AI request payload (vero.js body) identical to baseline', payload(vjs) and payload(vjs) == payload(bvjs))
@@ -203,9 +204,38 @@ _ask_head = ' '.join(_vwr[_ask_at:_vwr.find("'scope_not_allowed');", _ask_at) + 
 ASK_HEAD = ("async function handleAsk(req, env, c, ctx, t, ipHash) { const db = env.DB, t0 = Date.now(); if (!c.aiEnabled) return fail(c, 503, 'ai_disabled'); "
             "const auth = (req.headers.get('authorization') || '').replace(/^Bearer\\s+/i, ''); const tok = await verifyToken(auth, env.TOKEN_SIGNING_KEY, t); "
             "if (!tok) return fail(c, 401, 'unauthorized'); if (tok.scope !== undefined) return fail(c, 403, 'scope_not_allowed');")
-chk('G27 VERO Worker routes == /health /session /ask /admin/session /admin/whoami (6 pathname uses, no other routing); handleAsk refuses scoped tokens right after the token check',
-    _routes == ['/admin/session', '/admin/whoami', '/ask', '/health', '/session'] and _n_pathname == 6 and _ask_head == ASK_HEAD,
+chk('G27 VERO Worker routes == /health /session /ask /admin/session /admin/whoami /events (7 pathname uses, no other routing); handleAsk refuses scoped tokens right after the token check',
+    _routes == ['/admin/session', '/admin/whoami', '/ask', '/events', '/health', '/session'] and _n_pathname == 7 and _ask_head == ASK_HEAD,
     {'routes': _routes, 'pathname_uses': _n_pathname, 'ask_head_ok': _ask_head == ASK_HEAD})
+# G28 (B2a): /events answers the kill switch before reading the body or touching D1, the switch is exactly EVENTS_ENABLED === 'true',
+# and migration 0003 declares no column that could hold an IP, user agent, price, dealer / user identity, code hash, token or reply.
+_ev_at = _vwr.find('async function handleEvents(')
+_ev_head = ' '.join(_vwr[_ev_at:_vwr.find("'events_off');", _ev_at) + len("'events_off');")].split()) if _ev_at >= 0 else ''
+_m3 = (rd('backend/vero/migrations/0003_uno_events.sql') or b'').decode('utf-8')
+# Fix round 1 (FR6): columns are read from every CREATE TABLE body (top-level comma split, typed or untyped, quoted or not);
+# a column name part that is a forbidden word (ip / ua / srp / dp / moq / user / name / addr / code) or a name containing
+# ip… / agent / price / dealer / hash / token / reply / secret / email / phone / password fails ("codes" / "n_codes" are allowed).
+def _cols(sql):
+    out = []
+    for body in re.findall(r'CREATE\s+TABLE[^(]*\((.*?)\)\s*;', re.sub(r'--[^\n]*', '', sql), re.S | re.I):
+        seg, depth, cur = [], 0, ''
+        for ch in body:
+            if ch == '(': depth += 1
+            elif ch == ')': depth -= 1
+            if ch == ',' and depth == 0: seg.append(cur); cur = ''
+            else: cur += ch
+        seg.append(cur)
+        for x in seg:
+            m = re.match(r'\s*["`\[]?([A-Za-z_][A-Za-z0-9_]*)', x)
+            if m and m.group(1).upper() not in ('PRIMARY', 'CHECK', 'UNIQUE', 'FOREIGN', 'CONSTRAINT'): out.append(m.group(1).lower())
+    return out
+_m3_cols = _cols(_m3)
+_bad_cols = [x for x in _m3_cols if set(x.split('_')) & {'ip', 'ua', 'srp', 'dp', 'moq', 'user', 'name', 'addr', 'code'}
+             or re.search(r'^ip|agent|price|dealer|username|hash|token|reply|secret|email|phone|password', x)]
+chk('G28 /events: kill switch first (before body / D1); EVENTS_ENABLED exact "true"; migration 0003 has no ip / agent / price / dealer / user / hash / token / reply column',
+    _ev_head == "async function handleEvents(req, env, c, ctx, t, ipHash) { if (!c.eventsEnabled) return fail(c, 503, 'events_off');"
+    and "eventsEnabled: String(env.EVENTS_ENABLED) === 'true'," in _vwr and len(_m3_cols) >= 20 and not _bad_cols and 'DROP ' not in _m3.upper() and 'ALTER ' not in _m3.upper(),
+    {'head_ok': _ev_head.endswith("'events_off');"), 'cols': len(_m3_cols), 'bad': _bad_cols})
 
 print('--- informational (not part of the deploy gate) ---')
 mirror = os.path.join(R, 'ugreen-pricelist-cms/index.html')
