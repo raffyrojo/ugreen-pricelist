@@ -8,6 +8,11 @@
  *   GET  /health   -> { ok, ai, web }                       (no auth; no secrets)
  *   POST /session  { code }            -> { ok, token, role, exp }
  *   POST /ask      { v, q, candidates[], history[], route, trigger }  (Authorization: Bearer <token>)
+ *   POST /admin/session { code }      -> { ok, token, role, scope, exp }   (active admin-role codes only; 2 h read token)
+ *   POST /admin/whoami                -> { ok, role, scope, exp }          (Authorization: Bearer <admin token>; no data)
+ *
+ * Token scopes (B1b, owner D27): /session tokens carry no scope claim (AI only, TOKEN_TTL_HOURS); admin tokens carry
+ * scope "admin:read" and are refused by /ask. No knowledge write routes yet.
  *
  * Routes: "catalog" = 1 model call over P1–P8 candidates.
  *         "web"     = RESEARCH (web search, official domains, max 1 search) + COMPOSE (structured JSON).
@@ -15,6 +20,8 @@
  * it answers with P-refs and S-refs that this Worker maps back to validated codes/URLs.
  */
 
+export const ADMIN_READ_SCOPE = 'admin:read';
+export const ADMIN_READ_HOURS = 2;    // owner D27: admin read token 2 h (fixed; independent of TOKEN_TTL_HOURS for AI sessions)
 export const PROMPT_VERSION = 'v5';   // v5 (2026-10-12): assistant identity UNO (was VERO); v4 answers cached under the VERO prompt are not reused. v4 (2026-10-06): language is part of the strict output schema
 
 /* ------------------------------------------------------------------ config */
@@ -688,24 +695,54 @@ function fail(c, status, error, extra) { return json(c, Object.assign({ ok: fals
 function logLine(o) { try { console.log(JSON.stringify(Object.assign({ vero: 1 }, o))); } catch (_) {} }
 
 /* ------------------------------------------------------------------ handlers */
-async function handleSession(req, env, c, ctx, t, ipHash) {
+/* Shared by /session and /admin/session: one 15-minute lockout bucket per IP (5 failures), so wrong codes on
+   either route count together. allowed(row) decides the role; any refusal is the same 401 invalid_code. */
+async function codeLogin(req, env, c, t, ipHash, allowed) {
   const db = env.DB;
   const bucket = new Date(Math.floor(t / 900000) * 900000).toISOString().slice(0, 16);
   const locked = await db.prepare("SELECT n FROM counters WHERE scope = 'session_fail' AND subject = ?1 AND win = ?2").bind(ipHash, bucket).first();
-  if (locked && locked.n >= 5) return fail(c, 429, 'session_locked');
-  let body; try { body = await req.json(); } catch (_) { return fail(c, 400, 'bad_request'); }
+  if (locked && locked.n >= 5) return { res: fail(c, 429, 'session_locked') };
+  let body; try { body = await req.json(); } catch (_) { return { res: fail(c, 400, 'bad_request') }; }
   const code = normalizeCode(body && body.code);
   const row = code.length >= 16 && code.length <= 40
     ? await db.prepare('SELECT id, role, active, token_epoch FROM access_codes WHERE code_hash = ?1').bind(await sha256hex(code)).first()
     : null;
-  if (!row || !row.active || c.aiRoles.indexOf(row.role) < 0) {
+  if (!row || !row.active || !allowed(row)) {
     await db.prepare("INSERT INTO counters (scope, subject, win, n, expires) VALUES ('session_fail', ?1, ?2, 1, ?3) ON CONFLICT (scope, subject, win) DO UPDATE SET n = n + 1")
       .bind(ipHash, bucket, plusDays(t, 1)).run();
-    return fail(c, 401, 'invalid_code');
+    return { res: fail(c, 401, 'invalid_code') };
   }
+  return { row };
+}
+
+async function handleSession(req, env, c, ctx, t, ipHash) {
+  const { res, row } = await codeLogin(req, env, c, t, ipHash, r => c.aiRoles.indexOf(r.role) >= 0);
+  if (res) return res;
   const exp = t + c.tokenHours * 3600000;
   const token = await signToken({ sid: row.id, role: row.role, ep: row.token_epoch, exp }, env.TOKEN_SIGNING_KEY);
   return json(c, { ok: true, token, role: row.role, exp, web: c.webEnabled && c.webRoles.indexOf(row.role) >= 0 });
+}
+
+/* Admin read session (B1b): active admin-role codes only; scoped token, ADMIN_READ_HOURS. */
+async function handleAdminSession(req, env, c, ctx, t, ipHash) {
+  const { res, row } = await codeLogin(req, env, c, t, ipHash, r => r.role === 'admin');
+  if (res) return res;
+  const exp = t + ADMIN_READ_HOURS * 3600000;
+  const token = await signToken({ sid: row.id, role: 'admin', ep: row.token_epoch, exp, scope: ADMIN_READ_SCOPE }, env.TOKEN_SIGNING_KEY);
+  logLine({ path: 'admin_session', outcome: 'ok' });
+  return json(c, { ok: true, token, role: 'admin', scope: ADMIN_READ_SCOPE, exp });
+}
+
+/* Proves the admin auth path: signature + expiry, scope, role, then the code row (active, epoch, still admin). */
+async function handleAdminWhoami(req, env, c, ctx, t) {
+  const auth = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const tok = await verifyToken(auth, env.TOKEN_SIGNING_KEY, t);
+  if (!tok) return fail(c, 401, 'unauthorized');
+  if (tok.scope !== ADMIN_READ_SCOPE || tok.role !== 'admin') return fail(c, 403, 'scope_not_allowed');
+  const code = await env.DB.prepare('SELECT id, role, active, token_epoch FROM access_codes WHERE id = ?1').bind(tok.sid).first();
+  if (!code || !code.active || code.token_epoch !== tok.ep) return fail(c, 401, 'unauthorized');
+  if (code.role !== 'admin') return fail(c, 403, 'role_not_allowed');
+  return json(c, { ok: true, role: 'admin', scope: ADMIN_READ_SCOPE, exp: tok.exp });
 }
 
 async function handleAsk(req, env, c, ctx, t, ipHash) {
@@ -714,6 +751,7 @@ async function handleAsk(req, env, c, ctx, t, ipHash) {
   const auth = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const tok = await verifyToken(auth, env.TOKEN_SIGNING_KEY, t);
   if (!tok) return fail(c, 401, 'unauthorized');
+  if (tok.scope !== undefined) return fail(c, 403, 'scope_not_allowed');   // scoped (admin) tokens never spend AI budget (D27)
   const code = await db.prepare('SELECT id, role, active, token_epoch, daily_limit, last_used_at FROM access_codes WHERE id = ?1').bind(tok.sid).first();
   if (!code || !code.active || code.token_epoch !== tok.ep) return fail(c, 401, 'unauthorized');
   if (c.aiRoles.indexOf(code.role) < 0) return fail(c, 403, 'role_not_allowed');
@@ -942,6 +980,8 @@ export default {
     try {
       if (url.pathname === '/session') return await handleSession(req, env, c, ctx, t, ipHash);
       if (url.pathname === '/ask') return await handleAsk(req, env, c, ctx, t, ipHash);
+      if (url.pathname === '/admin/session') return await handleAdminSession(req, env, c, ctx, t, ipHash);
+      if (url.pathname === '/admin/whoami') return await handleAdminWhoami(req, env, c, ctx, t);
       return fail(c, 404, 'not_found');
     } catch (e) {
       logLine({ path: url.pathname, outcome: 'exception' });

@@ -16,10 +16,10 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '209e07fa'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '12f73846'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
-VERO_WORKER_SHA = '368d74301d0427ab0699d288b7bbc27300a369cb717bf4cddfa8573ff3941b2c'   # Worker ugreen-vero, UNO Phase E source (prompt v5); deployed baseline was 594f9606…2d99 until the approved Worker deploy
+VERO_WORKER_SHA = 'a048460c8a32de771602ea5e0866c79d954e93582b9de3bc1fb4b291be66ae58'   # Worker ugreen-vero, B1b source (admin session + scopes, prompt v5 unchanged); deployed baseline 368d7430…1b2c (UNO Phase E, live verified 2026-10-20) until the approved B1b dashboard deploy
 PUBLISH_WORKER_SHA = '6c1a02784dab0e0bda7351a2d7935129958c97afe35384d4bc642ec82a154465'  # Worker ugreen-pricelist-cms, B1a source (deployed baseline f3d7159f… until the approved B1a dashboard deploy; live f3d7159f verified 2026-10-20)
 # Worker configs = mirrors of the live dashboard settings (NEW-DEPLOY-1-FIX, live audit 2026-10-20); re-pin only in an approved config release
 VERO_WRANGLER_SHA = 'a2ba39911254294d44df42a24b8ea97e7274729da8bb3c68b6f2f7c1e5685e22'     # backend/vero/wrangler.toml
@@ -33,11 +33,12 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # B1a CMS Worker hardening (baseline 209e07fa = live; owner-approved B1-Q1..Q5, 2026-10-20): constant-time
-                 # admin save-password check on all 4 admin routes (UAD-F2); track validation - Origin, 16 KB body, item-code /
-                 # term charset, PII drop, de-dup, 50 per request (UAD-F1); public ?searches=1 only for terms with >= 3 counts;
-                 # G14 re-pinned to the reviewed source; new test. No front-end, wrangler.toml or data change. NO data.
-                 'backend/worker.js', 'tests/cms-worker.test.mjs'}
+                 # B1b VERO Worker admin session with scopes (baseline 12f73846 = live; owner-approved 2026-10-20, D2 / D15 / D27):
+                 # POST /admin/session (active admin-role codes only, 2 h admin:read token, shared lockout), POST /admin/whoami
+                 # (signature, expiry, scope, role, active, token_epoch); /ask refuses scoped tokens; /session unchanged (12 h, no
+                 # scope); no knowledge write routes. G13 re-pinned to the reviewed source; new G27; new test. No front-end,
+                 # wrangler.toml, migration or data change. NO data.
+                 'backend/vero/worker.js', 'tests/uno-admin-auth.test.mjs'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -151,12 +152,12 @@ chk(f'G11 data/: field changes == APPROVED_DATA exactly ({len(_dd)} found, {len(
 DATA_CHANGED = len(_dd) > 0 or bool(_added)
 bcss = (base('css/vero.css') or b'').decode('utf-8').splitlines(); ncss = rd('css/vero.css').decode('utf-8').splitlines()
 chk('G12 css/vero.css: additive only (every baseline line kept; new rules only if css/vero.css is in RELEASE_SCOPE)', all(l in ncss for l in bcss) and (ncss == bcss or 'css/vero.css' in RELEASE_SCOPE))
-chk('G13 VERO Worker source sha256 == pinned ugreen-vero source 368d7430…1b2c (UNO Phase E, prompt v5)', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
+chk('G13 VERO Worker source sha256 == pinned ugreen-vero source a048460c… (B1b admin session + scopes)', sha(rd('backend/vero/worker.js')) == VERO_WORKER_SHA)
 chk('G14 publish Worker source sha256 == pinned ugreen-pricelist-cms source 6c1a0278… (B1a, fix round 1)', sha(rd('backend/worker.js')) == PUBLISH_WORKER_SHA)
 chk('G15b Worker configs == pinned live mirrors (backend/vero/wrangler.toml a2ba3991…, backend/wrangler.toml bd2cc181…)',
     sha(rd('backend/vero/wrangler.toml')) == VERO_WRANGLER_SHA and sha(rd('backend/wrangler.toml')) == PUBLISH_WRANGLER_SHA,
     [f for f, h in (('backend/vero/wrangler.toml', VERO_WRANGLER_SHA), ('backend/wrangler.toml', PUBLISH_WRANGLER_SHA)) if sha(rd(f)) != h])
-# G15: backend/ paths may differ only if listed in RELEASE_SCOPE (this release: exactly backend/worker.js); empty = all unchanged
+# G15: backend/ paths may differ only if listed in RELEASE_SCOPE (this release: exactly backend/vero/worker.js); empty = all unchanged
 BACKEND_SCOPE = {f for f in RELEASE_SCOPE if f.startswith('backend/')}
 backend_changed = {f for f in changed if f.startswith('backend/')}
 chk('G15 backend/ (both Workers, wrangler configs = budgets/limits/vars) unchanged vs baseline except ' + (', '.join(sorted(BACKEND_SCOPE)) or 'nothing'),
@@ -187,6 +188,24 @@ chk('G22 vero.js stores no prices in the conversation context (keepCtx/convCtx c
 _ev = brain.get('js/vero-evidence.js', '')
 chk('G24 evidence layer js/vero-evidence.js reads no commercial field (srp / dp / dp_volume / special_dp / moq / priceSchedule / priceHistory)',
     bool(_ev) and not re.search(r'\.(srp|dp|dp_volume|special_dp|moq|priceSchedule|priceHistory)\b|\[\s*[\'"](srp|dp|dp_volume|special_dp|moq)[\'"]\s*\]', _ev))
+
+# G27 (B1b): VERO Worker routes are exactly health / session / ask / admin session / admin whoami (no knowledge write route), and
+# /ask refuses every scoped (admin) token before reading the code row, so an admin token can never spend AI budget (D27).
+# Fix round 1 (B1b-G3): checked on the RAW source (comment stripping can eat code after a '//' inside a string); every use of
+# `pathname` is counted (5 route checks + the exception log line = 6), so a route added via startsWith / switch / a variable /
+# destructuring fails; routes match either quote style; the start of handleAsk is pinned verbatim up to the scope refusal, so
+# no statement (D1 access, dead-code wrapper) can come before it.
+_vwr = rd('backend/vero/worker.js').decode('utf-8')
+_routes = sorted(set(re.findall(r"url\.pathname\s*===\s*['\"]([^'\"]+)['\"]", _vwr)))
+_n_pathname = len(re.findall(r'pathname', _vwr))
+_ask_at = _vwr.find('async function handleAsk(')
+_ask_head = ' '.join(_vwr[_ask_at:_vwr.find("'scope_not_allowed');", _ask_at) + len("'scope_not_allowed');")].split()) if _ask_at >= 0 else ''
+ASK_HEAD = ("async function handleAsk(req, env, c, ctx, t, ipHash) { const db = env.DB, t0 = Date.now(); if (!c.aiEnabled) return fail(c, 503, 'ai_disabled'); "
+            "const auth = (req.headers.get('authorization') || '').replace(/^Bearer\\s+/i, ''); const tok = await verifyToken(auth, env.TOKEN_SIGNING_KEY, t); "
+            "if (!tok) return fail(c, 401, 'unauthorized'); if (tok.scope !== undefined) return fail(c, 403, 'scope_not_allowed');")
+chk('G27 VERO Worker routes == /health /session /ask /admin/session /admin/whoami (6 pathname uses, no other routing); handleAsk refuses scoped tokens right after the token check',
+    _routes == ['/admin/session', '/admin/whoami', '/ask', '/health', '/session'] and _n_pathname == 6 and _ask_head == ASK_HEAD,
+    {'routes': _routes, 'pathname_uses': _n_pathname, 'ask_head_ok': _ask_head == ASK_HEAD})
 
 print('--- informational (not part of the deploy gate) ---')
 mirror = os.path.join(R, 'ugreen-pricelist-cms/index.html')
