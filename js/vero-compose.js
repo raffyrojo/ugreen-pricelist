@@ -413,11 +413,26 @@
     var legacyCtx={}; Object.keys(ctx).forEach(function(k){ if(k!=='conv') legacyCtx[k]=ctx[k]; });
     var res=compose(plan,{ idx:idx, byCode:byCode, products:pool, conv:conv, legacy:legacy, legacyCtx:legacyCtx });
     res.query=String(query||''); res.plan=plan; res.ctxOut=PLAN().nextContext(plan,conv||{});
+    res.outcome=outcome(res);
     return res;
+  }
+  /* B2b (D14 option A): the answer class logged by UNO events. Read from the finished answer only — it never changes the answer.
+     answered = products / a comparison / a catalogue total; clarify; no_match = nothing matched ("none", unknown name);
+     honest_negative = a definite "not listed" answer without products; smalltalk. ('error' is set by js/vero.js.) */
+  function outcome(res){
+    if(!res) return 'error';
+    if(res.smalltalk) return 'smalltalk';
+    if(res.type==='clarify') return 'clarify';
+    if(res.type==='none') return 'no_match';
+    if((res.codes||[]).length || res.type==='compare') return 'answered';
+    var p=res.plan;
+    if(p && (p.catalogTotal || p.intent==='coach')) return 'answered';
+    if(p && p.route && p.route.route==='CLARIFY') return 'no_match';
+    return 'honest_negative';
   }
   function warm(products){ try{ FACTS().build((products||[]).filter(function(p){ return p && !p.disabled; })); return true; }catch(e){ return false; } }
 
-  var API={ version:VERSION, ready:ready, answer:answer, compose:compose, label:label, warm:warm };
+  var API={ version:VERSION, ready:ready, answer:answer, compose:compose, label:label, warm:warm, outcome:outcome };
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   root.VeroCompose=API;
 })(typeof window!=='undefined'?window:globalThis);

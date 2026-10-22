@@ -109,8 +109,17 @@ r=A('dp under 100000 '+multiModel,null,DL); chk('18 dealer DP budget reads Speci
 chk('disabled SKUs never searchable', ALL.filter(p=>p.disabled).every(p=>!A(String(p.item_code)).codes.includes(String(p.item_code))));
 chk('engine has no network code', !/fetch\(|XMLHttpRequest|sendBeacon|WebSocket/.test(fs.readFileSync(path.join(ROOT,'js','vero-engine.js'),'utf8')));
 { const ui=fs.readFileSync(path.join(ROOT,'js','vero.js'),'utf8');
-  const fetches=ui.match(/fetch\(/g)||[];
-  chk('UI network code limited to the 2 gated VERO AI calls (/ask, /session) on config aiEndpoint', fetches.length===2 && /fetch\(a\.url\+'\/ask'/.test(ui) && /fetch\(a\.url\+'\/session'/.test(ui) && !/XMLHttpRequest|sendBeacon|WebSocket|import\(/.test(ui) && /CFG\.aiEnabled===true && !!CFG\.aiEndpoint/.test(ui)); }
+  const fetches=ui.match(/\bfetch\s*\(/g)||[];   /* fix round 3 (B2b-R3-2): "fetch (" with a space counts too */
+  /* B2b (owner-approved fix round 1, B2b-F2 option a): the only other network call is the dormant UNO events beacon — sendBeacon
+     exactly twice, both inside function evFlush (feature test + the call to aiCfg().url+'/events'), behind CFG.eventsEnabled===true */
+  const flushAt=ui.indexOf('function evFlush('), flushEnd=ui.indexOf('\n  }\n',flushAt), flush=flushAt>=0&&flushEnd>flushAt?ui.slice(flushAt,flushEnd):'';
+  const beacons=ui.match(/sendBeacon/g)||[];
+  chk('UI network code limited to the 2 gated VERO AI calls (/ask, /session) on config aiEndpoint + the dormant events beacon (sendBeacon only in evFlush, to aiEndpoint/events, gated by eventsEnabled===true)',
+    fetches.length===2 && /fetch\(a\.url\+'\/ask'/.test(ui) && /fetch\(a\.url\+'\/session'/.test(ui) && !/XMLHttpRequest|WebSocket|EventSource|import\(/.test(ui) && /CFG\.aiEnabled===true && !!CFG\.aiEndpoint/.test(ui)
+    && beacons.length===2 && (flush.match(/sendBeacon/g)||[]).length===2 && (ui.match(/'\/events'/g)||[]).length===1 && /var url=aiCfg\(\)\.url\+'\/events'/.test(flush)
+    && ui.split('var EV_ON=CFG.eventsEnabled===true,').length===2
+    /* fix round 2 (B2b-R2-1): no request through an image / script / frame element either (pixel beacon) */
+    && !/\bImage\s*\(|\.src\s*=|createElement\s*\(\s*['"](?:img|script|iframe|frame|link|form|object|embed|audio|video|source)['"]/i.test(ui)); }
 chk('schedules resolved (current prices, not stale JSON)', ALL.every(p=>!(p.priceSchedule||[]).some(s=>s.effectiveDate<=pcToday())));
 
 /* ---------- Phase 2: AI shortlist for multi-device / use-case questions (live 2026-10-06 regression) ---------- */

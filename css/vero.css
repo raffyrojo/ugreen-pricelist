@@ -214,3 +214,16 @@ body.vero-on main{ padding-bottom:calc(var(--vero-fab) + var(--vero-gap) + 24px)
 @media (prefers-reduced-motion:reduce){ .vero-dots i{ animation:none; opacity:.7; } }
 @media (prefers-reduced-motion:reduce){ .vero-drawer,.vero-fab{ transition:none; } }
 @media print{ .vero-fab,.vero-drawer{ display:none !important; } }
+/* B2b UNO events notice + wrong-answer feedback (rendered only when CONFIG.vero.eventsEnabled === true; never in dealer mode).
+   Base rules first; the touch-screen (pointer:coarse) 44 px targets come LAST so they win. */
+.vero-evnote{ margin-top:.3rem; font-size:.62rem; line-height:1.35; color:var(--text-muted,#475569); overflow-wrap:anywhere; }
+.vero-evnote[hidden]{ display:none; }
+.vero-ev-acts{ display:block; margin-top:.15rem; }
+.vero-ev-btn{ font-size:.62rem; padding:0; min-height:24px; }
+.vero-ev-about{ margin-top:.35rem; max-height:40vh; overflow:auto; padding:.4rem .5rem; border:1px solid var(--border,#e0e7f0); border-radius:8px; background:var(--surface,#fff); }
+.vero-ev-about p{ margin:0 0 .35rem; }
+.vero-ev-wrong{ display:block; margin-top:.35rem; font-size:.66rem; color:var(--text-muted,#475569); min-height:24px; }
+.vero-ev-chips{ margin-top:.35rem; }
+.vero-ev-chips .vero-chip{ min-height:36px; }
+.vero-ev-thanks{ color:var(--vero-g); }
+@media (pointer:coarse){ .vero-ev-btn,.vero-ev-wrong,.vero-ev-chips .vero-chip{ min-height:44px; } }

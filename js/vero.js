@@ -168,6 +168,131 @@
     d.innerHTML='Answers come from the current UGREEN pricelist.'+(sess?' <span class="vero-ai-on">UNO AI on</span> \u00B7 <button type="button" class="vero-link vero-signout" data-act="aisignout">Sign out</button>':'');
   }
 
+  /* ---------- B2b: UNO answer events + wrong-answer feedback (plan section 2, owner decisions B2b-D1 to D10) ----------
+     Dormant: nothing here runs, reads storage, adds DOM or listens unless CONFIG.vero.eventsEnabled === true (absent today) \u2014
+     and the Worker refuses /events while EVENTS_ENABLED is unset. Never in dealer mode (D6). The question is redacted in the
+     browser BEFORE it enters the buffer (D3); the buffer lives in page memory only (D4) and leaves once, as a beacon, when the
+     page is hidden. Opt-out / Global Privacy Control / unreadable storage = nothing logged (D5). Role is anon / sales / admin
+     only (D7). Never prices, dealer data, S.ctx, modeKey(), the AI token or the access code. */
+  var EV_ON=CFG.eventsEnabled===true, EVENTS_DEFAULT_ON=true, EV_OFF_KEY='uno_events_off', EV_MAX=100, EV_BYTES=4096, EV_BATCH=12;
+  var EV={ sid:null, seq:0, buf:[], chip:false };
+  /* Copy of the Worker's redactEvent() (backend/vero/worker.js, B2a fix round 2) - keep byte-identical in behaviour; the parity
+     test (tests/uno-events-client.test.js C5) runs both on the same corpora. The Worker redacts again (authoritative). */
+  function evRedactBase(text){
+    return String(text||'')
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[email]')
+      .replace(/(\+?63|0)9\d{2}[\s-]?\d{3}[\s-]?\d{4}\b/g,'[phone]')
+      .replace(/\+?\d[\d\s().-]{8,}\d/g,function(m){ return m.replace(/\D/g,'').length>=10?'[phone]':m; })
+      .replace(/\s+/g,' ').trim().slice(0,120);
+  }
+  function evGroups(m){ return m.split(/[^0-9a-z]+/i).filter(Boolean); }
+  var EV_CODE_RULES=[
+    [/\bvero(?:[^0-9a-z]{0,3}[0-9a-z]){20}\b/gi,function(m){ return !/\s/.test(m.slice(4))
+      || (/\d/.test(m.slice(4)) && m.slice(4).split(/[^0-9a-z]+/i).filter(Boolean).every(function(g,i,a){ return a.length===5 && g.length===4; })); }],
+    [/\b[0-9a-z]{16,40}\b/gi,function(m){ return (m.match(/\d/g)||[]).length>=2 && (m.match(/[a-z]/gi)||[]).length>=2; }],
+    [/\b[0-9a-z]{4}(?:[^0-9a-z]{1,3}[0-9a-z]{4}){4,}\b/gi,function(m){ var g=evGroups(m);
+      return g.filter(function(x){ return /\d/.test(x) && /[a-z]/i.test(x); }).length>=2 && g.filter(function(x){ return (x.match(/[a-z]/gi)||[]).length>=2; }).length>=2
+        && g.filter(function(x){ return /^\d+$/.test(x); }).length<=1; }],
+    [/\b[0-9a-z]{20}\b/gi,function(m){ return /\d/.test(m) && /[a-z]/i.test(m); }]
+  ];
+  function evRedact(q){
+    var s=String(q||'').replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu,' ').replace(/\p{Cf}/gu,'').replace(/\s+/g,' ').trim();
+    EV_CODE_RULES.forEach(function(r){ s=s.replace(r[0],function(m){ return r[1](m)?'[code]':m; }); });
+    return evRedactBase(s).replace(/[\uD800-\uDBFF]$/,'');
+  }
+  /* '' = logging allowed; else why not: 'gpc' | 'user' | 'default' | 'storage' (fail closed) */
+  function evOff(){
+    try{
+      if(navigator.globalPrivacyControl===true) return 'gpc';
+      var v=localStorage.getItem(EV_OFF_KEY);
+      if(EVENTS_DEFAULT_ON) return v==='1'?'user':'';
+      return v==='0'?'':'default';
+    }catch(_){ return 'storage'; }
+  }
+  function evActive(){ return EV_ON && !!aiCfg().url && !dealer() && !evOff(); }
+  function evSetOff(off){
+    try{ if(off) localStorage.setItem(EV_OFF_KEY,'1'); else if(EVENTS_DEFAULT_ON) localStorage.removeItem(EV_OFF_KEY); else localStorage.setItem(EV_OFF_KEY,'0'); }catch(_){}
+    if(off){ EV.buf=[]; S.msgs.forEach(function(m){ m.evSeq=null; m.evOpen=false; }); }   /* discarded turns take no feedback later */
+  }
+  function evSid(){
+    if(EV.sid) return EV.sid;
+    var A='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_', b=new Uint8Array(22), s='';
+    crypto.getRandomValues(b); for(var i=0;i<b.length;i++) s+=A.charAt(b[i]&63);
+    return (EV.sid=s);
+  }
+  function evRole(){ var x=aiSession(), r=x&&x.role; return (r==='sales'||r==='admin')?r:'anon'; }
+  var EV_TYPES=['lookup','list','compare','clarify','none','text'];
+  function evPush(o){ if(EV.buf.length>=EV_MAX) EV.buf.shift(); EV.buf.push(o); }
+  function evFind(seq){ for(var i=0;i<EV.buf.length;i++) if(EV.buf[i].kind==='q' && EV.buf[i].seq===seq) return EV.buf[i]; return null; }
+  function evRecord(bm,text){
+    if(!evActive() || EV.seq>999) return;
+    var res=bm.res||{}, last=S.msgs[S.msgs.length-1], ai=last&&last.role==='ai'&&last.state==='loading'?last:null;
+    var codes=(res.codes||[]).map(String), C=window.VeroCompose;
+    var o={ kind:'q', seq:EV.seq++, q:evRedact(text), chip:EV.chip,
+      type:res.smalltalk?'smalltalk':(EV_TYPES.indexOf(res.type)>=0?res.type:'text'),
+      outcome:res.outcome||((C&&C.outcome)?C.outcome(res):'answered'),
+      codes:codes.slice(0,EV_BATCH), n_codes:Math.min(codes.length,999),
+      route:ai?(ai.route==='web'?'web':'ai'):'local', ai_trigger:ai?'auto':'none',
+      lang:res.lang==='tl'?'tl':'en', followup:!!res.echo, act:EV.chip?'chip':'none' };
+    if(!o.q) return;
+    bm.evSeq=o.seq; bm.evOutcome=o.outcome; evPush(o);
+  }
+  function evAiManual(lm,am){ var o=lm&&lm.evSeq!=null?evFind(lm.evSeq):null; if(o && am && am.state==='loading'){ o.route=am.route==='web'?'web':'ai'; o.ai_trigger='manual'; } }
+  function evAct(m,act){ var o=m&&m.evSeq!=null?evFind(m.evSeq):null; if(o && o.act==='none') o.act=act; }
+  function evBytes(s){ return unescape(encodeURIComponent(s)).length; }
+  function evFlush(){
+    if(!EV.buf.length) return;
+    var all=EV.buf; EV.buf=[];                                     /* taken once: a second hide event finds nothing to send */
+    if(!evActive() || !navigator.sendBeacon) return;
+    var url=aiCfg().url+'/events', head={ v:1, sid:evSid(), role:evRole(), engine:String((window.VeroCompose&&window.VeroCompose.version)||'legacy').replace(/[^A-Za-z0-9._-]/g,'').slice(0,32)||'legacy' }, ev=[];
+    function body(list){ return JSON.stringify({ v:head.v, sid:head.sid, role:head.role, engine:head.engine, ev:list }); }
+    function send(){ if(ev.length){ try{ navigator.sendBeacon(url,body(ev)); }catch(_){} ev=[]; } }
+    all.forEach(function(o){
+      if(evBytes(body([o]))>EV_BYTES) return;                       /* cannot happen with q <= 120 chars; dropped, never cut */
+      if(ev.length>=EV_BATCH || evBytes(body(ev.concat([o])))>EV_BYTES) send();
+      ev.push(o);
+    });
+    send();
+  }
+  /* Notice / feedback wording: DRAFT - pending Iontech's privacy review (plan section 4, P1). Do not activate before it is approved. */
+  var EV_TEXT={ status:'DRAFT pending Iontech privacy review (plan \u00A74, P1)',
+    en:{ n1:'UNO saves your questions for about 30 days to improve answers. Emails, phone numbers and access codes are removed \u2014 please don\u2019t type names or other personal details.',
+      off:'Don\u2019t log my questions', about:'About UNO logging', n2:'Your questions on this device won\u2019t be logged. You can turn logging back on any time.', on:'Turn logging back on',
+      gpc:'Logging is off because of your browser\u2019s privacy setting.', wrong:'Wrong answer?', thanks:'Thanks \u2014 the team will review this.',
+      reasons:{ wrong_product:'Wrong product', wrong_spec:'Wrong spec', missing_product:'Missing product', other:'Other' } },
+    tl:{ n1:'Sine-save ni UNO ang mga tanong mo nang mga 30 araw para mapabuti ang mga sagot. Tinatanggal ang email, phone number at access code \u2014 huwag mag-type ng pangalan o iba pang personal na detalye.',
+      off:'Huwag i-log ang tanong ko', about:'Tungkol sa pag-log ni UNO', n2:'Hindi na ila-log ang mga tanong mo sa device na ito. Pwede mo itong ibalik anumang oras.', on:'Ibalik ang pag-log',
+      gpc:'Naka-off ang pag-log dahil sa privacy setting ng browser mo.', wrong:'Mali ang sagot?', thanks:'Salamat \u2014 rerebyuhin ito ng team.',
+      reasons:{ wrong_product:'Maling produkto', wrong_spec:'Maling spec', missing_product:'Kulang na produkto', other:'Iba pa' } },
+    /* N5 (EN only until the EN text is approved; TL follows) */
+    about:'<p><b>What UNO saves:</b> the question you type, after email addresses, phone numbers and access codes are removed automatically; the type of answer; the product codes shown; whether you marked an answer as wrong and the reason you picked; and the app and catalogue version. A random number links the questions of one page visit. It is not linked to your name, your account or your IP address. Automatic removal is not perfect \u2014 please don\u2019t type names, addresses or other personal details.</p>'+
+      '<p><b>UNO AI (staff with an access code only):</b> questions sent to UNO AI are also saved with the access code used, your role and a scrambled network identifier that changes every day (your IP address is not stored in readable form), together with the products UNO AI suggested and the cost of the answer. The question is sent to Iontech\u2019s AI provider to prepare the answer. AI answers may be kept in a cache for up to 7 days to save cost, without any link to you.</p>'+
+      '<p><b>To stop abuse:</b> a scrambled network identifier is used to count requests and is deleted within 2 days.</p>'+
+      '<p><b>What UNO never saves:</b> prices, discounts, dealer identity, UNO\u2019s reply text in the question log, or your IP address in readable form.</p>'+
+      '<p><b>Why:</b> to find questions UNO could not answer or answered wrongly, and to improve product information.</p>'+
+      '<p><b>How long:</b> questions and feedback are deleted after about 30 days; daily totals without question text are kept up to 400 days.</p>'+
+      '<p><b>Who can see it:</b> only Iontech administrators with a personal admin access code.</p>'+
+      '<p><b>Your choice:</b> \u201CDon\u2019t log my questions\u201D in the UNO panel stops logging on this device. Your browser\u2019s Global Privacy Control setting is respected.</p>' };
+  function evLang(){ for(var i=S.msgs.length-1;i>=0;i--){ var m=S.msgs[i]; if(m.role==='bot') return (m.res&&m.res.lang==='tl')?'tl':'en'; } return 'en'; }
+  var evAboutOpen=false;
+  function renderEvNote(){
+    var n=$('vero-evnote'); if(!n) return;
+    var why=EV_ON&&aiCfg().url&&!dealer()?evOff():'hidden', t=EV_TEXT[evLang()], h='';
+    if(why==='') h=e(t.n1)+'<span class="vero-ev-acts"><button type="button" class="vero-link vero-ev-btn" data-act="evoff">'+e(t.off)+'</button> \u00B7 <button type="button" class="vero-link vero-ev-btn" data-act="evabout" aria-expanded="'+(evAboutOpen?'true':'false')+'">'+e(t.about)+'</button></span>';
+    else if(why==='user'||why==='default') h=e(t.n2)+'<span class="vero-ev-acts"><button type="button" class="vero-link vero-ev-btn" data-act="evon">'+e(t.on)+'</button></span>';
+    else if(why==='gpc') h=e(t.gpc);
+    if(h && evAboutOpen && why==='') h+='<div class="vero-ev-about">'+EV_TEXT.about+'</div>';
+    n.hidden=!h; n.innerHTML=h;
+  }
+  function evFbOk(m){ var o=m&&m.evOutcome; return !!m && m.evSeq!=null && evActive() && (o==='answered'||o==='honest_negative'||o==='no_match'); }   /* answer turns only */
+  function evFbHtml(m){
+    if(!evFbOk(m)) return '';
+    var t=EV_TEXT[(m.res&&m.res.lang==='tl')?'tl':'en'];
+    if(m.evFb) return '<p class="vero-fine vero-ev-thanks">'+e(t.thanks)+'</p>';
+    if(m.evOpen) return '<div class="vero-chips vero-ev-chips">'+Object.keys(t.reasons).map(function(k){ return '<button type="button" class="vero-chip" data-act="evreason" data-idx="'+m.idx+'" data-reason="'+k+'">'+e(t.reasons[k])+'</button>'; }).join('')+'</div>';
+    return '<button type="button" class="vero-link vero-ev-wrong" data-act="evwrong" data-idx="'+m.idx+'">'+e(t.wrong)+'</button>';
+  }
+
   /* ---------- small utils ---------- */
   function $(id){ return document.getElementById(id); }
   function e(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -328,6 +453,7 @@
     if(r.parsed && r.parsed.priceField==='dp_volume' && dealer()){
       out='<p class="vero-note">DP Volume is not part of your pricelist. Try a budget on SRP or Special DP instead.</p>';
     }
+    if(EV_ON) out+=evFbHtml(m);                                                      /* B2b: "Wrong answer?" (dormant unless eventsEnabled) */
     return '<div class="vero-msg vero-bot">'+avatar(av,'vero-av-sm')+'<div class="vero-bub">'+out+'</div></div>';
   }
   function userHtml(m){ return '<div class="vero-msg vero-me"><div class="vero-bub">'+e(m.text)+'</div></div>'; }
@@ -370,16 +496,17 @@
     S.msgs.push({role:'me',text:label||text});
     var res;
     var all=pool();
-    if(!all.length) res={type:'text',note:'The pricelist is still loading \u2014 try again in a moment.',codes:[],chips:[]};
+    if(!all.length) res={type:'text',note:'The pricelist is still loading \u2014 try again in a moment.',codes:[],chips:[],outcome:'error'};
     else{
       try{ res=window.VeroEngine.answer(all,text,Object.assign({},ctx||{},{dealer:!!dealer(),conv:convCtx()})); }   /* dealer flag: price labels only (Special DP); data stays local; conv = follow-up context */
-      catch(err){ try{ console.warn('[VERO]',err); }catch(_){}; res={type:'text',note:'Sorry \u2014 I couldn\u2019t process that. Try an item code, model, or product type.',codes:[],chips:[]}; }
+      catch(err){ try{ console.warn('[VERO]',err); }catch(_){}; res={type:'text',note:'Sorry \u2014 I couldn\u2019t process that. Try an item code, model, or product type.',codes:[],chips:[],outcome:'error'}; }
     }
     res.query=text; res.ctx=ctx||{};
     if(res.ctxOut) keepCtx(res.ctxOut);
     else if(ctx && ctx.compareCodes && ctx.compareCodes.length){ var cc=convCtx()||{ turn:0, focus:[], results:[] }; cc.comparison=ctx.compareCodes.slice(0,4); cc.lastPlan={ intent:'compare' }; keepCtx(cc); }
     var bm=pushBot(res);
     if(!(ctx&&ctx.compareCodes)) aiAfterLocal(bm,text);
+    if(EV_ON){ evRecord(bm,text); renderEvNote(); }                                  /* B2b: memory only, no network here */
     renderLog(); scrollEnd();
   }
   function send(){
@@ -399,7 +526,7 @@
   function open(){
     build(); syncMode();
     var d=$('vero-drawer'), f=$('vero-fab'); if(!d) return;
-    place(); renderLog(); renderDisc();
+    place(); renderLog(); renderDisc(); if(EV_ON) renderEvNote();
     d.hidden=false; requestAnimationFrame(function(){ d.classList.add('open'); });
     S.open=true; document.body.classList.add('vero-open');
     if(window.VeroCompose && window.VeroCompose.warm) setTimeout(function(){ try{ window.VeroCompose.warm(pool()); }catch(_){} },80);   /* p2r3a: build the facts index on first open */
@@ -438,23 +565,34 @@
     }
     if(act==='clrcmp'){ S.cmp=[]; var k2=$('vero-log').scrollTop; renderLog(); $('vero-log').scrollTop=k2; return; }
     if(act==='more'){
-      var m=S.msgs[+b.getAttribute('data-idx')]; if(m){ m.shown=(m.shown||PAGE)+PAGE; var k3=$('vero-log').scrollTop; renderLog(); $('vero-log').scrollTop=k3; }
+      var m=S.msgs[+b.getAttribute('data-idx')]; if(m){ if(EV_ON) evAct(m,'more'); m.shown=(m.shown||PAGE)+PAGE; var k3=$('vero-log').scrollTop; renderLog(); $('vero-log').scrollTop=k3; }
       return;
     }
     if(act==='chip'){
       var mm=S.msgs[+b.getAttribute('data-idx')]; if(!mm) return;
       var chip=mm.res.chips[+b.getAttribute('data-chip')]; if(!chip) return;
-      if(chip.ask) ask(chip.ask);
-      else if(chip.sheet) ask(mm.res.query,{sheet:chip.sheet},mm.res.query+' \u00B7 '+chip.sheet);
-      else if(chip.append) ask(mm.res.query+chip.append,mm.res.ctx||{});
+      EV.chip=true;
+      try{
+        if(chip.ask) ask(chip.ask);
+        else if(chip.sheet) ask(mm.res.query,{sheet:chip.sheet},mm.res.query+' \u00B7 '+chip.sheet);
+        else if(chip.append) ask(mm.res.query+chip.append,mm.res.ctx||{});
+      } finally { EV.chip=false; }
       return;
+    }
+    if(EV_ON && (act==='evoff'||act==='evon')){ evSetOff(act==='evoff'); evAboutOpen=false; renderEvNote(); renderAndKeep(); return; }
+    if(EV_ON && act==='evabout'){ evAboutOpen=!evAboutOpen; renderEvNote(); return; }
+    if(EV_ON && (act==='evwrong'||act==='evreason')){
+      var fm=S.msgs[+b.getAttribute('data-idx')]; if(!evFbOk(fm) || fm.evFb) return;
+      if(act==='evwrong') fm.evOpen=true;
+      else{ var rs=b.getAttribute('data-reason'); if(!Object.prototype.hasOwnProperty.call(EV_TEXT.en.reasons,rs)) return; evPush({ kind:'fb', seq:fm.evSeq, reason:rs }); fm.evFb=true; fm.evOpen=false; }
+      var k4=$('vero-log').scrollTop; renderLog(); $('vero-log').scrollTop=k4; return;
     }
     if(act==='askai'){
       var lm=S.msgs[+b.getAttribute('data-idx')]; if(!lm||!lm.res) return;
       lm.offer=false;
       var dec=window.VeroEngine.aiRoute(pool(),lm.res.query,lm.res,{manual:true});
       if(dec.route==='local'){ pushAi({q:lm.res.query,route:'catalog',candidates:[],trigger:'manual',state:'error',err:'no_candidates'}); renderAndKeep(); scrollEnd(); return; }
-      startAI(lm.res.query,dec,'manual'); renderAndKeep(); scrollEnd(); return;
+      var mam=startAI(lm.res.query,dec,'manual'); if(EV_ON) evAiManual(lm,mam); renderAndKeep(); scrollEnd(); return;
     }
     if(act==='gateopen'){
       var gm=S.msgs[+b.getAttribute('data-idx')]; if(!gm) return;
@@ -502,6 +640,7 @@
         '<div class="vero-inrow"><input id="vero-input" type="text" maxlength="200" autocomplete="off" aria-label="Ask UNO" placeholder="Ask about a product, price, or spec\u2026">'+
         '<button type="button" class="vero-send" data-act="send" aria-label="Send">'+ICON.send+'</button></div>'+
         '<div class="vero-disc" id="vero-disc">Answers come from the current UGREEN pricelist.</div>'+
+        (EV_ON?'<div class="vero-evnote" id="vero-evnote" hidden></div>':'')+
       '</div>';
     d.addEventListener('click',onClick);
     document.body.appendChild(fab);
@@ -518,6 +657,10 @@
     close();
   });
   window.addEventListener('resize',function(){ if(S.open) place(); });
+  if(EV_ON){                                                                         /* B2b: flush once when the page is hidden / left */
+    document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden') evFlush(); });
+    window.addEventListener('pagehide',evFlush);
+  }
 
   function init(){ build(); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();

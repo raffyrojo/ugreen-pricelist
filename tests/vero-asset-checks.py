@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '20abb45a'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'b0b42cc3'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -34,12 +34,13 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # B2a UNO events (baseline 20abb45a = live; owner-approved 2026-10-21, D3 / D4 / D5 / D14 / D18, B2-Q1…Q6):
-                 # VERO Worker POST /events (anonymous answer events + wrong-answer feedback; kill switch EVENTS_ENABLED, absent =
-                 # off; redaction, catalogue code filter, ETag stamp, D1-counter rate limits) + uno_* rollup / retention in a separate
-                 # cleanup batch; additive migration 0003. G13 re-pinned, G16 allows 0003 (pinned), G27 adds /events, new G28; new
-                 # test. No front-end, config.js, wrangler.toml or data change. NO data.
-                 'backend/vero/worker.js', 'backend/vero/migrations/0003_uno_events.sql', 'tests/uno-events.test.mjs'}
+                 # B2b UNO events front end (baseline b0b42cc3 = live; owner-approved B0 2026-10-21 = B2b-D1…D10, B1 implementation):
+                 # js/vero.js answer events + wrong-answer feedback, browser-side redaction before a memory-only buffer, opt-out / GPC /
+                 # fail-closed, no logging in dealer mode, DRAFT notice; all dormant unless CONFIG.vero.eventsEnabled === true (absent).
+                 # js/vero-compose.js res.outcome (D14 option A, answer unchanged); css/vero.css additive; index.html ?v= tags only;
+                 # new G29; new test. No config.js, backend, Worker or data change. NO data.
+                 # Fix round 1 (owner-approved, B2b-F2 option a): tests/vero-engine.test.js network check narrowed (sendBeacon only in evFlush).
+                 'js/vero.js', 'js/vero-compose.js', 'css/vero.css', 'index.html', 'tests/uno-events-client.test.js', 'tests/vero-engine.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -236,6 +237,51 @@ chk('G28 /events: kill switch first (before body / D1); EVENTS_ENABLED exact "tr
     _ev_head == "async function handleEvents(req, env, c, ctx, t, ipHash) { if (!c.eventsEnabled) return fail(c, 503, 'events_off');"
     and "eventsEnabled: String(env.EVENTS_ENABLED) === 'true'," in _vwr and len(_m3_cols) >= 20 and not _bad_cols and 'DROP ' not in _m3.upper() and 'ALTER ' not in _m3.upper(),
     {'head_ok': _ev_head.endswith("'events_off');"), 'cols': len(_m3_cols), 'bad': _bad_cols})
+
+# G29 (B2b): the UNO events front end is dormant unless CONFIG.vero.eventsEnabled === true (config.js does not set it), never runs
+# in dealer mode, is fail-closed on opt-out / GPC / storage errors, redacts in the browser with the Worker's exact code rules,
+# keeps no storage except the opt-out key, sends only from evFlush, and its event builder copies no price / dealer / user field.
+# Fix round 1 (B2b-F5): read on the RAW source (nocom() also strips '//' inside strings, e.g. after a URL), so a commented-out
+# call still counts (fails safe); vero.js network = exactly the 2 AI fetches + the events beacon (B2b-F2).
+_vn = vjs
+_evb_a, _evb_b = _vn.find('var EV_ON='), _vn.find('function evFbHtml(')
+_evb = _vn[_evb_a:_vn.find('\n  }', _evb_b) + 4] if _evb_a >= 0 and _evb_b > _evb_a else ''
+_rest = _vn.replace(_evb, '') if _evb else _vn
+def _fbody(src, name):
+    i = src.find('function ' + name + '(')
+    if i < 0: return ''
+    j, d = src.find('{', i), 0
+    for k in range(j, len(src)):
+        d += src[k] == '{'; d -= src[k] == '}'
+        if d == 0: return src[i:k + 1]
+    return ''
+_lines = _rest.split('\n')
+_unguarded = [l.strip()[:80] for n, l in enumerate(_lines) if re.search(r'\b(evRecord|renderEvNote|evFbHtml|evAiManual|evAct|evFlush|evSetOff|evPush)\b', l)
+              and 'EV_ON' not in l and not any(re.match(r'\s*if\(EV_ON\b', x) for x in _lines[max(0, n - 3):n])]
+_rule_re = lambda s: re.findall(r'\[(/.+?/gi),', s)
+_wr_rules = _rule_re(_vwr[_vwr.find('const EV_CODE_RULES'):_vwr.find('export function redactEvent')])
+_cl_rules = _rule_re(_evb[_evb.find('var EV_CODE_RULES'):_evb.find('function evRedact(')])
+_rec, _fl = _fbody(_evb, 'evRecord'), _fbody(_evb, 'evFlush')
+_rx_re = lambda s: re.findall(r'\.replace\((/.+?/[a-z]*),', s)
+_wr_red, _cl_red = _rx_re(_fbody(_vwr, 'redact')), _rx_re(_fbody(_evb, 'evRedactBase'))
+_g29 = {
+  'flag_exact': _vn.count('var EV_ON=CFG.eventsEnabled===true,') == 1 and 'eventsEnabled' not in cfg,
+  'guards': not _unguarded,
+  'active': 'function evActive(){ return EV_ON && !!aiCfg().url && !dealer() && !evOff(); }' in _evb,
+  'off_fail_closed': "navigator.globalPrivacyControl===true) return 'gpc'" in _evb and "catch(_){ return 'storage'; }" in _evb,
+  'beacon_only_flush': _vn.count('sendBeacon') == _fl.count('sendBeacon') == 2 and _vn.count("'/events'") == _fl.count("'/events'") == 1,
+  'flush_takes_once': 'var all=EV.buf; EV.buf=[];' in _fl and _fl.find('var all=EV.buf; EV.buf=[];') < _fl.find('evActive()'),
+  'storage': 'sessionStorage' not in _evb and _vn.count('localStorage') == _evb.count('localStorage') == 4 and _evb.count('EV_OFF_KEY') == 5,
+  'redact_first': 'q:evRedact(text)' in _rec and 'evActive()' in _rec,
+  'rules_equal_worker': len(_wr_rules) == 4 and _cl_rules == _wr_rules and len(_wr_red) == 5 and _cl_red == _wr_red,
+  'network_only_ai_and_beacon': len(re.findall(r'\bfetch\s*\(', _vn)) == 2 and "fetch(a.url+'/ask'" in _vn and "fetch(a.url+'/session'" in _vn and not re.search(r'XMLHttpRequest|WebSocket|EventSource|import\(', _vn)
+      and not re.search(r'''\bImage\s*\(|\.src\s*=|createElement\s*\(\s*['"](?:img|script|iframe|frame|link|form|object|embed|audio|video|source)['"]''', _vn, re.I),   # fix round 2 (B2b-R2-1): no pixel / element request; fix round 3 (B2b-R3-2): optional whitespace before "("
+  'no_forbidden': not re.search(r'srp|\bdp\b|dp_volume|special_dp|moq|price|dealer|username|S\.ctx|modeKey|token|code_id|\.code\b', _rec + _fl + _fbody(_evb, 'evRole').replace('aiSession()', '')),
+  'role_coarse': "return (r==='sales'||r==='admin')?r:'anon';" in _fbody(_evb, 'evRole'),
+  'draft_marked': "status:'DRAFT pending Iontech privacy review" in _evb,
+}
+chk('G29 B2b events front end: dormant unless eventsEnabled === true (absent in config.js), every call guarded, never in dealer mode, opt-out / GPC / storage fail closed, Worker-identical redaction before buffering, vero.js network = the 2 AI fetches + sendBeacon only in evFlush, no sessionStorage, no price / dealer / user fields, DRAFT notice',
+    all(_g29.values()), {k: v for k, v in _g29.items() if not v} or _unguarded[:3])
 
 print('--- informational (not part of the deploy gate) ---')
 mirror = os.path.join(R, 'ugreen-pricelist-cms/index.html')
