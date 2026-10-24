@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'a75934cf'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '91739bf1'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -25,6 +25,9 @@ PUBLISH_WORKER_SHA = '6c1a02784dab0e0bda7351a2d7935129958c97afe35384d4bc642ec82a
 # Worker configs = mirrors of the live dashboard settings (NEW-DEPLOY-1-FIX, live audit 2026-10-20); re-pin only in an approved config release
 VERO_WRANGLER_SHA = 'a2ba39911254294d44df42a24b8ea97e7274729da8bb3c68b6f2f7c1e5685e22'     # backend/vero/wrangler.toml
 PUBLISH_WRANGLER_SHA = 'bd2cc181f81301627bbd4f3f6fc6f95c0946c15ac8d706ced9c87fa8434bbfde'  # backend/wrangler.toml
+# UNO owner dashboard Worker "uno-dashboard" (DB1 owner gate shell, 2026-10-24; NOT deployed): reviewed source + config; re-pin only in an approved checkpoint
+DASHBOARD_WORKER_SHA = 'b341c54cc46bb9f7d777408667346ab21ef9d86985e70176cc7f7c9cc3e39d29'    # backend/dashboard/worker.js (fix round 3)
+DASHBOARD_WRANGLER_SHA = 'ef412be4628514e546688c5e057c36bf6b281798522e2ef632af442a4f8a122b'  # backend/dashboard/wrangler.toml (fix round 1)
 # Subresource Integrity of the CDN export libraries (H1, 2026-10-20; hashes cross-checked with cdnjs / jsDelivr published values)
 CDN_SRI = {'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
            'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js': 'sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR'}
@@ -34,12 +37,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # B2b-F9 outcome classes, Option B (baseline a75934cf = live; owner decision + implementation approval 2026-10-23):
-                 # js/vero-compose.js marks res.outcome where the answer mode is chosen (alternatives / related / no cheaper option ->
-                 # honest_negative, coach / alternative-pending -> clarify, unknown code anchor -> no_match); answer text and codes
-                 # unchanged; index.html compose ?v= tag only; tests/uno-events-client.test.js C11c corpus + C11f guards.
-                 # No js/vero.js, config.js, backend, Worker or data change. NO data.
-                 'js/vero-compose.js', 'index.html', 'tests/uno-events-client.test.js'}
+                 # DB1 UNO owner dashboard - owner gate shell (baseline 91739bf1 = live; owner decision + implementation approval
+                 # 2026-10-24, design UNO-Owner-Dashboard-Design-2026-10-24.md OD1-OD6): NEW Worker backend/dashboard/ (Access JWT +
+                 # owner-email check, kill switch, security headers, no D1 binding, not deployed) + its tests.
+                 # No front-end, js/, index.html, config.js, VERO / CMS Worker, wrangler mirror, migration or data change. NO data.
+                 'backend/dashboard/worker.js', 'backend/dashboard/wrangler.toml', 'tests/uno-dashboard.test.mjs'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -158,10 +160,10 @@ chk('G14 publish Worker source sha256 == pinned ugreen-pricelist-cms source 6c1a
 chk('G15b Worker configs == pinned live mirrors (backend/vero/wrangler.toml a2ba3991…, backend/wrangler.toml bd2cc181…)',
     sha(rd('backend/vero/wrangler.toml')) == VERO_WRANGLER_SHA and sha(rd('backend/wrangler.toml')) == PUBLISH_WRANGLER_SHA,
     [f for f, h in (('backend/vero/wrangler.toml', VERO_WRANGLER_SHA), ('backend/wrangler.toml', PUBLISH_WRANGLER_SHA)) if sha(rd(f)) != h])
-# G15: backend/ paths may differ only if listed in RELEASE_SCOPE (this release: exactly backend/vero/worker.js); empty = all unchanged
+# G15: backend/ paths may differ only if listed in RELEASE_SCOPE (this release: exactly backend/dashboard/worker.js + wrangler.toml); empty = all unchanged
 BACKEND_SCOPE = {f for f in RELEASE_SCOPE if f.startswith('backend/')}
 backend_changed = {f for f in changed if f.startswith('backend/')}
-chk('G15 backend/ (both Workers, wrangler configs = budgets/limits/vars) unchanged vs baseline except ' + (', '.join(sorted(BACKEND_SCOPE)) or 'nothing'),
+chk('G15 backend/ (every Worker folder, wrangler configs = budgets/limits/vars, migrations) unchanged vs baseline except ' + (', '.join(sorted(BACKEND_SCOPE)) or 'nothing'),
     backend_changed <= BACKEND_SCOPE, sorted(backend_changed - BACKEND_SCOPE))
 mig = sorted(os.listdir(os.path.join(R, 'backend/vero/migrations')))
 chk('G16 D1 migrations: exactly 0001 / 0002 (unchanged vs baseline) + 0003 (sha256 pinned, additive B2a)', mig == ['0001_init.sql', '0002_product_text_cache.sql', '0003_uno_events.sql'] and all(base(f'backend/vero/migrations/{m}') == rd(f'backend/vero/migrations/{m}') for m in mig[:2]) and sha(rd('backend/vero/migrations/0003_uno_events.sql')) == VERO_MIGRATION_0003_SHA, mig)
@@ -281,6 +283,47 @@ _g29 = {
 }
 chk('G29 B2b events front end: dormant unless eventsEnabled === true (absent in config.js), every call guarded, never in dealer mode, opt-out / GPC / storage fail closed, Worker-identical redaction before buffering, vero.js network = the 2 AI fetches + sendBeacon only in evFlush, no sessionStorage, no price / dealer / user fields, DRAFT notice',
     all(_g29.values()), {k: v for k, v in _g29.items() if not v} or _unguarded[:3])
+
+# G30 (DB1): the owner dashboard Worker is the pinned reviewed source + config, has no data binding, sends no CORS header, holds no
+# hard-coded email, answers the kill switch before anything else, and its config ships the kill switch off with observability off.
+def _env_only_settings(src):
+    # fix round 3 (QA-DB1-13): the RAW source (no comment stripping); no Reflect / arguments / cloudflare: import; exactly one handler
+    # fix round 4 (QA-DB1-15): no backslash-u escape anywhere (identifiers spelled with escapes would hide env / Reflect / arguments)
+    B = chr(92)
+    s = src
+    left = re.sub(r'\benv\.(ACCESS_AUD|ACCESS_TEAM_DOMAIN|DASHBOARD_ENABLED|OWNER_EMAIL)\b', '', s)
+    for allowed in ('export function cfg(env) {', 'async fetch(req, env) {', 'const c = cfg(env);'): left = left.replace(allowed, '', 1)
+    d = s[s.find('\nexport default {'):] if '\nexport default {' in s else ''
+    one_handler = (len(re.findall(r'\bexport\s+default\b', s)) == 1 and len(re.findall(r'^ {2}(?:async\s+)?[A-Za-z_$][\w$]*\s*\(', d, re.M)) == 1
+                   and bool(re.search(r'^ {2}async fetch\(req, env\) \{', d, re.M)) and not re.search(r'''^ {2}[A-Za-z_$'"][^\n]*:''', d, re.M))
+    return (bool(s) and not re.search(r'\benv\b', left) and len(re.findall(r'\bcfg\(env\)', s)) == 2
+            and not re.search(r'\bReflect\b|\barguments\b|cloudflare:', s) and (B + 'u') not in s and one_handler)
+def _toml_keys(text):
+    out, cur = {}, ''
+    for raw in text.split('\n'):
+        l = re.sub(r'#.*$', '', raw).strip()
+        if not l: continue
+        if re.match(r'^\[{1,2}[^\]]+\]{1,2}$', l): cur = l; out.setdefault(cur, []); continue
+        m = re.match(r'^([A-Za-z0-9_.-]+)\s*=', l)
+        out.setdefault(cur, []).append(m.group(1) if m else '?' + l[:20])
+    return out
+_dw = rd('backend/dashboard/worker.js').decode('utf-8') if os.path.isfile(os.path.join(R, 'backend/dashboard/worker.js')) else ''
+_dt = rd('backend/dashboard/wrangler.toml').decode('utf-8') if os.path.isfile(os.path.join(R, 'backend/dashboard/wrangler.toml')) else ''
+_g30 = {
+  'worker_pin': sha(_dw.encode('utf-8')) == DASHBOARD_WORKER_SHA,
+  'config_pin': sha(_dt.encode('utf-8')) == DASHBOARD_WRANGLER_SHA,
+  # fix rounds 1-2 (QA-DB1-5 / QA-DB1-9): env appears only as env.<one of the 4 settings>, in the cfg(env) definition / call and in
+  # fetch(req, env) (no binding, alias, destructuring, env[...] or Reflect); the config holds exactly the allowed keys per section
+  # (no D1 / KV / R2 / queue / AI / Durable Object / service binding, inline or as a table; no route; preview_urls = false)
+  'no_binding': _env_only_settings(_dw) and _toml_keys(_dt) == {'': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'],
+      '[observability]': ['enabled'], '[vars]': ['DASHBOARD_ENABLED']} and bool(re.search(r'^preview_urls = false\b', _dt, re.M)),
+  'no_cors': not re.search(r'access-control-', _dw, re.I),
+  'no_email': not re.search(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', _dw + _dt),
+  'kill_first': "enabled: String(env.DASHBOARD_ENABLED) === 'true'," in _dw and bool(re.search(r"const c = cfg\(env\);\s*if \(!c\.enabled\) return fail\(503, 'dashboard_off'\);", _dw)),
+  'config_safe': 'DASHBOARD_ENABLED = "false"' in _dt and bool(re.search(r'\[observability\]\s*\nenabled = false', _dt)),
+}
+chk('G30 owner dashboard Worker (DB1): pinned source b341c54c… + config ef412be4…, env = 4 settings only + one fetch handler + no backslash-u escape + exact config keys (no binding), no CORS, no hard-coded email, kill switch first, shipped off with observability off and no preview URLs',
+    all(_g30.values()), {k: v for k, v in _g30.items() if not v})
 
 print('--- informational (not part of the deploy gate) ---')
 mirror = os.path.join(R, 'ugreen-pricelist-cms/index.html')
