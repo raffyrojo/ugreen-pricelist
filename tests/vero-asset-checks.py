@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'b0b42cc3'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'a75934cf'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -34,13 +34,12 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # B2b UNO events front end (baseline b0b42cc3 = live; owner-approved B0 2026-10-21 = B2b-D1…D10, B1 implementation):
-                 # js/vero.js answer events + wrong-answer feedback, browser-side redaction before a memory-only buffer, opt-out / GPC /
-                 # fail-closed, no logging in dealer mode, DRAFT notice; all dormant unless CONFIG.vero.eventsEnabled === true (absent).
-                 # js/vero-compose.js res.outcome (D14 option A, answer unchanged); css/vero.css additive; index.html ?v= tags only;
-                 # new G29; new test. No config.js, backend, Worker or data change. NO data.
-                 # Fix round 1 (owner-approved, B2b-F2 option a): tests/vero-engine.test.js network check narrowed (sendBeacon only in evFlush).
-                 'js/vero.js', 'js/vero-compose.js', 'css/vero.css', 'index.html', 'tests/uno-events-client.test.js', 'tests/vero-engine.test.js'}
+                 # B2b-F9 outcome classes, Option B (baseline a75934cf = live; owner decision + implementation approval 2026-10-23):
+                 # js/vero-compose.js marks res.outcome where the answer mode is chosen (alternatives / related / no cheaper option ->
+                 # honest_negative, coach / alternative-pending -> clarify, unknown code anchor -> no_match); answer text and codes
+                 # unchanged; index.html compose ?v= tag only; tests/uno-events-client.test.js C11c corpus + C11f guards.
+                 # No js/vero.js, config.js, backend, Worker or data change. NO data.
+                 'js/vero-compose.js', 'index.html', 'tests/uno-events-client.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'

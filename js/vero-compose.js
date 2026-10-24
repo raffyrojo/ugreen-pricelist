@@ -154,7 +154,7 @@
       if(hi && res.note) res.note=hi+res.note; return res; }
 
     if(I==='smalltalk'){ res.note=T(lang,plan.smalltalk); res.smalltalk=plan.smalltalk; return res; }
-    if(I==='coach' || rt==='COACH_FUTURE'){ res.note=T(lang,'coach'); if(plan.subject.length){ res.type='list'; res.codes=plan.subject.slice(0,4); } return done(); }
+    if(I==='coach' || rt==='COACH_FUTURE'){ res.outcome='clarify'; res.note=T(lang,'coach'); if(plan.subject.length){ res.type='list'; res.codes=plan.subject.slice(0,4); } return done(); }
     if(I==='price_history'){
       var E=root.VeroEngine||dep('VeroEngine','./vero-engine.js'), H0=plan.history||{}, h;
       var H={ dir:H0.dir, metric:H0.metric||'peso', field:H0.field||'srp', period:H0.period||null, n:H0.n||null, kind:H0.kind==='amount'?'list':(H0.kind||'list'), threshold:null };
@@ -215,11 +215,11 @@
         if(plan.alternative.direction!=='cheaper'){ res.type=R.codes.length?'list':'text'; res.codes=R.codes; res.detail=detailMap(R);
           res.note=R.codes.length?((lang==='tl'?R.codes.length+' na option na pareho ang ':R.codes.length+' options with the same ')+specTxt+':'):(lang==='tl'?'Walang option na pareho ang ':'No option with the same ')+specTxt+(lang==='tl'?' sa current pricelist.':' in the current pricelist.'); return done(); }
         if(R.codes.length){ res.type='list'; res.codes=R.codes; res.detail=detailMap(R); res.note=T(lang,'cheaper',{ n:R.codes.length, spec:specTxt }); res.fields=[plan.priceField]; }
-        else { res.type='lookup'; res.codes=[base]; res.note=T(lang,'cheaperNone',{ spec:specTxt }); }
+        else { res.type='lookup'; res.codes=[base]; res.note=T(lang,'cheaperNone',{ spec:specTxt }); res.outcome='honest_negative'; }
         return done();
       }
       if(base==null){ res.type='clarify'; res.codes=[]; res.note=T(lang,'clarifyAlternative'); return done(); }   /* p2r3a.4 A: never a null base */
-      res.type='lookup'; res.codes=[base]; res.note=T(lang,'alternativePending',{ code:base }); return done();
+      res.type='lookup'; res.codes=[base]; res.note=T(lang,'alternativePending',{ code:base }); res.outcome='clarify'; return done();
     }
     /* NEW-P2R3A-STOCK-2: family + wattage results (plan.familyWattage). FM = the family meta; LP = the same plan without the
        family name phrase (labels, facets); the family name keeps its catalogue casing ("Robot GaN", "Nexode"). */
@@ -292,7 +292,7 @@
         else if(codes.length>1 && plan.attrFromContext==='results') res.note=(lang==='tl'?'Heto ang '+A.toUpperCase()+' ng huling results:':A.toUpperCase().replace('DP_VOLUME','DP Vol')+' for your last results:');
         else if(codes.length>1){ var ra2=plan.anchors.filter(function(a){ return a.codes.length; }), m0=oneModel(codes,byCode); res.note=(ra2.length===1&&m0?'Model '+m0+' has '+codes.length+' SKUs:':(ra2.length>=1?codes.length+' SKUs for '+ra2.map(function(a){ return a.raw.toUpperCase(); }).join(' and ')+':':'')); }
         if(FM){ if(FM.mode==='none'){ var lb0=label(LP,false); res.type='text'; res.note=FM.device?famNoneDev():(famRange && lang==='tl')?famNoneTl():T(lang,'existNo',{ a:article(lb0)+' ', label:lb0, tail:'' }).replace('  ',' '); var fc0=facets(LP,idx); if(fc0){ res.note+=' '+T(lang,'facets',{ family:lang==='tl'?fc0.family:fc0.family.replace(/^./,function(x){ return x.toUpperCase(); }), values:fc0.text }); res.chips=fc0.chips; } }
-          else if(FM.mode!=='exact' || FM.device) res.note=famNote(codes.length); famCards(); }
+          else if(FM.mode!=='exact' || FM.device) res.note=famNote(codes.length); famCards(); if(FM.mode==='alternatives' && codes.length) res.outcome='honest_negative'; }
         return done(); }
       if(A==='description'){ var pd=byCode[codes[0]]; res.type='lookup'; res.codes=codes.slice(0,1);
         res.note=codes[0]+' — '+String((pd&&(pd.description||pd.short_desc))||(lang==='tl'?'walang description sa pricelist':'no description in the pricelist')).replace(/\s+/g,' ').trim().slice(0,320); return done(); }
@@ -349,7 +349,7 @@
       if(FM && famRange && lang==='tl' && !plan.catalogTotal && !plan.unknownNoun) res.note=plan.flags.stock?'Walang '+noW(false)+' na '+tw+' na naka-lista sa current pricelist.':(I==='count'?'0 — ':'')+famNoneTl();   /* STOCK-6A Tagalog range wording */
       if(FM && FM.device && !plan.catalogTotal && !plan.unknownNoun) res.note=famNoneDev();   /* STOCK-6B: device named → owner none wording */
       if(fc){ var famN=fc.family; res.note+=' '+T(lang,'facets',{ family:lang==='tl'?famN:famN.replace(/^./,function(x){ return x.toUpperCase(); }), values:fc.text }); res.chips=fc.chips; }
-      if(related.length){ res.codes=related; related.forEach(function(c){ res.detail[c]='Magnetic wireless (product name) — MagSafe not explicitly confirmed'; });
+      if(related.length){ res.outcome='honest_negative'; res.codes=related; related.forEach(function(c){ res.detail[c]='Magnetic wireless (product name) — MagSafe not explicitly confirmed'; });
         res.note+=' '+T(lang,'magnetic',{ n:related.length, label:nounOf(plan,related.length!==1), them:related.length===1?'this item':'these items' }); }
       if((plan.flags.devices.named.length||plan.flags.devices.classes.length) && !devFam(plan,R)) res.note+=' '+T(lang,'compat',{ device:devLabel((plan.flags.devices.named[0]&&plan.flags.devices.named[0].label)||plan.flags.devices.classes[0]) })+'.';
       return done();
@@ -372,10 +372,11 @@
     else if(I==='exist') res.note=T(lang,'existYes',{ n:codes2.length, label:lab, tail:tail });
     else res.note=T(lang,'list',{ n:codes2.length, label:lab, tail:tail });
     if(plan.unconfirmed && plan.unconfirmed.length) res.note=res.note.replace(/:$/,'')+' ('+T(lang,'unconfirmed',{ x:plan.unconfirmed.join(', '), label:nounOf(plan,true) })+'):';
-    if(FM){ res.note=famNote(codes2.length)||res.note; famCards(); }
+    if(FM){ res.note=famNote(codes2.length)||res.note; famCards(); if(FM.mode==='alternatives') res.outcome='honest_negative'; }
     /* NEW-P2R3A-STOCK-6A fix round 1 (owner wording): nothing NAMED by the alias phrase ("GaN Tech") matches → the results are
        same-feature alternatives, labelled like the STOCK-2 alternatives, never a "Meron / Yes" and never "no product named …" */
     var aliasDrop=(R.droppedQualifiers||[]).length && plan.match.filter(function(m){ return m.k==='namephrase' && m.alias && R.droppedQualifiers.indexOf(m.v)>=0; })[0];
+    if(aliasDrop) res.outcome='honest_negative';   /* B2b-F9: alias alternatives shown -> honest_negative (own line keeps the STOCK-6A mutant anchor below) */
     if(aliasDrop){ var an=String(aliasDrop.label||aliasDrop.v).replace(/^for /,''), wfA=plan.filters.filter(function(f){ return f.attr==='watts'; })[0], plA={}; for(var kA in plan) plA[kA]=plan[kA];
       var aw=wfA?(wfA.op==='between'?wfA.value[0]+'–'+wfA.value[1]+'W':({ ge:'≥', gt:'>', le:'≤', lt:'<' }[wfA.op]||'')+wfA.value+'W'):'';
       var atw=wfA?(wfA.op==='between'?aw:({ ge:wfA.value+'W pataas', le:wfA.value+'W pababa', gt:'lampas '+wfA.value+'W', lt:'mas mababa sa '+wfA.value+'W' }[wfA.op]||aw)):'';
@@ -418,9 +419,13 @@
   }
   /* B2b (D14 option A): the answer class logged by UNO events. Read from the finished answer only — it never changes the answer.
      answered = products / a comparison / a catalogue total; clarify; no_match = nothing matched ("none", unknown name);
-     honest_negative = a definite "not listed" answer without products; smalltalk. ('error' is set by js/vero.js.) */
+     honest_negative = a definite "not listed" answer without products; smalltalk. ('error' is set by js/vero.js.)
+     B2b-F9 (owner Option B, 2026-10-23): compose() marks res.outcome where the answer mode is chosen — "not listed" with
+     alternatives / related items shown, and "no cheaper option" -> honest_negative (codes kept, so n_codes > 0 tells them apart);
+     coach and alternative-pending -> clarify. An unknown code-shaped anchor with nothing shown -> no_match. */
   function outcome(res){
     if(!res) return 'error';
+    if(res.outcome) return res.outcome;
     if(res.smalltalk) return 'smalltalk';
     if(res.type==='clarify') return 'clarify';
     if(res.type==='none') return 'no_match';
@@ -428,6 +433,7 @@
     var p=res.plan;
     if(p && (p.catalogTotal || p.intent==='coach')) return 'answered';
     if(p && p.route && p.route.route==='CLARIFY') return 'no_match';
+    if(p && (p.ambiguity||[]).some(function(a){ return a.slot==='anchor'; })) return 'no_match';
     return 'honest_negative';
   }
   function warm(products){ try{ FACTS().build((products||[]).filter(function(p){ return p && !p.disabled; })); return true; }catch(e){ return false; } }

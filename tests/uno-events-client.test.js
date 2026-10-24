@@ -265,9 +265,27 @@ const Q = ['65W charger', 'may nexode 65w ba?', 'hi', 'ilan?', 'keyboard', 'hdmi
     chk(`C11a 0 answer changes: ${n} turns (sales benchmark, dev sets, ${dev.chains.length} follow-up chains, smoke questions) produce identical answers baseline vs candidate apart from the new outcome field`, diffs.length === 0 && strip(cmpA) === strip(cmpB), diffs.slice(0, 5));
     chk('C11b every Local Brain answer carries a valid outcome class', badOutcome.length === 0, badOutcome.slice(0, 5));
     const EXP = [['65W charger', 'answered'], ['may nexode 65w ba?', 'answered'], ['hi', 'smalltalk'], ['salamat uno', 'smalltalk'], ['ilan?', 'clarify'], ['keyboard', 'clarify'], ['xqzv plorb', 'clarify'],
-      ['may keyboard ba kayo?', 'honest_negative'], ['do you have a keyboard?', 'honest_negative'], ['price of ZZ9999', 'no_match'], ['magkano ang HD999?', 'no_match'], ['ilang products meron kayo?', 'answered'], ['compare 25870 15570', 'answered'], ['magkano ang 25870?', 'answered']];
+      ['may keyboard ba kayo?', 'honest_negative'], ['do you have a keyboard?', 'honest_negative'], ['price of ZZ9999', 'no_match'], ['magkano ang HD999?', 'no_match'], ['ilang products meron kayo?', 'answered'], ['compare 25870 15570', 'answered'], ['magkano ang 25870?', 'answered'],
+      /* B2b-F9 Option B (owner 2026-10-23): not listed + alternatives / related shown, no cheaper option -> honest_negative; coach / alternative-pending -> clarify; unknown code -> no_match */
+      ['may robot gan 20w ba?', 'honest_negative'], ['robot gan 20w', 'honest_negative'], ['magkano ang robot gan 20w?', 'honest_negative'], ['may robot gan 20w ba para sa iphone?', 'honest_negative'],
+      ['magsafe power bank', 'honest_negative'], ['meron ba tayong magsafe power bank?', 'honest_negative'], ['may mas mura ba sa 25286?', 'honest_negative'], ['ano alternative kapag ayaw ng customer sa price ng 90872B?', 'honest_negative'],
+      ['alternative sa SKU 90872B', 'clarify'], ['closest replacement sa 10334', 'clarify'], ['ano hero SKU natin sa 65W?', 'clarify'], ['ano magandang upsell sa 10334?', 'clarify'], ['ano pwede i-bundle sa 25286?', 'clarify'],
+      ['ano magandang i-push for travel?', 'clarify'], ['customer says mahal yung 25286, ano pwede sabihin?', 'clarify'],
+      ['is 90747 in stock?', 'no_match'], ['may 90747 ba?', 'no_match'], ['is 99999999 in stock?', 'no_match'],
+      /* fix round 1 (QA M7): alias alternatives ("GaN Tech" not in any name, same-feature alternatives shown) */
+      ['gantech 25w', 'honest_negative'], ['may gan tech 45w ba?', 'honest_negative']];
     const got = EXP.map(([q, x]) => [q, x, NEW(q).outcome]);
     chk('C11c outcome corpus: ' + EXP.map(x => x[0] + ' → ' + x[1]).join(' · '), got.every(g => g[1] === g[2]), got.filter(g => g[1] !== g[2]));
+    /* C11f B2b-F9 guards: products shown stay answered (incl. an unresolved device token and a dropped qualifier); a negative with alternatives keeps its codes; a plain "not listed" keeps honest_negative with no codes; a follow-up alternative-pending turn is clarify */
+    const GU = [['rtx4090 dock', 'answered'], ['iphone15 charger', 'answered'], ['item 35265', 'answered'], ['do you have magsafe charger?', 'answered'], ['how do I choose a charger?', 'answered'],
+      ['galaxy s24 case', 'no_match'], ['any 240w charger?', 'honest_negative']].map(([q, x]) => { const r = NEW(q); return [q, x, r.outcome, (r.codes || []).length]; });
+    const altKept = ['may robot gan 20w ba?', 'magsafe power bank', 'may mas mura ba sa 25286?', 'gantech 25w'].every(q => (NEW(q).codes || []).length > 0);
+    const neg0 = GU.filter(g => g[0] === 'any 240w charger?')[0][3] === 0;
+    const c1 = NEW('35314', null), c2 = NEW('alternative?', c1.ctxOut);
+    chk('C11f outcome guards: products shown stay answered, alternatives keep their codes, plain negative has 0 codes, follow-up "alternative?" -> clarify', GU.every(g => g[1] === g[2]) && altKept && neg0 && c2.outcome === 'clarify' && (c2.codes || []).length === 1, { GU, altKept, neg0, c2: [c2.outcome, c2.codes] });
+    /* fix round 1 (QA M11): only an unresolved code anchor turns a no-product answer into no_match; another ambiguity slot keeps honest_negative (no live query reaches this shape: other slots route to CLARIFY) */
+    const OCf = require(path.join(ROOT, 'js/vero-compose.js')).outcome, shp = s => ({ type: 'text', codes: [], plan: { route: { route: 'LOCAL' }, ambiguity: [{ slot: s }] } });
+    chk('C11g unknown-code rule is anchor-only: slot anchor -> no_match, slot type -> honest_negative', OCf(shp('anchor')) === 'no_match' && OCf(shp('type')) === 'honest_negative');
     chk('C11d legacy-path answers (compare bar, section chip) get a class from VeroCompose.outcome(); vero.js marks engine errors "error"', cmpA.outcome === undefined && require(path.join(ROOT, 'js/vero-compose.js')).outcome(cmpA) === 'answered' && (VJS.match(/outcome:'error'/g) || []).length === 2);
     const OC = require(path.join(ROOT, 'js/vero-compose.js')).outcome;
     chk('C11e outcome() on legacy shapes: type none -> no_match, empty text -> honest_negative, null -> error, smalltalk flag wins', OC({ type: 'none', codes: [] }) === 'no_match' && OC({ type: 'text', codes: [] }) === 'honest_negative' && OC(null) === 'error' && OC({ type: 'list', codes: ['1'], smalltalk: 'hi' }) === 'smalltalk'); }
