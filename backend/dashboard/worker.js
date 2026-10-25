@@ -6,7 +6,7 @@
  * by the team's Access keys, aud = ACCESS_AUD, iss = ACCESS_TEAM_DOMAIN, not expired) whose email equals OWNER_EMAIL.
  * VERO access codes and admin:read tokens are never accepted. Anything missing or wrong fails closed.
  *
- *   GET  /              -> owner shell page (no data in DB1)
+ *   GET  /              -> owner shell page (no data in DB1; DB2a: fixed "Back to Admin" link, ADMIN_RETURN_URL)
  *   GET  /app.css       -> stylesheet for the shell page
  *   POST /api/whoami    -> { ok, role: 'owner', exp }   (same-origin only; no data)
  *
@@ -145,13 +145,17 @@ function headers(type) {
 function json(body, status) { return new Response(JSON.stringify(body), { status: status || 200, headers: headers('application/json; charset=utf-8') }); }
 function fail(status, error) { return json({ ok: false, error }, status); }
 
+/* DB2a: the dashboard opens in the admin's own tab (same-tab launch from the Admin sidebar, no frame); this fixed link returns
+   there. A constant, never a request parameter (no open redirect); the fragment carries no data. */
+export const ADMIN_RETURN_URL = 'https://raffyrojo.github.io/ugreen-pricelist/#uno-return';
 const PAGE = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
   '<meta name="robots" content="noindex,nofollow"><title>UNO Owner Dashboard</title><link rel="stylesheet" href="/app.css"></head>' +
-  '<body><main><h1>UNO Owner Dashboard</h1><p>Signed in as the owner.</p>' +
+  '<body><main><a class="back" href="' + ADMIN_RETURN_URL + '">&larr; Back to Admin</a><h1>UNO Owner Dashboard</h1><p>Signed in as the owner.</p>' +
   '<p class="note">DB1 owner gate: no data is shown yet. Reports arrive in later checkpoints.</p></main></body></html>';
 const CSS = 'body{margin:0;font:16px/1.5 system-ui,sans-serif;background:#f6f7f9;color:#1d2330}' +
   'main{max-width:720px;margin:0 auto;padding:24px 16px}h1{font-size:22px;margin:0 0 12px}.note{color:#5b6475;font-size:14px}' +
-  '@media (prefers-color-scheme:dark){body{background:#14171c;color:#e6e9ef}.note{color:#9aa3b2}}';
+  '.back{display:inline-block;margin:0 0 16px;padding:10px 0;color:#007934;font-weight:600;text-decoration:none}' +
+  '@media (prefers-color-scheme:dark){body{background:#14171c;color:#e6e9ef}.note{color:#9aa3b2}.back{color:#4cc27a}}';
 
 export default {
   async fetch(req, env) {

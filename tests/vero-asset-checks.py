@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '91739bf1'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '9f376a85'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -25,9 +25,9 @@ PUBLISH_WORKER_SHA = '6c1a02784dab0e0bda7351a2d7935129958c97afe35384d4bc642ec82a
 # Worker configs = mirrors of the live dashboard settings (NEW-DEPLOY-1-FIX, live audit 2026-10-20); re-pin only in an approved config release
 VERO_WRANGLER_SHA = 'a2ba39911254294d44df42a24b8ea97e7274729da8bb3c68b6f2f7c1e5685e22'     # backend/vero/wrangler.toml
 PUBLISH_WRANGLER_SHA = 'bd2cc181f81301627bbd4f3f6fc6f95c0946c15ac8d706ced9c87fa8434bbfde'  # backend/wrangler.toml
-# UNO owner dashboard Worker "uno-dashboard" (DB1 owner gate shell, 2026-10-24; NOT deployed): reviewed source + config; re-pin only in an approved checkpoint
-DASHBOARD_WORKER_SHA = 'b341c54cc46bb9f7d777408667346ab21ef9d86985e70176cc7f7c9cc3e39d29'    # backend/dashboard/worker.js (fix round 3)
-DASHBOARD_WRANGLER_SHA = 'ef412be4628514e546688c5e057c36bf6b281798522e2ef632af442a4f8a122b'  # backend/dashboard/wrangler.toml (fix round 1)
+# UNO owner dashboard Worker "uno-dashboard" (DB1 owner gate shell; live version 70146835 = source b341c54c... until the approved DB2a deploy): reviewed source + config; re-pin only in an approved checkpoint
+DASHBOARD_WORKER_SHA = '968937278aa37be868827342930ec4480edf3f0ce4e7af88df8bcace429ab9bb'    # backend/dashboard/worker.js (DB2a: Back to Admin link; DB1 b341c54c...)
+DASHBOARD_WRANGLER_SHA = '5d939ebe29ad0b80cf02028c162a696f543212ff341377923f9545fd8884a8cf'  # backend/dashboard/wrangler.toml (DB2a: compatibility 2026-10-24, kill switch dashboard-managed; DB1 ef412be4...)
 # Subresource Integrity of the CDN export libraries (H1, 2026-10-20; hashes cross-checked with cdnjs / jsDelivr published values)
 CDN_SRI = {'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
            'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js': 'sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR'}
@@ -37,11 +37,12 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # DB1 UNO owner dashboard - owner gate shell (baseline 91739bf1 = live; owner decision + implementation approval
-                 # 2026-10-24, design UNO-Owner-Dashboard-Design-2026-10-24.md OD1-OD6): NEW Worker backend/dashboard/ (Access JWT +
-                 # owner-email check, kill switch, security headers, no D1 binding, not deployed) + its tests.
-                 # No front-end, js/, index.html, config.js, VERO / CMS Worker, wrangler mirror, migration or data change. NO data.
-                 'backend/dashboard/worker.js', 'backend/dashboard/wrangler.toml', 'tests/uno-dashboard.test.mjs'}
+                 # DB2a UNO Analytics admin link (baseline 9f376a85 = live; owner approval 2026-10-24, A3 same-tab design,
+                 # UNO-Analytics-Admin-Integration-Plan-2026-10-24.md): Admin sidebar item "UNO Analytics" below Reports that opens the
+                 # uno-dashboard Worker in the same tab + #uno-return hook; Worker "Back to Admin" link (headers unchanged) and mirror
+                 # fixes DB1-DEP-2 / DB1-DEP-5. No VERO file, config.js, CSS, VERO / CMS Worker, migration or data change. NO data.
+                 'js/admin.js', 'js/app.js', 'index.html', 'backend/dashboard/worker.js', 'backend/dashboard/wrangler.toml',
+                 'tests/uno-dashboard.test.mjs', 'tests/uno-admin-link.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -316,14 +317,39 @@ _g30 = {
   # fetch(req, env) (no binding, alias, destructuring, env[...] or Reflect); the config holds exactly the allowed keys per section
   # (no D1 / KV / R2 / queue / AI / Durable Object / service binding, inline or as a table; no route; preview_urls = false)
   'no_binding': _env_only_settings(_dw) and _toml_keys(_dt) == {'': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'],
-      '[observability]': ['enabled'], '[vars]': ['DASHBOARD_ENABLED']} and bool(re.search(r'^preview_urls = false\b', _dt, re.M)),
+      '[observability]': ['enabled']} and bool(re.search(r'^preview_urls = false\b', _dt, re.M)),
   'no_cors': not re.search(r'access-control-', _dw, re.I),
   'no_email': not re.search(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', _dw + _dt),
   'kill_first': "enabled: String(env.DASHBOARD_ENABLED) === 'true'," in _dw and bool(re.search(r"const c = cfg\(env\);\s*if \(!c\.enabled\) return fail\(503, 'dashboard_off'\);", _dw)),
-  'config_safe': 'DASHBOARD_ENABLED = "false"' in _dt and bool(re.search(r'\[observability\]\s*\nenabled = false', _dt)),
+  # DB2a (DB1-DEP-5 / DB1-DEP-2): the kill switch is dashboard-managed (never assigned in the file, keep_vars = true keeps it on a
+  # wrangler deploy; absent = off), compatibility date = the dashboard's, observability off
+  'config_safe': not re.search(r'^\s*DASHBOARD_ENABLED\s*=', _dt, re.M) and bool(re.search(r'^keep_vars = true\b', _dt, re.M))
+      and bool(re.search(r'^compatibility_date = "2026-10-24"', _dt, re.M)) and bool(re.search(r'\[observability\]\s*\nenabled = false', _dt)),
+  # DB2a: same-tab launch only - the dashboard still refuses every frame, and its only link is the fixed Back to Admin URL
+  'no_framing': "frame-ancestors 'none'\";" in _dw and "'x-frame-options': 'DENY'" in _dw,
+  'fixed_back_link': "export const ADMIN_RETURN_URL = 'https://raffyrojo.github.io/ugreen-pricelist/#uno-return';" in _dw
+      and re.sub(r'/\*[\s\S]*?\*/', '', _dw).count('ADMIN_RETURN_URL') == 2 and 'searchParams' not in _dw,
 }
-chk('G30 owner dashboard Worker (DB1): pinned source b341c54c… + config ef412be4…, env = 4 settings only + one fetch handler + no backslash-u escape + exact config keys (no binding), no CORS, no hard-coded email, kill switch first, shipped off with observability off and no preview URLs',
+chk('G30 owner dashboard Worker (DB1 + DB2a): pinned source 96893727… + config 5d939ebe…, env = 4 settings only + one fetch handler + no backslash-u escape + exact config keys (no binding, no [vars]), no CORS, no hard-coded email, kill switch first and dashboard-managed, compatibility 2026-10-24, observability off, no preview URLs, framing refused, fixed Back to Admin link',
     all(_g30.values()), {k: v for k, v in _g30.items() if not v})
+
+# G31 (DB2a): the Admin "UNO Analytics" item is a same-tab launcher only - listed directly below Reports, opens the fixed dashboard
+# URL with location.assign (no new tab, no frame, no fetch, no token), and #uno-return reopens the admin only for an admin session.
+_adm = rd('js/admin.js').decode('utf-8')
+_app = rd('js/app.js').decode('utf-8')
+_a0, _a1 = _adm.find('/* ================= DB2a - UNO Analytics'), _adm.find('/* ================= PHASE 9 - Settings sections')
+_blk = re.sub(r'/\*[\s\S]*?\*/', '', _adm[_a0:_a1]) if 0 < _a0 < _a1 else ''
+_ld = _app.find('loadData().then(function(){')
+_g31 = {
+  'below_reports': "_admRailItem('tab-reports','Reports',_ADM_ICONS.reports,false)+\n      _admRailItem('tab-uno','UNO Analytics',_ADM_ICONS.uno,false)+" in _adm and _adm.count("'tab-uno','UNO Analytics'") == 1,
+  'mounted': '_admTabReportsHtml()+_admTabUnoHtml()+_admTabActivityHtml()+' in _adm,
+  'same_tab': bool(_blk) and _blk.count('location.assign(UNO_DASHBOARD_URL);') == 1 and not re.search(r'window\.open|(?:^|[^\w$.])open\(|<iframe|fetch\(|sessionStorage|setItem\(|postMessage', _blk),   # fix round 1: also a bare open(
+  'fixed_url': "var UNO_DASHBOARD_URL='https://uno-dashboard.raffyortega-rojo.workers.dev/';" in _adm and _adm.count('uno-dashboard.raffyortega-rojo.workers.dev') == 1,
+  'return_gated': "  if(h!==UNO_RETURN_HASH)return false;" in _blk and "  if(!isAdmin())return false;" in _blk and 0 < _blk.find('replaceState') < _blk.find('if(!isAdmin())') < _blk.find('openAdminModal();'),
+  'hook_after_load': _app.count('admUnoReturn()') == 1 and 0 < _ld < _app.find('hideLoading();', _ld) < _app.find('admUnoReturn()') < _app.find('}).catch(function(err){', _ld),
+}
+chk('G31 Admin "UNO Analytics" (DB2a): item directly below Reports, tab mounted, same-tab location.assign to the fixed dashboard URL only (no new tab / frame / fetch / storage / postMessage), #uno-return reopens the admin only for an admin session, hook after the catalogue loaded',
+    all(_g31.values()), {k: v for k, v in _g31.items() if not v})
 
 print('--- informational (not part of the deploy gate) ---')
 mirror = os.path.join(R, 'ugreen-pricelist-cms/index.html')

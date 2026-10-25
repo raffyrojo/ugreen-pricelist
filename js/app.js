@@ -138,6 +138,8 @@ document.addEventListener('DOMContentLoaded', function(){
     fixMobileLayout();
     hideLoading();
     try{console.info('[UGREEN] loaded',ALL_PRODUCTS.length,'products');}catch(e){}
+    /* DB2a: back from UNO Analytics (#uno-return) reopens the admin on that tab, only for an active admin session. */
+    try { if (typeof admUnoReturn === 'function') admUnoReturn(); } catch(e){}
   }).catch(function(err){
     hideLoading();
     console.error('[UGREEN] load failed:',err);

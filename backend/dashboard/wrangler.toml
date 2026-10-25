@@ -1,22 +1,22 @@
 name = "uno-dashboard"
 main = "worker.js"
-# UNO owner dashboard - DB1 owner gate shell (owner decision 2026-10-24; design
-# Deliverables/UNO-Admin-Dashboard/UNO-Owner-Dashboard-Design-2026-10-24.md). Not deployed yet: the first deploy, the
-# Cloudflare Access application (one-email policy + MFA, ~2 h session) and every secret are separate owner-approved steps.
-# Once deployed, this file mirrors the dashboard settings; edit it only in an approved checkpoint.
+# UNO owner dashboard (owner decision 2026-10-24; design
+# Deliverables/UNO-Admin-Dashboard/UNO-Owner-Dashboard-Design-2026-10-24.md + UNO-Analytics-Admin-Integration-Plan-2026-10-24.md).
+# Deployed 2026-10-24 (DB1): Cloudflare Access application (owner email one-time PIN only, 2 h) in front; secrets set in the dashboard.
+# This file mirrors the dashboard settings; edit it only in an approved checkpoint.
 # Approved deploy route: code-only through the Cloudflare dashboard. A `wrangler deploy` needs its own approval.
-compatibility_date = "2026-10-06"
+compatibility_date = "2026-10-24"   # = the dashboard (owner decision 2026-10-24, DB1-DEP-2)
 workers_dev = true
 preview_urls = false            # no preview hostnames (each would need the Access application too; QA-DB1-5)
-keep_vars = true
+keep_vars = true                # keeps the dashboard-managed kill switch below on any wrangler deploy (DB1-DEP-5)
 
 # OD6: no invocation logs (they would record the owner's IP and location for every request); the Worker writes no log lines.
 [observability]
 enabled = false
 
-# No D1 / KV / service bindings in DB1 (data routes arrive in DB2 with their own approval).
+# No D1 / KV / service bindings yet (data routes arrive in DB2b with their own approval).
 
-[vars]
-DASHBOARD_ENABLED = "false"     # kill switch: exactly "true" serves the dashboard; anything else answers 503 dashboard_off
-
+# Kill switch DASHBOARD_ENABLED is managed in the dashboard only (Text variable, Production): exactly "true" serves the dashboard;
+# absent or anything else answers 503 dashboard_off. It is deliberately NOT listed here: a [vars] entry would overwrite the dashboard
+# value on a wrangler deploy (DB1-DEP-5); a fresh deploy without it stays off (fail closed).
 # Secrets (set in the dashboard, never here): OWNER_EMAIL, ACCESS_AUD, ACCESS_TEAM_DOMAIN (https://<team>.cloudflareaccess.com)

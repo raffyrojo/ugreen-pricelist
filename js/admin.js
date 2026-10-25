@@ -978,6 +978,7 @@ var _ADM_ICONS = {
   imp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
   exp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
   reports:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  uno:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>',
   activity:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
   promo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
   versions:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
@@ -999,6 +1000,7 @@ function _admRailHtml(){
       _admRailItem('tab-import','Import',_ADM_ICONS.imp,false)+
       _admRailItem('tab-export','Export',_ADM_ICONS.exp,false)+
       _admRailItem('tab-reports','Reports',_ADM_ICONS.reports,false)+
+      _admRailItem('tab-uno','UNO Analytics',_ADM_ICONS.uno,false)+
       '<div class="adm-rail-group">System</div>'+
       _admRailItem('tab-activity','Activity Log',_ADM_ICONS.activity,false)+
       _admRailItem('tab-promo','Popup Ads',_ADM_ICONS.promo,false)+
@@ -1548,6 +1550,54 @@ function _admTabReportsHtml(){
   '</div>';
 }
 
+/* ================= DB2a - UNO Analytics (owner-only, same-tab) =================
+   The analytics live in the separate uno-dashboard Worker behind Cloudflare Access (owner email one-time code) and the
+   Worker's own JWT + owner check. This tab is only a launcher: it opens the Worker IN THIS TAB (no new tab, no frame) and
+   puts no data or token in the URL; the Worker's "Back to Admin" link returns to #uno-return, which reopens this tab only
+   when the admin session (sessionStorage, per tab) is still active. The admin PIN is not a security boundary here. */
+var UNO_DASHBOARD_URL='https://uno-dashboard.raffyortega-rojo.workers.dev/';
+var UNO_RETURN_HASH='#uno-return';
+function _admUnoPending(){
+  var n=0; try{ n+=loadNewSkus().length; }catch(e){}
+  try{ var d=JSON.parse(localStorage.getItem('ugreen_deleted')||'[]'); if(Array.isArray(d)) n+=d.length; }catch(e){}
+  return n;
+}
+/* Fix round 1 (QA-DB2a-1): Excel uploads, popup-ad edits and settings are held in memory only (HAS_UNSAVED_CHANGES) and are
+   lost when the page is left; only product drafts / removals survive in this browser. Say exactly that. */
+function _admUnoUnsaved(){ return typeof HAS_UNSAVED_CHANGES!=='undefined'&&HAS_UNSAVED_CHANGES===true; }
+function _admUnoWarn(){
+  var n=_admUnoPending(), u=_admUnoUnsaved();
+  if(!n&&!u)return '';
+  return (n>0?'You have '+n+' unpublished product change'+(n>1?'s':'')+' (added, edited or removed products). They stay saved in this browser.':'You have unpublished changes.')+
+    (u?' Other unsaved changes (Excel uploads, popup ads, settings), if any, are lost when you leave this page - publish first to keep them.':'');
+}
+function _admTabUnoHtml(){
+  var w=_admUnoWarn();
+  return '<div class="adm-tab" id="tab-uno"><div class="adm-empty-state">'+
+    '<div class="adm-empty-ico">'+_ADM_ICONS.uno+'</div>'+
+    '<div class="adm-empty-title">UNO Analytics</div>'+
+    '<div class="adm-empty-sub">Owner-only &middot; opens in this tab</div>'+
+    '<p class="adm-empty-desc">UNO Analytics is private to the owner account. It opens in this tab and asks for a one-time code sent to the owner email. Use &ldquo;Back to Admin&rdquo; on that page to return here.</p>'+
+    (w?'<p class="adm-empty-desc" id="adm-uno-pending">'+w+'</p>':'')+
+    '<button class="btn-primary" id="adm-uno-open" onclick="admOpenUnoAnalytics()">Open UNO Analytics</button>'+
+  '</div></div>';
+}
+function admOpenUnoAnalytics(){
+  var w=_admUnoWarn();
+  if(w&&!confirm(w+'\n\nOpen UNO Analytics in this tab?'))return;
+  location.assign(UNO_DASHBOARD_URL);
+}
+function admUnoReturn(){
+  var h=''; try{ h=location.hash; }catch(e){}
+  if(h!==UNO_RETURN_HASH)return false;
+  try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  if(!isAdmin())return false;
+  openAdminModal();
+  var b=document.querySelector('.adm-rail-item[data-tab="tab-uno"]');
+  if(b)admTab(b,'tab-uno');
+  return true;
+}
+
 /* ================= PHASE 9 - Settings sections ================= */
 function _admSettingsExtraHtml(){
   var C=(window.CONFIG||{}), g=(C.github||{}), be=(C.backend||{});
@@ -1590,7 +1640,7 @@ function renderAdminContent(){
   if(_ac.check()){
     modal.classList.remove('adm-compact');modal.classList.remove('adm-login');modal.classList.add('adm-dash');
     el.innerHTML=
-      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="adm-save-global" onclick="saveCurrentVersion()" title="Save &amp; publish all changes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Save &amp; Publish</span></button><button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-pricechanges"></div>'+'<div class="adm-tab" id="tab-dealers"></div>'+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
+      '<div class="adm-shell" id="adm-shell">'+_admAppbarHtml()+'<div class="adm-dash">'+'<div class="adm-rail-backdrop" onclick="admCloseRail()"></div>'+_admRailHtml()+'<div class="adm-main">'+'<header class="adm-main-top"><div><h2 class="adm-main-title" id="adm-tab-title">Dashboard</h2><p class="adm-main-sub">Overview of your UGREEN pricelist</p></div>'+'<div class="adm-main-actions"><button class="adm-save-global" onclick="saveCurrentVersion()" title="Save &amp; publish all changes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Save &amp; Publish</span></button><button class="adm-close-btn" onclick="closeAdminModal()" title="Close">&times;</button></div></header>'+'<div class="adm-main-scroll">'+_admTabOverviewHtml()+_admTabSkuHtml()+'<div class="adm-tab" id="tab-categories">'+'<div class="adm-panel"><div class="adm-panel-head"><div class="adm-panel-title">Categories</div><div class="adm-panel-sub">'+_admSectionCounts().length+' sections \u00b7 auto-derived from products</div></div>'+renderCategoriesTableHtml()+'</div>'+'</div>'+_admTabImportHtml()+_admTabExportHtml()+_admTabPricingHtml()+_admTabImagesHtml()+_admTabReportsHtml()+_admTabUnoHtml()+_admTabActivityHtml()+'<div class="adm-tab" id="tab-pricechanges"></div>'+'<div class="adm-tab" id="tab-dealers"></div>'+'<div class="adm-tab" id="tab-promo">'+'<div class="adm-card adm-card-full">'+
         '<div class="adm-card-header">'+
           '<span class="adm-card-icon promo" id="sec-promo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>'+
           '<div><div class="adm-card-title">Promo Popup</div><div class="adm-card-sub">Session-based promotional overlay</div></div>'+

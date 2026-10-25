@@ -125,6 +125,17 @@ async function suite(W, out) {
       chk('exact CSP string', ok.h.get('content-security-policy') === "default-src 'none'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'", ok.h.get('content-security-policy'));
       chk('exact hardening header values', ok.h.get('strict-transport-security') === 'max-age=31536000' && ok.h.get('cross-origin-opener-policy') === 'same-origin'
         && ok.h.get('cross-origin-resource-policy') === 'same-origin' && ok.h.get('permissions-policy') === 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+      // DB2a: same-tab launch from the Admin sidebar; the dashboard is still never framed
+      chk('DB2a: framing still refused (X-Frame-Options DENY + frame-ancestors none)', ok.h.get('x-frame-options') === 'DENY' && /frame-ancestors 'none'$/.test(ok.h.get('content-security-policy') || ''));
+    }
+    {
+      const RET = 'https://raffyrojo.github.io/ugreen-pricelist/#uno-return';
+      const hrefs = t => [...t.matchAll(/href="([^"]*)"/g)].map(m => m[1]);
+      chk('DB2a: ADMIN_RETURN_URL is the fixed admin URL with the #uno-return fragment', W.ADMIN_RETURN_URL === RET, W.ADMIN_RETURN_URL);
+      chk('DB2a: shell page links exactly /app.css + the Back to Admin URL', JSON.stringify(hrefs(ok.text)) === JSON.stringify(['/app.css', RET]) && ok.text.includes('>&larr; Back to Admin</a>'), hrefs(ok.text));
+      const q = await call('/?return=https%3A%2F%2Fevil.example%2F&next=//evil.example', { tok: T });
+      chk('DB2a: no open redirect - query parameters never change the Back link', q.status === 200 && JSON.stringify(hrefs(q.text)) === JSON.stringify(['/app.css', RET]) && !q.text.includes('evil'), hrefs(q.text));
+      chk('DB2a: the Back link is styled (.back) in /app.css', /\.back\{/.test(css.text));
     }
 
     // --- every refusal is the same 403 forbidden (no oracle)
@@ -354,12 +365,16 @@ function statics(src) {
     const k = l.match(/^([A-Za-z0-9_.-]+)\s*=/);
     (sect[cur] = sect[cur] || []).push(k ? k[1] : '?' + l.slice(0, 20));
   }
-  res.push(['wrangler.toml: exact keys per section (top: name main compatibility_date workers_dev preview_urls keep_vars; [observability]: enabled; [vars]: DASHBOARD_ENABLED)',
-    JSON.stringify(sect) === JSON.stringify({ '': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'], '[observability]': ['enabled'], '[vars]': ['DASHBOARD_ENABLED'] })]);
+  // DB2a (DB1-DEP-5): the kill switch is dashboard-managed (no [vars] table; keep_vars = true keeps it on a wrangler deploy)
+  res.push(['wrangler.toml: exact keys per section (top: name main compatibility_date workers_dev preview_urls keep_vars; [observability]: enabled)',
+    JSON.stringify(sect) === JSON.stringify({ '': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'], '[observability]': ['enabled'] })]);
   const tables = [...TOML.matchAll(/^\s*\[{1,2}([^\]]+)\]{1,2}/gm)].map(m => m[0].trim());
-  res.push(['wrangler.toml: only the [observability] and [vars] tables (no binding table of any kind), no route', JSON.stringify(tables) === JSON.stringify(['[observability]', '[vars]']) && !/^\s*routes?\s*=/m.test(TOML)]);
-  res.push(['wrangler.toml: kill switch "false" by default, observability off, workers.dev only, no preview URLs', /DASHBOARD_ENABLED = "false"/.test(TOML) && /\[observability\]\s*\nenabled = false/.test(TOML)
+  res.push(['wrangler.toml: only the [observability] table (no [vars], no binding table of any kind), no route', JSON.stringify(tables) === JSON.stringify(['[observability]']) && !/^\s*routes?\s*=/m.test(TOML)]);
+  res.push(['wrangler.toml: kill switch not set in the file (dashboard-managed, keep_vars = true), observability off, workers.dev only, no preview URLs',
+    !/^\s*DASHBOARD_ENABLED\s*=/m.test(TOML) && /^keep_vars = true\b/m.test(TOML) && /\[observability\]\s*\nenabled = false/.test(TOML)
     && /^workers_dev = true$/m.test(TOML) && /^preview_urls = false\b/m.test(TOML)]);
+  // DB2a (DB1-DEP-2): the mirror carries the dashboard's compatibility date (owner decision 2026-10-24)
+  res.push(['wrangler.toml: compatibility_date = "2026-10-24" (= the dashboard)', /^compatibility_date = "2026-10-24"/m.test(TOML)]);
   res.push(['wrangler.toml: no email, AUD or team value', !/@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.test(TOML) && !/OWNER_EMAIL\s*=|ACCESS_AUD\s*=|ACCESS_TEAM_DOMAIN\s*=/.test(TOML)]);
   return res;
 }
@@ -424,6 +439,12 @@ const MUT = [
   ['CSP base-uri dropped', " base-uri 'none';", ''],
   ['/app.css any method', "if (url.pathname === '/app.css') return req.method === 'GET' ?", "if (url.pathname === '/app.css') return true ?"],
   ['whoami exp changed', 'exp: claims.exp });', 'exp: Math.floor(Date.now() / 1000) + 7200 });'],
+  // DB2a: same-tab Back link, framing still refused
+  ['Back link to another host', "export const ADMIN_RETURN_URL = 'https://raffyrojo.github.io/ugreen-pricelist/#uno-return';", "export const ADMIN_RETURN_URL = 'https://evil.example/#uno-return';"],
+  ['Back link without the return fragment', "ugreen-pricelist/#uno-return';", "ugreen-pricelist/';"],
+  ['Back link removed', '<a class="back" href="\' + ADMIN_RETURN_URL + \'">&larr; Back to Admin</a>', ''],
+  ['X-Frame-Options relaxed', "'x-frame-options': 'DENY'", "'x-frame-options': 'SAMEORIGIN'"],
+  ['frame-ancestors opened to the admin origin', "frame-ancestors 'none'\";", "frame-ancestors https://raffyrojo.github.io\";"],
 ];
 
 const W = await load(SRC);
