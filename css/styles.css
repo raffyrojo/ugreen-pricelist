@@ -32,7 +32,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Metropolis',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:2rem;height:64px}
+body > header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:2rem;height:64px}
 .logo{font-family:'Metropolis',sans-serif;font-weight:900;font-size:1.25rem;letter-spacing:-0.025em;display:flex;align-items:center;gap:0.5rem;white-space:nowrap}
 .logo-dot{color:var(--accent)}
 .logo-sub{font-family:'Metropolis',sans-serif;font-size:0.65rem;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;border-left:1px solid var(--border);padding-left:0.75rem}
@@ -733,7 +733,7 @@ body{font-family:'Metropolis',sans-serif;background:var(--bg);color:var(--text);
 .cat-hdr .cat-title { font-weight:800; letter-spacing:-0.025em; }
 
 /* ─── HEADER ──────────────────────────────────────────────────────── */
-header{
+body > header{
   background:var(--surface);
   border-bottom:1px solid var(--header-border);
   box-shadow:var(--shadow-sm);
@@ -1082,14 +1082,14 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 
 /* ── LAPTOP / LARGE TABLET  (≤1280px) ─────────────────────────────────── */
 @media (max-width:1280px){
-  header{padding:0 1.25rem;gap:.75rem}
+  body > header{padding:0 1.25rem;gap:.75rem}
   .search-wrap{max-width:380px}
   main{padding:1rem 1.25rem}
 }
 
 /* ── TABLET  (≤1024px) ─────────────────────────────────────────────────── */
 @media (max-width:1024px){
-  header{padding:0 1rem;gap:.6rem}
+  body > header{padding:0 1rem;gap:.6rem}
   /* v1.3.11: icon-only view toggle on tablet/mobile — hide text, keep icon to reclaim header space.
      Desktop (>1024px) still shows "≡ Table" / "⊞ Grid". setView() uses classList only. */
   .view-toggle .view-btn .vb-txt{display:none}
@@ -1166,7 +1166,7 @@ mark{background:rgba(0,121,52,.15);color:var(--accent)}
 @media (max-width:640px){
 
   /* ── Header: 2-row layout ── */
-  header{
+  body > header{
     flex-wrap:wrap;height:auto;
     padding:.55rem .85rem;
     gap:.45rem;row-gap:.45rem;
@@ -1979,3 +1979,85 @@ tr.bpu-row-nochange{opacity:.6}
 .pc-sched-date{font-family:'Metropolis',sans-serif;font-size:.72rem;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;padding:.28rem .4rem}
 .pc-cancel-btn{border:1px solid var(--border);border-radius:8px;padding:.32rem .7rem;font-size:.72rem;cursor:pointer;color:#b91c1c}
 .pc-cancel-btn:hover{border-color:#b91c1c;background:rgba(185,28,28,.06)}
+
+/* ===================================================================
+   M1 (2026-10-25) - compact admin dashboard on phones.
+   1) The storefront header rules now target `body > header` only (they used to leak into the admin's own
+      <header> elements: sticky + z-index 100 made the page header cover the phone menu drawer). The two
+      properties the admin headers got from that leak on desktop are kept here explicitly, so desktop is unchanged.
+   2) Phones (<= 640px): 4 compact tiles per row, compact header with a short "Publish" label, compact Quick
+      Actions (incl. the UNO Analytics shortcut), compact charts, drawer sized to the visible viewport.
+   Every rule below is scoped to the admin shell; desktop and tablet layouts are untouched.
+   =================================================================== */
+.adm-shell .adm-appbar{position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm)}
+.adm-shell .adm-main-top{position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm);height:56px}
+.adm-shell .adm-save-short{display:none}
+@media (max-width:760px){
+  /* the rail is an off-canvas drawer here: the page header must never sit above it */
+  .adm-shell .adm-main-top{position:static;z-index:auto}
+}
+@media (max-width:640px){
+  /* viewport height that excludes the mobile browser toolbars (100vh fallback first) */
+  .adm-modal.adm-dash{height:100vh;height:100dvh;max-height:100vh;max-height:100dvh}
+
+  /* compact app bar + one-row page header */
+  .adm-shell .adm-appbar{height:48px;padding:0 .5rem;gap:.4rem}
+  .adm-shell .adm-appbar-burger{width:40px;height:40px}
+  .adm-shell .adm-main-top{height:auto;min-height:48px;flex-wrap:nowrap;padding:.35rem .6rem;gap:.5rem}
+  .adm-shell .adm-main-top > div:first-child{min-width:0;flex:1}
+  .adm-shell .adm-main-title{font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adm-shell .adm-main-sub{display:none}
+  .adm-shell .adm-main-actions{width:auto;gap:.35rem;flex-shrink:0}
+  .adm-shell .adm-save-global{min-height:44px;padding:0 .7rem;font-size:.74rem;gap:.3rem}   /* >= the site touch minimum (QA-M1-1) */
+  .adm-shell .adm-save-global svg{width:14px;height:14px}
+  .adm-shell .adm-save-full{display:none}
+  .adm-shell .adm-save-short{display:inline}
+  .adm-shell .adm-main-top .adm-close-btn{width:40px;height:40px}
+  .adm-shell .adm-main-scroll{padding:.6rem;gap:.6rem}
+
+  /* dashboard tiles: 4 per row (~60-70px), small icon beside the number, label on up to 2 lines */
+  .adm-shell #tab-overview .adm-kpi-row.k5{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .adm-shell #tab-overview .adm-kpi{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:4px;
+    min-height:60px;padding:8px 6px;border-radius:10px}
+  .adm-shell #tab-overview .adm-kpi:hover{transform:none}
+  .adm-shell #tab-overview .adm-kpi-ico{width:16px;height:16px;margin:0;background:none;border-radius:0}
+  .adm-shell #tab-overview .adm-kpi-ico svg{width:15px;height:15px}
+  .adm-shell #tab-overview .adm-kpi-val{font-size:1rem;line-height:1.1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .adm-shell #tab-overview .adm-kpi-label{grid-column:1 / -1;font-size:.6rem;line-height:1.2;margin-top:4px}
+  .adm-shell #tab-overview .adm-kpi-sub{display:none}
+  /* Last Sync: a slim full-width strip under the four tiles (same value and subtitle) */
+  .adm-shell #tab-overview .adm-kpi.adm-kpi-wide{grid-column:1 / -1;display:flex;align-items:center;gap:6px;min-height:0;padding:6px 8px}
+  .adm-shell #tab-overview .adm-kpi-wide .adm-kpi-ico{order:0}
+  .adm-shell #tab-overview .adm-kpi-wide .adm-kpi-label{order:1;grid-column:auto;margin:0;font-weight:600;white-space:nowrap}
+  .adm-shell #tab-overview .adm-kpi-wide .adm-kpi-val{order:2;font-size:.74rem}
+  .adm-shell #tab-overview .adm-kpi-wide .adm-kpi-sub{order:3;display:block;margin:0;min-width:0;font-size:.6rem}
+
+  /* panels and charts (Products by Section, Price Distribution, Recent Activity) */
+  .adm-shell #tab-overview .adm-ov-2col{gap:.6rem}
+  .adm-shell #tab-overview .adm-panel{padding:.6rem .65rem;border-radius:12px}
+  .adm-shell #tab-overview .adm-panel-head{margin-bottom:.45rem}
+  .adm-shell #tab-overview .adm-panel-title{font-size:.8rem}
+  .adm-shell #tab-overview .adm-panel-sub{font-size:.62rem}
+  .adm-shell #tab-overview .adm-chart{gap:.3rem}
+  .adm-shell #tab-overview .adm-chart-row{gap:.4rem}
+  .adm-shell #tab-overview .adm-chart-label{width:40%;font-size:.66rem}
+  .adm-shell #tab-overview .adm-chart-track{height:8px}
+  .adm-shell #tab-overview .adm-chart-num{width:30px;font-size:.66rem}
+
+  /* Quick Actions: 4 per row (7 actions incl. the UNO Analytics shortcut) */
+  .adm-shell #tab-overview .adm-qa-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .adm-shell #tab-overview .adm-qa{min-height:60px;padding:8px 4px;gap:4px;border-radius:10px}
+  .adm-shell #tab-overview .adm-qa:hover{transform:none}
+  .adm-shell #tab-overview .adm-qa-ico{width:24px;height:24px;border-radius:7px}
+  .adm-shell #tab-overview .adm-qa-ico svg{width:15px;height:15px}
+  .adm-shell #tab-overview .adm-qa-label{font-size:.6rem;line-height:1.2}
+  .adm-shell #tab-overview .adm-qa-badge{top:3px;right:3px;font-size:.46rem;padding:0 4px}
+
+  /* menu drawer: more items visible, scrolls on its own (no scroll chaining), compact footer */
+  .adm-shell .adm-rail{width:min(260px,82vw);padding:.6rem .5rem}
+  .adm-shell .adm-rail-brand{padding:.1rem .4rem .45rem}
+  .adm-shell .adm-rail-group{padding:.45rem .6rem .15rem}
+  .adm-shell .adm-rail-nav{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .adm-shell .adm-rail-foot{padding-top:.45rem;margin-top:.3rem}
+  .adm-shell .adm-rail-user{margin-bottom:.35rem}
+}

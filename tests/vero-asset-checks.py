@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '9f376a85'
+BASE = sys.argv[2] if len(sys.argv) > 2 else 'ef0dedbd'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -37,12 +37,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # DB2a UNO Analytics admin link (baseline 9f376a85 = live; owner approval 2026-10-24, A3 same-tab design,
-                 # UNO-Analytics-Admin-Integration-Plan-2026-10-24.md): Admin sidebar item "UNO Analytics" below Reports that opens the
-                 # uno-dashboard Worker in the same tab + #uno-return hook; Worker "Back to Admin" link (headers unchanged) and mirror
-                 # fixes DB1-DEP-2 / DB1-DEP-5. No VERO file, config.js, CSS, VERO / CMS Worker, migration or data change. NO data.
-                 'js/admin.js', 'js/app.js', 'index.html', 'backend/dashboard/worker.js', 'backend/dashboard/wrangler.toml',
-                 'tests/uno-dashboard.test.mjs', 'tests/uno-admin-link.test.js'}
+                 # M1 compact admin dashboard on phones (baseline ef0dedbd = live; owner approval 2026-10-25, plan
+                 # Deliverables/Admin-Mobile/Admin-Mobile-Compact-Plan-2026-10-25.md, D1-D3): storefront `header` rules -> `body > header`
+                 # (stops the leak into the admin <header> elements), desktop-preserving admin header rules, phone-only admin block,
+                 # UNO Analytics quick action + short "Publish" label. No VERO file, config.js, backend, migration or data change. NO data.
+                 'css/styles.css', 'js/admin.js', 'index.html', 'tests/admin-mobile.test.js', 'tests/uno-admin-link.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -350,6 +349,62 @@ _g31 = {
 }
 chk('G31 Admin "UNO Analytics" (DB2a): item directly below Reports, tab mounted, same-tab location.assign to the fixed dashboard URL only (no new tab / frame / fetch / storage / postMessage), #uno-return reopens the admin only for an admin session, hook after the catalogue loaded',
     all(_g31.values()), {k: v for k, v in _g31.items() if not v})
+
+# G32 (M1): no bare `header` element selector in css/styles.css (storefront rules target `body > header`; a bare selector leaked
+# sticky / z-index 100 into the admin's own <header> elements and covered the phone menu drawer); the M1 phone block is scoped to
+# the admin shell only; the desktop admin keeps its header stacking / shadow / 56px page header; the UNO Analytics quick action opens
+# the existing tab without navigation.
+_css = rd('css/styles.css').decode('utf-8')
+_cssnc = re.sub(r'/\*[\s\S]*?\*/', '', _css)
+_m1 = _css.find('M1 (2026-10-25) - compact admin dashboard on phones.')
+def _media_body(css, px, start):
+    head = '@media (max-width:%dpx){' % px
+    i = css.find(head, start)
+    if i < 0: return None
+    d = 0
+    for k in range(i + len(head) - 1, len(css)):
+        if css[k] == '{': d += 1
+        elif css[k] == '}':
+            d -= 1
+            if d == 0: return css[i + len(head):k]
+    return None
+_ph = _media_body(_css, 640, _m1) if _m1 > 0 else None
+_phsel = [t.strip() for r in re.sub(r'/\*[\s\S]*?\*/', '', _ph or '').split('}') for t in r.split('{')[0].split(',') if t.strip()] if _ph else []
+_uno_fn = re.search(r"^function admOpenUnoTab\(\)\{[^\n]*\}$", _adm, re.M)
+# fix round 1 (QA-M1 survivors A2 / B2 / D2 / D3 / E4 + Release Guardian note): walk every style rule (nested @media included)
+def _css_rules(css):
+    c = re.sub(r'/\*[\s\S]*?\*/', '', css); out = []; stack = []; buf = ''
+    for i, ch in enumerate(c):
+        if ch == '{':
+            head = buf.strip(); buf = ''
+            stack.append(None if head.startswith('@') else (head, i + 1))
+        elif ch == '}':
+            top = stack.pop() if stack else None
+            if top: out.append(([x.strip() for x in top[0].split(',') if x.strip()], c[top[1]:i]))
+            buf = ''
+        else:
+            buf += ch
+    return out
+_hdr_sels = [x for sels, _ in _css_rules(_css) for x in sels if re.search(r'(^|[\s>+~(])header(?![\w-])', x)]
+_m1r = _css_rules(_css[_css.rfind('/*', 0, _m1):]) if _m1 > 0 else []   # from the opening of the M1 comment
+_m1sel = [x for sels, _ in _m1r for x in sels]
+_top_stack = [b.strip() for sels, b in _m1r if any(re.search(r'\.adm-main-top(?![\w-])', x) for x in sels) and re.search(r'(^|;)\s*(position|z-index)\s*:', b)]
+_save_h = re.search(r'\.adm-shell \.adm-save-global\{[^}]*min-height:(\d+)px', _ph or '')
+_g32 = {
+  'no_bare_header': len(_hdr_sels) == 5 and all(x == 'body > header' for x in _hdr_sels) and _cssnc.count('body > header{') == 5,
+  'phone_scoped': bool(_phsel) and len(_phsel) > 30 and all(x.startswith('.adm-shell ') or x == '.adm-modal.adm-dash' for x in _phsel),
+  'm1_region_scoped': len(_m1sel) > 30 and all(x.startswith('.adm-shell ') or x == '.adm-modal.adm-dash' for x in _m1sel),
+  'stacking_reviewed': _top_stack == ['position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm);height:56px', 'position:static;z-index:auto']
+      and not any(any(re.search(r'\.adm-rail(?![\w-])', x) for x in sels) and re.search(r'(^|;)\s*z-index\s*:', b) for sels, b in _m1r),
+  'no_fixed_or_wide': bool(_m1r) and not any(re.search(r'position\s*:\s*fixed', b) or any(int(w) > 320 for w in re.findall(r'(?:^|;)\s*(?:min-|max-)?width\s*:\s*(\d+)px', b)) for _, b in _m1r),
+  'publish_touch_44': bool(_save_h) and int(_save_h.group(1)) >= 44,
+  'desktop_kept': '.adm-shell .adm-appbar{position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm)}' in _css
+      and '.adm-shell .adm-main-top{position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm);height:56px}' in _css,
+  'drawer_on_top': bool(re.search(r'@media \(max-width:760px\)\{[^@]*\.adm-shell \.adm-main-top\{position:static;z-index:auto\}', _css[_m1:] if _m1 > 0 else '')),
+  'uno_shortcut': 'id="adm-qa-uno" onclick="admOpenUnoTab()"' in _adm and bool(_uno_fn) and not re.search(r'fetch\(|location\.|open\(|admOpenUnoAnalytics|UNO_DASHBOARD_URL', _uno_fn.group(0).replace('admOpenUnoTab(', '')),
+}
+chk('G32 compact admin on phones (M1): only `body > header` (x5) selects the header element, every M1 rule scoped to the admin shell, page-header / drawer stacking only as reviewed, no fixed / >320px element, Publish >= 44px, desktop admin header stacking / shadow / 56px kept, UNO quick action opens the existing tab only',
+    all(_g32.values()), {k: v for k, v in _g32.items() if not v})
 
 print('--- informational (not part of the deploy gate) ---')
 mirror = os.path.join(R, 'ugreen-pricelist-cms/index.html')

@@ -139,7 +139,7 @@ function suite(src, app, index, log) {
     chk('admin.js: the dashboard host appears exactly once', (src.match(/uno-dashboard\.raffyortega-rojo\.workers\.dev/g) || []).length === 1);
     const then = app.slice(app.indexOf('loadData().then(function(){'), app.indexOf('}).catch(function(err){'));
     chk('app.js: return hook runs after the catalogue loaded (after hideLoading), guarded', then.indexOf('hideLoading();') > 0 && then.indexOf("try { if (typeof admUnoReturn === 'function') admUnoReturn(); } catch(e){}") > then.indexOf('hideLoading();'));
-    chk('index.html: cache tags admin.js?v=p40 and app.js?v=p5', index.includes('<script src="js/admin.js?v=p40"></script>') && index.includes('<script src="js/app.js?v=p5"></script>'));
+    chk('index.html: cache tags admin.js?v=p41 (M1) and app.js?v=p5', index.includes('<script src="js/admin.js?v=p41"></script>') && index.includes('<script src="js/app.js?v=p5"></script>'));
     chk('admin.js: DB2a block calls no bare open( (QA round 1 note)', !!blk && !/(^|[^\w$.])open\(/.test(blk));
   });
   return { n, fails };
