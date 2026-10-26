@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '7ac16b3b'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '7099e79d'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -37,11 +37,10 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # DB2b read-only aggregate analytics in the owner dashboard Worker (baseline 7ac16b3b = live; owner decisions
-                 # 2026-10-25 S1 + V2, O1-O9; proposal Deliverables/UNO-Admin-Dashboard/UNO-Analytics-DB2b-Final-Proposal-and-Knowledge-
-                 # Roadmap-2026-10-25.md): six fixed SELECT statements over daily_stats / spend / question_log aggregates, server-rendered,
-                 # D1 binding DB mirrored in wrangler.toml. No front-end, VERO, config.js, migration or data change. NO data.
-                 'backend/dashboard/worker.js', 'backend/dashboard/wrangler.toml', 'tests/uno-dashboard.test.mjs'}
+                 # R1 power-oracle re-baseline after the owner CMS Publish 7099e79d (baseline 7099e79d = live; DB3a C11 / C12 / C18;
+                 # owner approval 2026-10-26, manifest A1-A3 / B1-B3 / C1-C3, OD-E caveated YES): 45763 / 75701SR oracle labels, label
+                 # ledger and the catalogue-bound pins in the evidence suite. Tests only: no runtime, data, config or backend change. NO data.
+                 'tests/vero-evidence-power-oracle.json', 'tests/vero-evidence-power-oracle.labels.tsv', 'tests/vero-evidence.test.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'

@@ -1258,13 +1258,16 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   /* re-baseline 6672902d (2026-10-15, NA-11): the previous baseline (1164f6be, itself re-baselined from 56296068) is kept under rebaselinedFrom.previous */
   /* re-baseline 3582714b (2026-10-16, CMS Publish of 16746 / 16748-16752, Screen Protector): binding only — the 6 SKUs are outside the
      power-family inventory scope, so inventory, oracle rows and the label ledger are unchanged; the 6672902d baseline is kept one level down */
-  const R1=ORA.baseline && ORA.baseline.rebaselinedFrom, B6=R1 && R1.previous, PREV=B6 && B6.rebaselinedFrom && B6.rebaselinedFrom.previous;
-  chk('P2M1.1 oracle schema / milestone / baseline (re-baselined on live main 3582714b after the 2026-10-16 CMS Publish; history kept)', ORA.schema==='uno-power-oracle/1' && ORA.milestone==='P2-M1' && ORA.baseline &&
-    ORA.baseline.r1ProvisionalFingerprint==='d72aa8ada2795eb4a1b9261e45c0db677dd3f309a7129894e940aee7cbab440b' && ORA.baseline.liveMain==='3582714bac3f4fd09f19ae58001646ea87ff12c9' &&
+  /* re-baseline 7099e79d (2026-10-26, owner CMS Publish of DB3a C11 / C12 / C18: 45763, 75701SR): the 3582714b binding is kept one level down */
+  const RB=ORA.baseline && ORA.baseline.rebaselinedFrom, B3=RB && RB.previous, R1=B3 && B3.rebaselinedFrom, B6=R1 && R1.previous, PREV=B6 && B6.rebaselinedFrom && B6.rebaselinedFrom.previous;
+  chk('P2M1.1 oracle schema / milestone / baseline (re-baselined on live main 7099e79d after the 2026-10-26 CMS Publish; history kept)', ORA.schema==='uno-power-oracle/1' && ORA.milestone==='P2-M1' && ORA.baseline &&
+    ORA.baseline.r1ProvisionalFingerprint==='d72aa8ada2795eb4a1b9261e45c0db677dd3f309a7129894e940aee7cbab440b' && ORA.baseline.liveMain==='7099e79dd4fac75f5cacd26e192350e0370450a6' &&
+    !!RB && RB.liveMain==='3582714bac3f4fd09f19ae58001646ea87ff12c9' && RB.catalogueSha256==='ce4f93203b484dd579f5a361be59122a95b3de37ff1c5e370d848f742676a36b' && RB.oracleBlob==='7864778db8445818958ed8fa795b97d610c1f076' &&
+    !!B3 && B3.liveMain==='3582714bac3f4fd09f19ae58001646ea87ff12c9' &&
     !!R1 && R1.liveMain==='6672902d7dd7c5f7f74c4772e20de935dd14ff4c' && R1.catalogueSha256==='bb86570ce249ae328e8b2a97ce9376894c687ac9a5e2b2d0df8a6e07b82f0782' && R1.oracleBlob==='7f65930abb5c770789a0ec6fb0d3e3cb18ba2d7a' &&
     !!B6 && B6.liveMain==='6672902d7dd7c5f7f74c4772e20de935dd14ff4c' && B6.rebaselinedFrom && B6.rebaselinedFrom.liveMain==='d87c6e99eff4c9da164031bba5b69fcc0a57d9b1' && B6.rebaselinedFrom.oracleBlob==='5f5e91a4f65c4275e95f2e0d09c02c15a344b759' &&
     !!PREV && PREV.liveMain==='1164f6be45f728297a4b8a5ad1a0cb4b94e00f9e' && PREV.rebaselinedFrom && PREV.rebaselinedFrom.liveMain==='56296068b12aa22b2a88396cfa52b3b1a7f4a6d9' &&
-    PREV.rebaselinedFrom.p2m1Fingerprint==='19110698a7b70b198c03a02604e68486ec9ff83230e27f70f78e08a958607dfa' && /fix round 1/.test(ORA.revision||'') && /re-baseline to 6672902d/.test(ORA.revision||'') && /re-baseline to 3582714b/.test(ORA.revision||''), [ORA.baseline, ORA.revision]);
+    PREV.rebaselinedFrom.p2m1Fingerprint==='19110698a7b70b198c03a02604e68486ec9ff83230e27f70f78e08a958607dfa' && /fix round 1/.test(ORA.revision||'') && /re-baseline to 6672902d/.test(ORA.revision||'') && /re-baseline to 3582714b/.test(ORA.revision||'') && /re-baseline to 7099e79d/.test(ORA.revision||''), [ORA.baseline, ORA.revision]);
   chk('P2M1.2 oracle is bound to this exact catalogue (re-build the inventory after any data/products.json change)', ORA.catalogue && ORA.catalogue.sha256===CAT, [ORA.catalogue && ORA.catalogue.sha256, CAT]);
   /* inventory scope: every published record of the power families, each exactly once; no disabled or unknown item code */
   const famOf=c=>{ const f=RF.byCode && RF.byCode[c]; return f && f.type && f.type.family; };
@@ -1290,8 +1293,8 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   const badC=[]; inv.forEach(r=>(r.conflicts||[]).forEach(c=>{ if(!KIND.has(c.kind) || c.sku!==r.sku || !c.stmtIds.every(i=>SID[i] && SID[i].sku===r.sku && SID[i].s.conflictIds.includes(c.id))) badC.push(c.id); }));
   chk('P2M1.8 conflicts: known kind, own record, two-way linked to their statements', badC.length===0, badC.slice(0,5));
   const kinds=new Set(); inv.forEach(r=>(r.conflicts||[]).forEach(c=>kinds.add(r.sku+':'+c.kind)));
-  chk('P2M1.9 catalogue conflicts the design names are surfaced (25208 / 25919 / 25919C C-TOTAL, 55992B C-PORT, 45763 C-PD-WATT, 30780 C-TOTAL, 60449, 55910B / 35525B C-RECORD)',
-    ['25208:C-TOTAL','25208:C-PORT-OVER-TOTAL','25919:C-TOTAL','25919C:C-TOTAL','55992B:C-PORT','45763:C-PD-WATT','30780:C-TOTAL','60449:C-TOTAL','55910B:C-RECORD','35525B:C-RECORD'].every(k=>kinds.has(k)));
+  chk('P2M1.9 catalogue conflicts the design names are surfaced (25208 / 25919 / 25919C C-TOTAL, 55992B C-PORT, 30780 C-TOTAL, 60449, 55910B / 35525B C-RECORD)',
+    ['25208:C-TOTAL','25208:C-PORT-OVER-TOTAL','25919:C-TOTAL','25919C:C-TOTAL','55992B:C-PORT','30780:C-TOTAL','60449:C-TOTAL','55910B:C-RECORD','35525B:C-RECORD'].every(k=>kinds.has(k)));
   const sib=['25208','25919','25919C'].map(c=>inv.find(r=>r.sku===c));
   chk('P2M1.10 same model PB561, different evidence: only 25208 / 25919 state a USB-C input; 25919C has none (E1)', sib.every(Boolean) &&
     sib[0].statements.some(s=>s.facet==='power.input') && sib[1].statements.some(s=>s.facet==='power.input') && !sib[2].statements.some(s=>s.facet==='power.input'));
@@ -1431,9 +1434,9 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   const condNo=rows.filter(o=>o.expect==='NO' && o.basis.some(i=>SID[i].s.condition && !(typeof ask(o)==='number' && bound(SID[i].s)!=null && bound(SID[i].s)<ask(o))));
   const condYes=rows.filter(o=>o.expect==='YES' && o.basis.some(i=>SID[i].s.condition));
   chk('P2M1.38a I14: a NO never rests on a conditioned statement except through its value below the ask', condNo.length===0, condNo.slice(0,4).map(o=>o.id));
-  chk('P2M1.38b R16: every YES whose basis states a condition carries it as a caveat (35025 USB-A "22.5W only for HUAWEI phones"; OD-E / OD-I: the 12 Xiaomi-55W rows); 20 caveated rows pinned', condYes.length>0 &&
+  chk('P2M1.38b R16: every YES whose basis states a condition carries it as a caveat (35025 USB-A "22.5W only for HUAWEI phones"; OD-E / OD-I: the 12 Xiaomi-55W rows + 4 75701SR rows since DB3a C18); 24 caveated rows pinned', condYes.length>0 &&
     condYes.every(o=>o.caveat && o.basis.every(i=>!SID[i].s.condition || o.caveat.indexOf(SID[i].s.condition)>=0)) && /HUAWEI/.test((rowOf('P2O-0279')||{}).caveat||'') &&
-    rows.filter(o=>o.caveat).length===20, condYes.filter(o=>!o.caveat).map(o=>o.id).concat(['caveated:'+rows.filter(o=>o.caveat).length]));
+    rows.filter(o=>o.caveat).length===24, condYes.filter(o=>!o.caveat).map(o=>o.id).concat(['caveated:'+rows.filter(o=>o.caveat).length]));
   /* wrong oracle labels (QA / VERO / data reviews): the corrected labels are pinned; PROTOCOL and TOTAL labels are re-derived by an
      independent JS implementation of R10 / R1-R2-K3-K4 over the inventory */
   /* bounded correction round (owner OD-A … OD-J, 2026-10-14): 0152 UNKNOWN -> NO (OD-A); 0779 / 0780 / 0781 -> UNKNOWN (OD-D);
@@ -1463,7 +1466,8 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   chk('P2M1.39c independent re-derivation: every generated TOTAL row ('+rows.filter(o=>o.source==='generated' && o.quantity==='TOTAL').length+') equals R1 / R2 / K3 / K4 over the inventory', totBad.length===0, totBad.slice(0,5).map(o=>o.id+' '+o.expect));
   /* conflict handling: genuine contradictions are kept (never reconciled away), every conflict kind is documented, the set is pinned */
   /* re-baseline 6672902d (reviewed 2026-10-15): + 25683 / 35604B / 95178B C-TOTAL, 65839B / 75982B / 75983B C-PORT (new CMS text; genuine catalogue contradictions) */
-  const CONF_PIN='25185:C-TOTAL,25208:C-PORT-OVER-TOTAL,25208:C-TOTAL,25683:C-TOTAL,25742:C-PORT,25742:C-TOTAL,25919:C-PORT-OVER-TOTAL,25919:C-TOTAL,25919C:C-TOTAL,30780:C-TOTAL,35525B:C-RECORD,35526B:C-TOTAL,35604B:C-TOTAL,45762:C-PORT,45762:C-TOTAL,45763:C-PD-WATT,55910B:C-RECORD,55985B:C-TOTAL,55988C:C-TOTAL,55989B:C-TOTAL,55992B:C-PORT,60449:C-TOTAL,65839B:C-PORT,75173B:C-TOTAL,75701SR:C-TOTAL,75982B:C-PORT,75983B:C-PORT,95178B:C-TOTAL,95424B:C-TOTAL';
+  /* re-baseline 7099e79d (reviewed 2026-10-26): - 45763 C-PD-WATT (DB3a C11 / C12 removed "USB-C PD 20W"; the contradiction no longer exists in the catalogue) */
+  const CONF_PIN='25185:C-TOTAL,25208:C-PORT-OVER-TOTAL,25208:C-TOTAL,25683:C-TOTAL,25742:C-PORT,25742:C-TOTAL,25919:C-PORT-OVER-TOTAL,25919:C-TOTAL,25919C:C-TOTAL,30780:C-TOTAL,35525B:C-RECORD,35526B:C-TOTAL,35604B:C-TOTAL,45762:C-PORT,45762:C-TOTAL,55910B:C-RECORD,55985B:C-TOTAL,55988C:C-TOTAL,55989B:C-TOTAL,55992B:C-PORT,60449:C-TOTAL,65839B:C-PORT,75173B:C-TOTAL,75701SR:C-TOTAL,75982B:C-PORT,75983B:C-PORT,95178B:C-TOTAL,95424B:C-TOTAL';
   const confNow=[...new Set(inv.flatMap(r=>(r.conflicts||[]).map(c=>r.sku+':'+c.kind)))].sort().join();
   chk('P2M1.40a the catalogue conflict set is pinned (a new or vanished conflict needs review)', confNow===CONF_PIN, confNow);
   const cv=(c,k)=>(recOf(c).conflicts||[]).filter(x=>x.kind===k).flatMap(x=>x.values);
@@ -1516,7 +1520,7 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
      change to any id, SKU, language, quantity, question, request, label, basis, caveat, rule, note, current outcome, statement or conflict
      fails with the id and the changed fields named. A legitimate re-baseline needs a regenerated ledger, a new LEDGER_SHA and a reviewed
      ledger diff (there is no update switch). */
-  const LEDGER_SHA='7eef12f74dbf1668179325d796b13e6552a1b77496d94c509bb524ba1168806a';   /* re-baseline 6672902d (was 015b4cd5…a1a7) */
+  const LEDGER_SHA='4e01a7f0fa234f39caeeeeff5ebb86de34749bfe12a842face018c5d823880ed';   /* re-baseline 7099e79d (was 7eef12f7, 6672902d); re-baseline 6672902d (was 015b4cd5…a1a7) */
   const LTXT=fs.readFileSync(path.join(ROOT,'tests','vero-evidence-power-oracle.labels.tsv'),'utf8');
   const canon=v=>Array.isArray(v)?'['+v.map(canon).join(',')+']':(v && typeof v==='object')?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}':JSON.stringify(v===undefined?null:v);
   const h8=s=>crypto.createHash('sha256').update(String(s)).digest('hex').slice(0,8);
@@ -1534,8 +1538,8 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   chk('P2M1.44b label lock: every oracle row / statement / conflict equals its ledger line (no added, removed or changed id)', !added.length && !removed.length && !changed.length && !dupL.length,
     ['added:'+added.slice(0,4).join('|'),'removed:'+removed.slice(0,4).join('|'),'changed:'+changed.slice(0,4).join('|'),'dup:'+dupL.slice(0,2).join('|')]);
   const cnt=x=>rows.filter(o=>o.expect===x).length, nS=inv.reduce((a,r)=>a+r.statements.length,0), nK=inv.reduce((a,r)=>a+(r.conflicts||[]).length,0);
-  chk('P2M1.44c label lock totals: 1,680 rows (YES 631 · NO 464 · UNKNOWN 585), 20 caveated, 2,158 statements, 30 conflicts; ledger header agrees', rows.length===1680 && cnt('YES')===631 && cnt('NO')===464 && cnt('UNKNOWN')===585 &&
-    rows.filter(o=>o.caveat).length===20 && nS===2158 && nK===30 && LTXT.split('\n')[0].indexOf('| rows 1680 | statements 2158 | conflicts 30 |')>0, [rows.length,cnt('YES'),cnt('NO'),cnt('UNKNOWN'),nS,nK]);
+  chk('P2M1.44c label lock totals: 1,680 rows (YES 634 · NO 464 · UNKNOWN 582), 24 caveated, 2,159 statements, 29 conflicts; ledger header agrees', rows.length===1680 && cnt('YES')===634 && cnt('NO')===464 && cnt('UNKNOWN')===582 &&
+    rows.filter(o=>o.caveat).length===24 && nS===2159 && nK===29 && LTXT.split('\n')[0].indexOf('| rows 1680 | statements 2159 | conflicts 29 |')>0, [rows.length,cnt('YES'),cnt('NO'),cnt('UNKNOWN'),nS,nK]);
 
   /* T-TRACE (evidence traceability; adds to P2M1.6 / 11 / 21 / 32, relaxes nothing) */
   const CRS=inv.filter(r=>(r.conflicts||[]).some(k=>k.kind==='C-RECORD')).map(r=>r.sku).sort().join(',');
@@ -1570,11 +1574,13 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   const ACCEPT={ 'P2O-0148':'NO kept with evidence (validation report §3; data review 2026-10-13 agreed)', 'P2O-0442':'OD-B', 'P2O-0531':'OD-G', 'P2O-1554':'OD-C (auditors predate the V x A rule)', 'P2O-1558':'OD-C (auditors predate the V x A rule)',
     /* re-baseline 6672902d: the audited catalogue text changed after the audit (2026-10-14 CMS rewrite) */
     'P2O-0405':'catalogue changed: 75177 now states only "20W PD Output" (no PD version) -> UNKNOWN (OD-4)',
-    'P2O-0683':'catalogue changed: 75982B now states "USB-C Cable/USB-C Output … 55W Max" against the 30W name / prose (C-PORT) -> UNKNOWN (OD-9)' };
+    'P2O-0683':'catalogue changed: 75982B now states "USB-C Cable/USB-C Output … 55W Max" against the 30W name / prose (C-PORT) -> UNKNOWN (OD-9)',
+    /* re-baseline 7099e79d: DB3a C11 removed the only PD token of 45763 ("USB-C PD 20W") after the audit */
+    'P2O-0064':'catalogue changed: 45763 no longer states PD (DB3a C11 replaced "USB-C PD 20W") -> UNKNOWN (R10 absence)' };
   const audIds=Object.keys(AUD).filter(i=>AUD[i]!=='-'), audBad=[];
   audIds.forEach(i=>{ const lab=AUD[i].split(':')[1], o=rowOf(i); if(!o || !/^[AB]:(YES|NO|UNKNOWN)$/.test(AUD[i])) return audBad.push(i); if(o.expect!==lab && !ACCEPT[i]) audBad.push(i+' '+o.expect+'/'+lab); if(o.expect===lab && ACCEPT[i]) audBad.push(i+' stale'); });
   Object.keys(ACCEPT).forEach(i=>{ if(!AUD[i] || AUD[i]==='-') audBad.push(i+' not audited'); });
-  chk('P2M1.46a T-INDEP: all 131 blind-audit labels still hold except 7 pinned, reasoned disagreements (0148, 0442, 0531, 1554, 1558; catalogue changed: 0405, 0683)', audIds.length===131 && audBad.length===0, audBad.slice(0,6));
+  chk('P2M1.46a T-INDEP: all 131 blind-audit labels still hold except 8 pinned, reasoned disagreements (0148, 0442, 0531, 1554, 1558; catalogue changed: 0405, 0683, 0064)', audIds.length===131 && audBad.length===0, audBad.slice(0,6));
   const R4=[], r4Bad=[];
   rows.filter(o=>o.source==='generated' && o.quantity==='NAMED_PORT' && o.req && o.req.member && typeof o.req.watts==='number').forEach(o=>{ const r=recOf(o.sku);
     if((r.conflicts||[]).some(k=>k.kind==='C-RECORD')) return;
