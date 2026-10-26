@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else 'ef0dedbd'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '7ac16b3b'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -25,9 +25,9 @@ PUBLISH_WORKER_SHA = '6c1a02784dab0e0bda7351a2d7935129958c97afe35384d4bc642ec82a
 # Worker configs = mirrors of the live dashboard settings (NEW-DEPLOY-1-FIX, live audit 2026-10-20); re-pin only in an approved config release
 VERO_WRANGLER_SHA = 'a2ba39911254294d44df42a24b8ea97e7274729da8bb3c68b6f2f7c1e5685e22'     # backend/vero/wrangler.toml
 PUBLISH_WRANGLER_SHA = 'bd2cc181f81301627bbd4f3f6fc6f95c0946c15ac8d706ced9c87fa8434bbfde'  # backend/wrangler.toml
-# UNO owner dashboard Worker "uno-dashboard" (DB1 owner gate shell; live version 70146835 = source b341c54c... until the approved DB2a deploy): reviewed source + config; re-pin only in an approved checkpoint
-DASHBOARD_WORKER_SHA = '968937278aa37be868827342930ec4480edf3f0ce4e7af88df8bcace429ab9bb'    # backend/dashboard/worker.js (DB2a: Back to Admin link; DB1 b341c54c...)
-DASHBOARD_WRANGLER_SHA = '5d939ebe29ad0b80cf02028c162a696f543212ff341377923f9545fd8884a8cf'  # backend/dashboard/wrangler.toml (DB2a: compatibility 2026-10-24, kill switch dashboard-managed; DB1 ef412be4...)
+# UNO owner dashboard Worker "uno-dashboard" (live version 1e010d5f = source 96893727... (DB2a) until the approved DB2b deploy): reviewed source + config; re-pin only in an approved checkpoint
+DASHBOARD_WORKER_SHA = 'e91fba5d8cf28f57125c3735f2e4a18a130cefb8ff7cfa97d6625045b1108d09'    # backend/dashboard/worker.js (DB2b fix round 1: read-only aggregate analytics; DB2a 96893727..., DB1 b341c54c...)
+DASHBOARD_WRANGLER_SHA = 'f974b1271b4da34115764a806aa153a35a9c74d1346e04db8f8f5f13b3a34d58'  # backend/dashboard/wrangler.toml (DB2b: D1 binding DB -> ugreen-vero; DB2a 5d939ebe..., DB1 ef412be4...)
 # Subresource Integrity of the CDN export libraries (H1, 2026-10-20; hashes cross-checked with cdnjs / jsDelivr published values)
 CDN_SRI = {'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js': 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk',
            'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js': 'sha384-P7KKlGD3Ng66Ds7oTliLzTnol6DbK+k7PafNYXIBDQ4b5eFWtmqctplDVOxslglR'}
@@ -37,11 +37,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # M1 compact admin dashboard on phones (baseline ef0dedbd = live; owner approval 2026-10-25, plan
-                 # Deliverables/Admin-Mobile/Admin-Mobile-Compact-Plan-2026-10-25.md, D1-D3): storefront `header` rules -> `body > header`
-                 # (stops the leak into the admin <header> elements), desktop-preserving admin header rules, phone-only admin block,
-                 # UNO Analytics quick action + short "Publish" label. No VERO file, config.js, backend, migration or data change. NO data.
-                 'css/styles.css', 'js/admin.js', 'index.html', 'tests/admin-mobile.test.js', 'tests/uno-admin-link.test.js'}
+                 # DB2b read-only aggregate analytics in the owner dashboard Worker (baseline 7ac16b3b = live; owner decisions
+                 # 2026-10-25 S1 + V2, O1-O9; proposal Deliverables/UNO-Admin-Dashboard/UNO-Analytics-DB2b-Final-Proposal-and-Knowledge-
+                 # Roadmap-2026-10-25.md): six fixed SELECT statements over daily_stats / spend / question_log aggregates, server-rendered,
+                 # D1 binding DB mirrored in wrangler.toml. No front-end, VERO, config.js, migration or data change. NO data.
+                 'backend/dashboard/worker.js', 'backend/dashboard/wrangler.toml', 'tests/uno-dashboard.test.mjs'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'
@@ -292,7 +292,8 @@ def _env_only_settings(src):
     B = chr(92)
     s = src
     left = re.sub(r'\benv\.(ACCESS_AUD|ACCESS_TEAM_DOMAIN|DASHBOARD_ENABLED|OWNER_EMAIL)\b', '', s)
-    for allowed in ('export function cfg(env) {', 'async fetch(req, env) {', 'const c = cfg(env);'): left = left.replace(allowed, '', 1)
+    # DB2b: plus exactly one read of the D1 binding, handed to page() after the owner check (G33 checks what page() may do with it)
+    for allowed in ('export function cfg(env) {', 'async fetch(req, env) {', 'const c = cfg(env);', 'await page(env.DB, t)'): left = left.replace(allowed, '', 1)
     d = s[s.find('\nexport default {'):] if '\nexport default {' in s else ''
     one_handler = (len(re.findall(r'\bexport\s+default\b', s)) == 1 and len(re.findall(r'^ {2}(?:async\s+)?[A-Za-z_$][\w$]*\s*\(', d, re.M)) == 1
                    and bool(re.search(r'^ {2}async fetch\(req, env\) \{', d, re.M)) and not re.search(r'''^ {2}[A-Za-z_$'"][^\n]*:''', d, re.M))
@@ -315,8 +316,9 @@ _g30 = {
   # fix rounds 1-2 (QA-DB1-5 / QA-DB1-9): env appears only as env.<one of the 4 settings>, in the cfg(env) definition / call and in
   # fetch(req, env) (no binding, alias, destructuring, env[...] or Reflect); the config holds exactly the allowed keys per section
   # (no D1 / KV / R2 / queue / AI / Durable Object / service binding, inline or as a table; no route; preview_urls = false)
-  'no_binding': _env_only_settings(_dw) and _toml_keys(_dt) == {'': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'],
-      '[observability]': ['enabled']} and bool(re.search(r'^preview_urls = false\b', _dt, re.M)),
+  # DB2b: exactly one binding, [[d1_databases]] DB (its read-only use is G33)
+  'one_binding': _env_only_settings(_dw) and len(re.findall(r'\benv\.DB\b', _dw)) == 1 and _toml_keys(_dt) == {'': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'],
+      '[observability]': ['enabled'], '[[d1_databases]]': ['binding', 'database_name', 'database_id']} and bool(re.search(r'^preview_urls = false\b', _dt, re.M)),
   'no_cors': not re.search(r'access-control-', _dw, re.I),
   'no_email': not re.search(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', _dw + _dt),
   'kill_first': "enabled: String(env.DASHBOARD_ENABLED) === 'true'," in _dw and bool(re.search(r"const c = cfg\(env\);\s*if \(!c\.enabled\) return fail\(503, 'dashboard_off'\);", _dw)),
@@ -329,8 +331,36 @@ _g30 = {
   'fixed_back_link': "export const ADMIN_RETURN_URL = 'https://raffyrojo.github.io/ugreen-pricelist/#uno-return';" in _dw
       and re.sub(r'/\*[\s\S]*?\*/', '', _dw).count('ADMIN_RETURN_URL') == 2 and 'searchParams' not in _dw,
 }
-chk('G30 owner dashboard Worker (DB1 + DB2a): pinned source 96893727… + config 5d939ebe…, env = 4 settings only + one fetch handler + no backslash-u escape + exact config keys (no binding, no [vars]), no CORS, no hard-coded email, kill switch first and dashboard-managed, compatibility 2026-10-24, observability off, no preview URLs, framing refused, fixed Back to Admin link',
+chk('G30 owner dashboard Worker (DB1 + DB2a + DB2b): pinned source e91fba5d… + config f974b127…, env = 4 settings + one env.DB read + one fetch handler + no backslash-u escape + exact config keys (one D1 binding, no [vars]), no CORS, no hard-coded email, kill switch first and dashboard-managed, compatibility 2026-10-24, observability off, no preview URLs, framing refused, fixed Back to Admin link',
     all(_g30.values()), {k: v for k, v in _g30.items() if not v})
+
+# G33 (DB2b, owner decisions 2026-10-25 S1 + V2): the dashboard's D1 use is read-only and aggregate-only - exactly six fixed SELECT
+# statements over daily_stats / spend / question_log, touched only as prepare(SQL.<name>) + one batch, no write / schema keyword, no
+# excluded column or table, the binding is the VERO database, and the page constants agree with the VERO Worker config.
+_dws = re.sub(r'/\*[\s\S]*?\*/', '', _dw)
+_sqlblk = _dws[_dws.find('export const SQL = Object.freeze({'):_dws.find('\n});', _dws.find('export const SQL = Object.freeze({'))] if 'export const SQL = Object.freeze({' in _dws else ''
+_sqltext = _sqlblk   # the whole SQL block (keys + literals): every check below must hold for all of it
+_vt = rd('backend/vero/wrangler.toml').decode('utf-8')
+_vv = lambda k: (re.search(r'^' + k + r' = "([^"]*)"', _vt, re.M) or [None, None])[1]
+_g33 = {
+  'six_selects': sorted(re.findall(r'^  ([a-z]+): ', _sqlblk, re.M)) == ['daily', 'latency', 'mix', 'monthly', 'picks', 'signals']
+      and len(re.findall(r'\bSELECT\b', _sqltext)) == 6 and len(re.findall(r'\bFROM\b', _sqltext)) == 6,
+  'only_three_tables': sorted(set(re.findall(r'\bFROM\s+([a-z_]+)', _sqltext))) == ['daily_stats', 'question_log', 'spend'],
+  'prepare_only_sql': sorted(re.findall(r'\.prepare\(([^)]*)\)', _dws)) == sorted('SQL.' + k for k in ('daily', 'monthly', 'mix', 'signals', 'latency', 'picks'))
+      and len(re.findall(r'\.batch\(', _dws)) == 1 and not re.search(r'(?<!Promise)\.(exec|run|first|raw|all|dump|withSession)\(', _dws),
+  'no_write_keyword': not re.search(r'\b(INSERT|UPDATE|DELETE|REPLACE|DROP|ALTER|CREATE|PRAGMA|ATTACH|DETACH|VACUUM|TRIGGER)\b', _dws),
+  'no_excluded_data': bool(_sqltext) and not re.search(r'q_redacted|search_query|source_domains|code_id|ip_hash|\bts\b|\bid\b|\brole\b|answer_cache|access_codes|counters|product_text|\bmeta\b|uno_', _sqltext),
+  'aggregate_only': "HAVING COUNT(*) >= ?2" in _sqltext and "q.outcome = 'ok'" in _sqltext and "NOT GLOB '*[^A-Za-z0-9,-]*'" in _sqltext and "AND j.value <> ''" in _sqltext
+      and 'export const PICK_MIN = 3;' in _dws and 'export const PICK_TOP = 20;' in _dws and 'latency_ms IS NOT NULL GROUP BY bucket' in _sqltext,
+  'vero_database': bool(re.search(r'^binding = "DB"$', _dt, re.M)) and bool(re.search(r'^database_name = "ugreen-vero"$', _dt, re.M))
+      and (re.search(r'^database_id = "([0-9a-f-]{36})"', _dt, re.M) or [None, 0])[1] == (re.search(r'^database_id = "([0-9a-f-]{36})"', _vt, re.M) or [None, 1])[1],
+  'constants_match_vero': _vv('MONTHLY_BUDGET_USD') is not None and f"export const BUDGET_USD = '{_vv('MONTHLY_BUDGET_USD')}';" in _dws
+      and f"export const WEB_BUDGET_USD = '{_vv('WEB_MONTHLY_BUDGET_USD')}';" in _dws and f"export const WINDOW_DAYS = {_vv('LOG_RETENTION_DAYS')};" in _dws
+      and f"export const DAY_OFFSET_MIN = {_vv('DAY_UTC_OFFSET_MIN')};" in _dws,
+  'escaped_output': "'\">' + esc(c) + '</td>'" in _dws and "'</span><b>' + esc(value) + '</b>" in _dws,
+}
+chk('G33 dashboard D1 read-only (DB2b): six fixed SELECTs over daily_stats / spend / question_log only, prepare(SQL.<name>) + one batch, no write / schema keyword, no question text / search query / domains / code_id / ip_hash / ts / id / role / other table, k >= 3 + top 20 + ok answers only + no empty item code, binding = the VERO database, budget / window / Manila offset = VERO config, escaped output',
+    all(_g33.values()), {k: v for k, v in _g33.items() if not v})
 
 # G31 (DB2a): the Admin "UNO Analytics" item is a same-tab launcher only - listed directly below Reports, opens the fixed dashboard
 # URL with location.assign (no new tab, no frame, no fetch, no token), and #uno-return reopens the admin only for an admin session.

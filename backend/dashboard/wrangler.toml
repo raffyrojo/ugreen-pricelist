@@ -14,7 +14,13 @@ keep_vars = true                # keeps the dashboard-managed kill switch below 
 [observability]
 enabled = false
 
-# No D1 / KV / service bindings yet (data routes arrive in DB2b with their own approval).
+# DB2b (owner decisions 2026-10-25, S1 + V2): read-only use of the VERO database for aggregate analytics. D1 bindings are always
+# read-write; read-only is enforced in worker.js (six fixed SELECT statements, gate G33). The binding is added in the dashboard by
+# the owner as the LAST release step (its own approval); until then the page shows "Data unavailable". No KV / service bindings.
+[[d1_databases]]
+binding = "DB"
+database_name = "ugreen-vero"
+database_id = "bb878b54-fa58-4f43-b8e5-5f23241e6a41"   # = backend/vero/wrangler.toml (gate G33)
 
 # Kill switch DASHBOARD_ENABLED is managed in the dashboard only (Text variable, Production): exactly "true" serves the dashboard;
 # absent or anything else answers 503 dashboard_off. It is deliberately NOT listed here: a [vars] entry would overwrite the dashboard

@@ -4,9 +4,12 @@
  * only; no network, no Cloudflare, no secret). Covers: kill switch first; fail-closed config; Access JWT verification
  * (RS256 only, signature, key id, aud, iss, exp, nbf, email claim); owner-only email match; VERO / admin tokens refused;
  * one uniform refusal; same-origin POST; routes and methods; security headers, no CORS, no cookies; no log output; key
- * caching and refetch limits; static checks on the Worker source and its wrangler.toml (no D1 binding, no hard-coded email).
- * Each mutant of the gate logic (re-built from the real source) must make at least one check fail. */
+ * caching and refetch limits; static checks on the Worker source and its wrangler.toml (one read-only D1 binding, no hard-coded
+ * email). DB2b (owner decisions 2026-10-25, S1 + V2): the analytics page runs the six fixed SELECT statements against a real SQLite
+ * database built from backend/vero/migrations/0001_init.sql (node:sqlite, query_only = ON, so any write fails) with synthetic rows,
+ * plus a raw fake D1 for the page-side filters. Each mutant (re-built from the real source) must make at least one check fail. */
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
@@ -14,6 +17,17 @@ import os from 'node:os';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = readFileSync(path.join(ROOT, 'backend/dashboard/worker.js'), 'utf8');
 const TOML = readFileSync(path.join(ROOT, 'backend/dashboard/wrangler.toml'), 'utf8');
+const VERO_TOML = readFileSync(path.join(ROOT, 'backend/vero/wrangler.toml'), 'utf8');
+const MIGRATION = readFileSync(path.join(ROOT, 'backend/vero/migrations/0001_init.sql'), 'utf8');
+// DB2b: the six reviewed statements (proposal 2026-10-25 §2, validated against 0001_init.sql); any change must be reviewed here too
+const EXPECT_SQL = {
+  daily: 'SELECT day, ai_calls, web_calls, web_searches, cache_hits, errors, timeouts, rate_limited, capped, tokens_in, tokens_out, micro_usd, web_micro_usd FROM daily_stats WHERE day >= ?1 ORDER BY day DESC LIMIT 31',
+  monthly: 'SELECT month, micro_usd, web_micro_usd, calls, web_searches FROM spend WHERE month >= ?1 ORDER BY month DESC LIMIT 3',
+  mix: "SELECT route, outcome, COALESCE(confidence, 'none') AS confidence, COUNT(*) AS n FROM question_log WHERE day >= ?1 GROUP BY route, outcome, COALESCE(confidence, 'none') ORDER BY n DESC LIMIT 60",
+  signals: "SELECT day, COUNT(*) AS n, SUM(outcome NOT IN ('ok', 'cached')) AS failed, SUM(outcome = 'ok' AND (picks IS NULL OR picks = '')) AS no_picks, SUM(COALESCE(confidence, '') = 'low') AS low_conf, SUM(outcome = 'no_official_source') AS no_source, SUM(outcome = 'cached') AS cached, SUM(route = 'web') AS web FROM question_log WHERE day >= ?1 GROUP BY day ORDER BY day DESC LIMIT 31",
+  latency: "SELECT CASE WHEN latency_ms < 2000 THEN 'a' WHEN latency_ms < 5000 THEN 'b' WHEN latency_ms < 10000 THEN 'c' WHEN latency_ms < 20000 THEN 'd' ELSE 'e' END AS bucket, COUNT(*) AS n FROM question_log WHERE day >= ?1 AND latency_ms IS NOT NULL GROUP BY bucket",
+  picks: "SELECT j.value AS item_code, COUNT(*) AS n FROM question_log AS q, json_each('[\"' || replace(q.picks, ',', '\",\"') || '\"]') AS j WHERE q.day >= ?1 AND q.outcome = 'ok' AND q.picks IS NOT NULL AND q.picks <> '' AND q.picks NOT GLOB '*[^A-Za-z0-9,-]*' AND j.value <> '' GROUP BY j.value HAVING COUNT(*) >= ?2 ORDER BY n DESC, item_code LIMIT 20",
+};
 const TEAM = 'https://example-team.cloudflareaccess.com';          // test values only
 const AUD = 'aud0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab';
 const OWNER = 'owner.test@example.com';
@@ -56,6 +70,57 @@ globalThis.fetch = async (url, init) => {
   return new Response(JSON.stringify({ keys }), { headers: { 'content-type': 'application/json' } });
 };
 const ENV = over => Object.assign({ DASHBOARD_ENABLED: 'true', OWNER_EMAIL: OWNER, ACCESS_AUD: AUD, ACCESS_TEAM_DOMAIN: TEAM }, over || {});
+
+/* DB2b: a D1-shaped adapter over a real SQLite database built from the VERO migration; query_only = ON after seeding, so a write
+   statement would fail (and the page would show "Data unavailable"). LOG records every prepare / bind / batch. */
+const LOG = { prepared: [], binds: [], batches: 0 };
+const resetLog = () => { LOG.prepared = []; LOG.binds = []; LOG.batches = 0; };
+function sqliteD1(seed, opt) {
+  const db = new DatabaseSync(':memory:');
+  db.exec(MIGRATION);
+  if (seed) seed(db);
+  db.exec('PRAGMA query_only = ON');
+  return {
+    prepare(sql) { LOG.prepared.push(sql); return { sql, args: [], bind(...a) { LOG.binds.push(a); return { sql, args: a }; } }; },
+    async batch(list) {
+      LOG.batches++;
+      if (opt && opt.fail) throw new Error('D1_ERROR: unavailable');
+      if (opt && opt.badShape) return [{ success: true }];
+      return list.map(st => ({ success: true, results: db.prepare(st.sql).all(...st.args) }));
+    },
+  };
+}
+/* Raw fake: returns crafted rows (as if SQL had misbehaved) to test the page-side filters. */
+function rawD1(results) {
+  return { prepare(sql) { LOG.prepared.push(sql); return { bind(...a) { LOG.binds.push(a); return { sql }; } }; },
+    async batch(list) { LOG.batches++; return list.map((_, i) => ({ results: results[i] || [] })); } };
+}
+const MDAY = (k, t) => new Date((t || Date.now()) + 480 * 60000 - k * 86400000).toISOString().slice(0, 10);
+const UMONTH = k => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - k, 1)).toISOString().slice(0, 7); };
+const SECRET = ['CODEID_MARK', 'IPHASH_MARK', 'QTEXT_MARK', 'SEARCHQ_MARK', 'DOMAIN_MARK', 'TS_MARK', 'ROLE_MARK'];
+function seedMain(db) {
+  const dst = db.prepare('INSERT INTO daily_stats (day, ai_calls, web_calls, web_searches, cache_hits, errors, timeouts, rate_limited, capped, tokens_in, tokens_out, micro_usd, web_micro_usd) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  dst.run(MDAY(0), 5, 1, 2, 1, 1, 0, 2, 0, 1000, 500, 12345, 2000);
+  dst.run(MDAY(3), 2, 0, 0, 0, 0, 1, 0, 1, 400, 200, 2000, 0);
+  dst.run(MDAY(40), 900, 0, 0, 0, 0, 0, 0, 0, 0, 0, 777777, 0);   // outside the window
+  const sp = db.prepare('INSERT INTO spend (month, micro_usd, web_micro_usd, calls, web_searches) VALUES (?,?,?,?,?)');
+  sp.run(UMONTH(0), 3400000, 500000, 9, 2); sp.run(UMONTH(1), 1000000, 0, 4, 0); sp.run(UMONTH(2), 250000, 0, 1, 0);
+  sp.run(UMONTH(3), 9990000, 0, 99, 0);   // older than the last 3 months
+  const q = db.prepare('INSERT INTO question_log (ts, day, code_id, role, ip_hash, q_redacted, route, trigger, n_candidates, picks, confidence, outcome, web_searches, web_status, source_domains, search_query_redacted, tokens_in, tokens_out, micro_usd, latency_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  const row = (day, route, picks, conf, outcome, lat) => q.run('TS_MARK', day, 'CODEID_MARK', 'ROLE_MARK', 'IPHASH_MARK', 'QTEXT_MARK', route, 'auto', 5, picks, conf, outcome,
+    route === 'web' ? 1 : null, route === 'web' ? 'used' : null, route === 'web' ? 'DOMAIN_MARK.example' : null, 'SEARCHQ_MARK', 10, 10, 100, lat);
+  row(MDAY(0), 'catalog', '25870,95169HSR', 'high', 'ok', 1500);
+  row(MDAY(0), 'catalog', '25870,95169HSR', 'medium', 'ok', 3000);
+  row(MDAY(1), 'catalog', '95169HSR', 'low', 'ok', 6000);           // 95169HSR = 3 answers (listed); 25870 = 2 (suppressed, k = 3)
+  row(MDAY(1), 'catalog', '', 'low', 'ok', 2500);                    // no product suggested
+  row(MDAY(2), 'web', null, null, 'no_official_source', 15000);
+  row(MDAY(2), 'catalog', null, null, 'timeout', 25000);
+  for (let i = 0; i < 3; i++) row(MDAY(2), 'catalog', '10334', null, 'cached', null);              // cached: never counted as a pick
+  for (let i = 0; i < 3; i++) row(MDAY(3), 'catalog', '<script>x</script>,99999', 'high', 'ok', 1000);   // invalid pick string: dropped
+  for (let i = 0; i < 3; i++) row(MDAY(3), 'catalog', 'A'.repeat(40), 'high', 'ok', 1000);         // 40-char code: dropped page-side
+  for (let i = 0; i < 5; i++) row(MDAY(40), 'catalog', '77777', 'high', 'ok', 1000);               // outside the window
+  row(MDAY(4), 'catalog', null, null, '<img src=x onerror=alert(1)> & co', 900);                    // hostile outcome text: escaped (incl. &, QA-DB2b-4)
+}
 
 const _log = console.log;
 const tmp = mkdtempSync(path.join(os.tmpdir(), 'unodash-'));
@@ -105,7 +170,8 @@ async function suite(W, out) {
     // --- the owner gets in
     W._resetCerts(); FETCHES = [];
     const ok = await call('/', { tok: T });
-    chk('owner GET / -> 200 HTML shell', ok.status === 200 && /^text\/html/.test(ok.h.get('content-type')) && ok.text.includes('UNO Owner Dashboard'), [ok.status, ok.text.slice(0, 80)]);
+    chk('owner GET / without a D1 binding -> 200 page "UNO Analytics" with "Data unavailable" and no numbers', ok.status === 200 && /^text\/html/.test(ok.h.get('content-type'))
+      && ok.text.includes('<h1>UNO Analytics</h1>') && ok.text.includes('Data unavailable') && ok.text.includes('Signed in as the owner.') && !ok.text.includes('class="tiles"'), [ok.status, ok.text.slice(0, 80)]);
     chk('owner GET / fetched the Access keys once, only from the team certs URL', FETCHES.length === 1 && FETCHES[0] === CERTS_URL, FETCHES);
     await call('/', { tok: T });
     chk('Access keys are cached (second request: no fetch)', FETCHES.length === 1, FETCHES.length);
@@ -312,8 +378,88 @@ async function suite(W, out) {
     chk('unknown path without Access JWT -> 403 (routes are not revealed)', anon404.status === 403, anon404.status);
     chk('OPTIONS without Access JWT -> 403 (no CORS preflight answer)', (await call('/api/whoami', { method: 'OPTIONS' })).status === 403);
 
+    // --- DB2b: aggregate analytics from the real SQL over a real SQLite copy of the VERO schema (synthetic rows)
+    let dbPage = null;
+    {
+      resetLog();
+      const r = await call('/', { tok: T, env: ENV({ DB: sqliteD1(seedMain) }) });
+      dbPage = r;
+      const t = r.text;
+      chk('DB2b: owner page with the binding -> 200, analytics rendered (tiles + sections A-E), not "Data unavailable"', r.status === 200 && t.includes('class="tiles"')
+        && ['A. AI usage', 'B. Monthly usage', 'C. Answer routes', 'D. Low-confidence', 'E. Frequently recommended'].every(x => t.includes(x)) && !t.includes('Data unavailable'), t.slice(0, 200));
+      chk('DB2b: exactly one batch of the six fixed statements, in order, bound only to the cutoff (and k = 3)', LOG.batches === 1 && JSON.stringify(LOG.prepared) === JSON.stringify(Object.values(EXPECT_SQL))
+        && JSON.stringify(LOG.binds) === JSON.stringify([[MDAY(29)], [UMONTH(2)], [MDAY(29)], [MDAY(29)], [MDAY(29)], [MDAY(29), 3]]), [LOG.batches, LOG.binds]);
+      chk('DB2b: no excluded value reaches the page (question text, search query, domains, code_id, ip_hash, ts, role)', SECRET.every(m => !t.includes(m)), SECRET.filter(m => t.includes(m)));
+      chk('DB2b: tiles = 7 AI answers, 16 logged (3 cached), 18.8% failed, 15.4% low confidence, 10% no product of 10 answered, $3.40 this month',
+        ['<span>AI answers</span><b>7</b>', '<span>Logged AI questions</span><b>16</b><i>incl. 3 cached</i>',
+          '<span>Failed AI calls</span><b>18.8%</b><i>3 of 16 logged (not wrong answers)</i>',   // fix round 1 (DB2b-D3): each tile names its denominator
+          '<span>Low confidence</span><b>15.4%</b><i>of 13 not cached; signal, not proof</i>', '<span>No product suggested</span><b>10%</b><i>of 10 answered</i>',
+          '<span>Cost this month</span><b>$3.40</b>'].every(x => t.includes(x)),
+        (t.match(/<div class="tile">.*?<\/div>/g) || []).join(' '));
+      chk('DB2b: rows outside the window / older months are not shown (day 40, month -3)', !t.includes(MDAY(40)) && !t.includes('900') && !t.includes(UMONTH(3)) && !t.includes('$9.99') && !t.includes('77777'));
+      chk('DB2b: SKUs - 95169HSR listed with 3 answers; 25870 (2 answers, below k), cached 10334, invalid and 40-char codes absent',
+        t.includes('<td data-l="Item code">95169HSR</td><td data-l="Answers">3</td>') && !t.includes('>25870<') && !t.includes('10334') && !t.includes('99999') && !t.includes('A'.repeat(40)));
+      chk('DB2b: hostile values are escaped, & included (no raw tag or bare & from the database)', t.includes('&lt;img src=x onerror=alert(1)&gt; &amp; co') && !/<img|<script|onerror=alert\(1\)>| & co/.test(t));
+      // fix round 1 (QA-DB2b-1): section B shares against the right budget (3.40 of 4.50; web 0.50 of 2.00)
+      chk('DB2b: section B - this month 75.6% of the $4.50 budget, web 25% of the $2.00 web budget', t.includes('<td data-l="Of budget">75.6%</td>') && t.includes('<td data-l="Of web budget">25%</td>'));
+      chk('DB2b: latency buckets 8 / 2 / 1 / 1 / 1 (no row-level values)', ['under 2 s</td><td data-l="Questions">8<', '2 to 5 s</td><td data-l="Questions">2<',
+        '5 to 10 s</td><td data-l="Questions">1<', '10 to 20 s</td><td data-l="Questions">1<', '20 s or more</td><td data-l="Questions">1<'].every(x => t.includes(x)));
+      chk('DB2b: coverage note on the page (staff AI only, local answers not logged, events off, signals not proof)', t.includes('<b>Coverage:</b> staff UNO AI answers only')
+        && t.includes('UNO event logging is off') && t.includes('not proven errors'));
+      chk('DB2b: the analytics page has no script, no inline style, and the only links are /app.css + Back to Admin',
+        !/<script|style=/i.test(t.replace(/&lt;script/g, '')) && JSON.stringify([...t.matchAll(/href="([^"]*)"/g)].map(m => m[1])) === JSON.stringify(['/app.css', 'https://raffyrojo.github.io/ugreen-pricelist/#uno-return']));
+      chk('DB2b: same strict headers with data (exact CSP, no-store, DENY)', r.h.get('content-security-policy') === ok.h.get('content-security-policy') && r.h.get('cache-control') === 'no-store' && r.h.get('x-frame-options') === 'DENY');
+    }
+    {
+      const W0 = Date.UTC(2026, 9, 25, 20, 0, 0);   // 2026-10-26 04:00 Manila
+      const c = W.cutoffs(W0);
+      chk('DB2b: cutoffs use the Manila day (UTC 2026-10-25 20:00 -> window from 2026-09-27) and the last 3 UTC months', c.day === '2026-09-27' && c.month === '2026-08' && c.thisMonth === '2026-10', c);
+      // fix round 1 (QA-DB2b-2): at a month boundary the Manila day is already November, the spend month is still the UTC month
+      const e = W.cutoffs(Date.UTC(2026, 9, 31, 20, 0, 0));   // 2026-11-01 04:00 Manila
+      chk('DB2b: month boundary - UTC 2026-10-31 20:00 -> window from 2026-10-03, this month 2026-10 (UTC, not Manila)', e.day === '2026-10-03' && e.thisMonth === '2026-10' && e.month === '2026-08', e);
+    }
+    {
+      // fix round 1 (DB2b-D2): an empty element in a picks string (",," / trailing comma) is never counted as an item code
+      const db = new DatabaseSync(':memory:');
+      db.exec(MIGRATION);
+      const ins = db.prepare("INSERT INTO question_log (ts, day, code_id, role, q_redacted, route, trigger, picks, outcome) VALUES ('t', ?, 'c', 'r', 'q', 'catalog', 'auto', ?, 'ok')");
+      for (const p of [',,', 'C1,', ',C1', 'C1,,C2', 'C1', 'C2']) ins.run(MDAY(0), p);
+      const got = db.prepare(W.SQL.picks).all(MDAY(29), 1);
+      chk('DB2b: SQL picks never yields an empty item code (",,", trailing / leading / double commas)', got.length === 2 && got.every(r => r.item_code !== '') && got[0].item_code === 'C1' && got[0].n === 4, got);
+    }
+    for (const [n, env, mode] of [['kill switch off', ENV({ DASHBOARD_ENABLED: 'false' }), 503], ['no Access JWT', ENV(), 403], ['other email', ENV(), 403]]) {
+      resetLog();
+      const tok = n === 'no Access JWT' ? undefined : n === 'other email' ? await jwt(good({ email: 'someone.else@example.com' })) : T;
+      const r = await call('/', { tok, env: Object.assign(env, { DB: sqliteD1(seedMain) }) });
+      chk('DB2b: ' + n + ' -> ' + mode + ' and the database is never touched', r.status === mode && LOG.prepared.length === 0 && LOG.batches === 0, [r.status, LOG.prepared.length, LOG.batches]);
+    }
+    for (const [n, db] of [['D1 throws', sqliteD1(seedMain, { fail: true })], ['unexpected result shape', sqliteD1(seedMain, { badShape: true })], ['binding without batch()', { prepare() { return {}; } }]]) {
+      const r = await call('/', { tok: T, env: ENV({ DB: db }) });
+      chk('DB2b: ' + n + ' -> 200 "Data unavailable", no numbers', r.status === 200 && r.text.includes('Data unavailable') && !r.text.includes('class="tiles"'), r.text.slice(-200));
+    }
+    {
+      const r = await call('/', { tok: T, env: ENV({ DB: sqliteD1(null) }) });
+      chk('DB2b: empty database -> 200, "no data in this window", zero tiles', r.status === 200 && r.text.includes('no data in this window') && r.text.includes('<span>AI answers</span><b>0</b>'), r.text.slice(0, 120));
+      chk('DB2b: POST / is still 405 with the binding, /api/whoami unchanged', (await call('/', { tok: T, method: 'POST', env: ENV({ DB: sqliteD1(null) }) })).status === 405
+        && (await call('/api/whoami', { tok: T, method: 'POST', env: ENV({ DB: sqliteD1(null) }) })).j.role === 'owner');
+    }
+    {
+      // page-side filters (as if the SQL misbehaved): codes below k, invalid codes, more than 20 codes, bad day / month strings
+      const many = Array.from({ length: 25 }, (_, i) => ({ item_code: 'C' + (100 + i), n: 30 - i }));
+      const res = [[{ day: 'not-a-day', ai_calls: 5 }, { day: MDAY(0), ai_calls: 1 }], [{ month: '2026-1x', micro_usd: 5 }], [],
+        [{ day: 'bad-day-2', n: 7 }, { day: MDAY(0), n: 1 }], [],   // fix round 1 (QA-DB2b-3): the signals rows are day-checked too
+        [{ item_code: 'LOW1', n: 2 }, { item_code: 'bad code', n: 99 }, { item_code: '"><b>x', n: 99 }].concat(many)];   // first: only the filters can drop them
+      resetLog();
+      const r = await call('/', { tok: T, env: ENV({ DB: rawD1(res) }) });
+      const listed = [...r.text.matchAll(/<td data-l="Item code">([^<]*)<\/td>/g)].map(m => m[1]);
+      chk('DB2b: page-side filters: at most 20 codes, none below k = 3, only [A-Za-z0-9-] codes, invalid day / month rows dropped',
+        listed.length === 20 && listed[0] === 'C100' && !listed.includes('LOW1') && !r.text.includes('bad code') && !r.text.includes('not-a-day') && !r.text.includes('2026-1x')
+        && !r.text.includes('bad-day-2')
+        && !r.text.includes('<b>x'), [listed.length, listed.slice(0, 3)]);
+    }
+
     // --- headers on every response
-    const all = [ok, css, who, anon404, await call('/', { tok: T, env: ENV({ DASHBOARD_ENABLED: 'false' }) })];
+    const all = [ok, css, who, anon404, dbPage, await call('/', { tok: T, env: ENV({ DASHBOARD_ENABLED: 'false' }) })];
     const hdrOk = r => r.h.get('cache-control') === 'no-store' && /frame-ancestors 'none'/.test(r.h.get('content-security-policy') || '')
       && /default-src 'none'/.test(r.h.get('content-security-policy') || '') && !/unsafe-inline|unsafe-eval/.test(r.h.get('content-security-policy') || '')
       && r.h.get('x-content-type-options') === 'nosniff' && r.h.get('x-frame-options') === 'DENY' && r.h.get('referrer-policy') === 'no-referrer';
@@ -332,17 +478,18 @@ async function suite(W, out) {
 }
 
 /* ---------------- static checks on the source and its config ---------------- */
-function statics(src) {
-  const SRC = src;   // fix round 4: also run on every mutant source
+function statics(src, mod) {
+  const SRC = src;   // fix round 4: also run on every mutant source (DB2b: with its loaded module, for SQL)
   const res = [];
   const s = SRC.replace(/\/\*[\s\S]*?\*\//g, '');
   // fix rounds 2-3 (QA-DB1-9 / QA-DB1-13): on the RAW source (no comment stripping), env appears only as env.<one of the 4 settings>,
   // in the cfg(env) definition / call and in fetch(req, env); no Reflect, arguments or cloudflare: import; the default export has
   // exactly one handler, fetch
+  // DB2b: plus exactly one read of the D1 binding, env.DB, handed to page() after the owner check
   const envLeft = SRC.replace(/\benv\.(ACCESS_AUD|ACCESS_TEAM_DOMAIN|DASHBOARD_ENABLED|OWNER_EMAIL)\b/g, '').replace('export function cfg(env) {', '')
-    .replace('async fetch(req, env) {', '').replace('const c = cfg(env);', '');
-  res.push(['worker uses env only for the 4 settings (no binding, alias, destructuring, env[...], Reflect, arguments, cloudflare: import or backslash-u escape)',
-    !/\benv\b/.test(envLeft) && (SRC.match(/\bcfg\(env\)/g) || []).length === 2 && !/\bReflect\b|\barguments\b|cloudflare:|\\u/.test(SRC)]);
+    .replace('async fetch(req, env) {', '').replace('const c = cfg(env);', '').replace('await page(env.DB, t)', '');
+  res.push(['worker uses env only for the 4 settings + one env.DB read (no other binding, alias, destructuring, env[...], Reflect, arguments, cloudflare: import or backslash-u escape)',
+    !/\benv\b/.test(envLeft) && (SRC.match(/\bcfg\(env\)/g) || []).length === 2 && (SRC.match(/\benv\.DB\b/g) || []).length === 1 && !/\bReflect\b|\barguments\b|cloudflare:|\\u/.test(SRC)]);
   const dflt = SRC.slice(SRC.indexOf('\nexport default {'));
   res.push(['the default export has exactly one handler: fetch(req, env)', (SRC.match(/\nexport default \{/g) || []).length === 1
     && (dflt.match(/^ {2}(?:async\s+)?[A-Za-z_$][\w$]*\s*\(/gm) || []).length === 1 && /^ {2}async fetch\(req, env\) \{/m.test(dflt)
@@ -366,10 +513,35 @@ function statics(src) {
     (sect[cur] = sect[cur] || []).push(k ? k[1] : '?' + l.slice(0, 20));
   }
   // DB2a (DB1-DEP-5): the kill switch is dashboard-managed (no [vars] table; keep_vars = true keeps it on a wrangler deploy)
-  res.push(['wrangler.toml: exact keys per section (top: name main compatibility_date workers_dev preview_urls keep_vars; [observability]: enabled)',
-    JSON.stringify(sect) === JSON.stringify({ '': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'], '[observability]': ['enabled'] })]);
+  res.push(['wrangler.toml: exact keys per section (top: name main compatibility_date workers_dev preview_urls keep_vars; [observability]: enabled; [[d1_databases]]: binding database_name database_id)',
+    JSON.stringify(sect) === JSON.stringify({ '': ['name', 'main', 'compatibility_date', 'workers_dev', 'preview_urls', 'keep_vars'], '[observability]': ['enabled'],
+      '[[d1_databases]]': ['binding', 'database_name', 'database_id'] })]);
   const tables = [...TOML.matchAll(/^\s*\[{1,2}([^\]]+)\]{1,2}/gm)].map(m => m[0].trim());
-  res.push(['wrangler.toml: only the [observability] table (no [vars], no binding table of any kind), no route', JSON.stringify(tables) === JSON.stringify(['[observability]']) && !/^\s*routes?\s*=/m.test(TOML)]);
+  res.push(['wrangler.toml: only [observability] + one [[d1_databases]] (no [vars], no other binding table), no route', JSON.stringify(tables) === JSON.stringify(['[observability]', '[[d1_databases]]']) && !/^\s*routes?\s*=/m.test(TOML)]);
+  // DB2b: the one binding is DB -> the VERO database (same id as backend/vero/wrangler.toml)
+  const veroId = (VERO_TOML.match(/^database_id = "([0-9a-f-]{36})"/m) || [])[1];
+  res.push(['wrangler.toml: binding "DB" -> database "ugreen-vero", database_id = backend/vero/wrangler.toml', !!veroId && /^binding = "DB"$/m.test(TOML)
+    && /^database_name = "ugreen-vero"$/m.test(TOML) && new RegExp('^database_id = "' + veroId + '"', 'm').test(TOML)]);
+  // DB2b read-only safeguards (owner decisions 2026-10-25): the six SQL texts are exactly the reviewed ones; D1 is touched only as
+  // prepare(SQL.<name>) x 6 + one batch; no write keyword, no excluded column / table; constants agree with the VERO config
+  const W2 = mod && mod.SQL ? Object.assign({}, mod.SQL) : null;
+  res.push(['DB2b: SQL = exactly the six reviewed statements', !!W2 && JSON.stringify(W2) === JSON.stringify(EXPECT_SQL)]);
+  const prep = [...s.matchAll(/\.prepare\(([^)]*)\)/g)].map(m => m[1]);
+  res.push(['DB2b: D1 is used only as prepare(SQL.<name>) x 6 (each once) + one batch; no exec / run / first / raw / all / dump', prep.length === 6
+    && JSON.stringify(prep.slice().sort()) === JSON.stringify(Object.keys(EXPECT_SQL).map(k => 'SQL.' + k).sort()) && (s.match(/\.batch\(/g) || []).length === 1
+    && !/(?<!Promise)\.(exec|run|first|raw|all|dump|withSession)\(/.test(s)]);
+  res.push(['DB2b: no SQL write / schema keyword anywhere in the Worker', !/\b(INSERT|UPDATE|DELETE|REPLACE|DROP|ALTER|CREATE|PRAGMA|ATTACH|DETACH|VACUUM|TRIGGER)\b/.test(s)]);
+  const sqlText = W2 ? Object.values(W2).join(' ') : '';
+  res.push(['DB2b: SQL never names question text, search query, source domains, code_id, ip_hash, ts, id, role, or another table', !!sqlText
+    && !/q_redacted|search_query|source_domains|code_id|ip_hash|\bts\b|\bid\b|\brole\b|answer_cache|access_codes|counters|product_text|\bmeta\b|uno_/.test(sqlText)
+    && JSON.stringify([...new Set([...sqlText.matchAll(/\bFROM\s+([a-z_]+)/g)].map(m => m[1]))].sort()) === JSON.stringify(['daily_stats', 'question_log', 'spend'])]);
+  const vv = k => (VERO_TOML.match(new RegExp('^' + k + ' = "([^"]*)"', 'm')) || [])[1];
+  res.push(['DB2b: budget constants = VERO config (4.50 / 2.00), window = LOG_RETENTION_DAYS (30), Manila offset = DAY_UTC_OFFSET_MIN (480)',
+    !!vv('MONTHLY_BUDGET_USD') && s.includes("export const BUDGET_USD = '" + vv('MONTHLY_BUDGET_USD') + "';") && s.includes("export const WEB_BUDGET_USD = '" + vv('WEB_MONTHLY_BUDGET_USD') + "';")
+    && s.includes('export const WINDOW_DAYS = ' + vv('LOG_RETENTION_DAYS') + ';') && s.includes('export const DAY_OFFSET_MIN = ' + vv('DAY_UTC_OFFSET_MIN') + ';')
+    && s.includes('export const PICK_MIN = 3;') && s.includes('export const PICK_TOP = 20;')]);
+  res.push(['DB2b: every table cell and tile value goes through esc()', s.includes("'<td data-l=\"' + esc(head[i]) + '\">' + esc(c) + '</td>'")
+    && s.includes("'<div class=\"tile\"><span>' + esc(label) + '</span><b>' + esc(value) + '</b><i>' + esc(note) + '</i></div>'")]);
   res.push(['wrangler.toml: kill switch not set in the file (dashboard-managed, keep_vars = true), observability off, workers.dev only, no preview URLs',
     !/^\s*DASHBOARD_ENABLED\s*=/m.test(TOML) && /^keep_vars = true\b/m.test(TOML) && /\[observability\]\s*\nenabled = false/.test(TOML)
     && /^workers_dev = true$/m.test(TOML) && /^preview_urls = false\b/m.test(TOML)]);
@@ -445,18 +617,45 @@ const MUT = [
   ['Back link removed', '<a class="back" href="\' + ADMIN_RETURN_URL + \'">&larr; Back to Admin</a>', ''],
   ['X-Frame-Options relaxed', "'x-frame-options': 'DENY'", "'x-frame-options': 'SAMEORIGIN'"],
   ['frame-ancestors opened to the admin origin', "frame-ancestors 'none'\";", "frame-ancestors https://raffyrojo.github.io\";"],
+  // DB2b: read-only aggregate analytics
+  ['k suppression removed in SQL', 'HAVING COUNT(*) >= ?2', 'HAVING COUNT(*) >= 1'],
+  ['k filter removed page-side', ' && num(r.n) >= PICK_MIN).slice(0, PICK_TOP)', ').slice(0, PICK_TOP)'],
+  ['top-20 cap removed', '.slice(0, PICK_TOP) };', ' };'],
+  ['item-code check removed', 'CODE_RE.test(String(r.item_code)) && ', ''],
+  ['day check removed', 'daily: rows(0).filter(r => DAY_RE.test(String(r.day))),', 'daily: rows(0),'],
+  ['cell escaping removed', "'\">' + esc(c) + '</td>'", "'\">' + c + '</td>'"],
+  ['tile escaping removed', "'</span><b>' + esc(value) + '</b>", "'</span><b>' + value + '</b>"],
+  ['question text selected', 'SELECT route, outcome,', 'SELECT q_redacted AS route, outcome,'],
+  ['cached answers counted as picks', "AND q.outcome = 'ok' AND q.picks IS NOT NULL", 'AND q.picks IS NOT NULL'],
+  ['pick string filter removed', " AND q.picks NOT GLOB '*[^A-Za-z0-9,-]*' ", ' '],
+  ['write statement added', '  picks: `SELECT', "  wipe: 'DELETE FROM question_log',\n  picks: `SELECT"],
+  ['D1 read before the owner check', '    const t = Date.now();\n', '    const t = Date.now(); await page(env.DB, t);\n'],
+  ['window widened to 45 days', 'export const WINDOW_DAYS = 30;', 'export const WINDOW_DAYS = 45;'],
+  ['Manila offset dropped', 'export const DAY_OFFSET_MIN = 480;', 'export const DAY_OFFSET_MIN = 0;'],
+  ['monthly window widened', 'd.getUTCMonth() - 2, 1', 'd.getUTCMonth() - 3, 1'],
+  ['D1 failure rethrown', 'catch (_) { body = UNAVAILABLE; }', 'catch (e) { throw e; }'],
+  ['result shape not checked', "if (!Array.isArray(r)) throw new Error('d1_shape'); return r;", 'return r || [];'],
+  ['budget constant drifts from the VERO config', "export const BUDGET_USD = '4.50';", "export const BUDGET_USD = '5.00';"],
+  // DB2b fix round 1 (QA-DB2b-1 ... 4, DB2b-D2, DB2b-D3)
+  ['section B uses the web budget for the total', 'pct(r.micro_usd, Number(BUDGET_USD) * 1e6)', 'pct(r.micro_usd, Number(WEB_BUDGET_USD) * 1e6)'],
+  ['this month taken from the Manila clock', 'thisMonth: d.toISOString().slice(0, 7)', 'thisMonth: new Date(t + DAY_OFFSET_MIN * 60000).toISOString().slice(0, 7)'],
+  ['signals day check removed', 'signals: rows(3).filter(r => DAY_RE.test(String(r.day))),', 'signals: rows(3),'],
+  ['& not escaped', "'&': '&amp;', ", "'&': '&', "],
+  ['empty pick element counted', " AND j.value <> '' ", ' '],
+  ['failed tile without its denominator', "int(failed) + ' of ' + int(logged) + ' logged (not wrong answers)'", "int(failed) + ' calls (not wrong answers)'"],
+  ['low-confidence tile without its denominator', "'of ' + int(logged - cached) + ' not cached; signal, not proof'", "'signal, not proof'"],
 ];
 
 const W = await load(SRC);
 const failed = await suite(W, true);
 let sFail = 0;
-for (const [n, ok] of statics(SRC)) { CHECKS++; if (ok) _log('PASS - static: ' + n); else { sFail++; _log('FAIL - static: ' + n); } }
+for (const [n, ok] of statics(SRC, W)) { CHECKS++; if (ok) _log('PASS - static: ' + n); else { sFail++; _log('FAIL - static: ' + n); } }
 const pass = CHECKS - failed.length - sFail;
 let killed = 0, mutFail = 0;
 for (const [n, from, to] of MUT) {
   if (!SRC.includes(from)) { mutFail++; _log('FAIL - mutant anchor missing: ' + n); continue; }
   const M = await load(SRC.replace(from, to));
-  const f = (await suite(M, false)).concat(statics(SRC.replace(from, to)).filter(x => !x[1]).map(x => 'static: ' + x[0]));
+  const f = (await suite(M, false)).concat(statics(SRC.replace(from, to), M).filter(x => !x[1]).map(x => 'static: ' + x[0]));
   if (f.length) { killed++; _log('PASS - mutant killed: ' + n + ' (' + f.length + ' checks)'); } else { mutFail++; _log('FAIL - mutant survived: ' + n); }
 }
 console.log = _log;
