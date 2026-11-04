@@ -261,9 +261,12 @@ const STRIP_25683 = ['previousSRP','priceChangeSRP','srpChangeDate','previousDP'
   chk('data: 25683 keeps its current prices (1239 / 991 / 929)', p && p.srp === 1239 && p.dp === 991 && p.dp_volume === 929);
   chk('data: 25683 keeps its creation fields (dateAdded 1791964097363, created_at null, isNew true)', p && p.dateAdded === 1791964097363 && has(p, 'created_at') && p.created_at === null && p.isNew === true);
   // re-baseline 3582714b (2026-10-16): CMS Publish added 16746 / 16748-16752 (826 -> 832)
-  chk('data: 832 products, unique item codes', fixed.length === 832 && new Set(fixed.map(x => String(x.item_code))).size === 832);
+  // re-baseline 71633cfc (2026-11-03): CMS Publish 2026-10-28 added 95895 (832 -> 833); it is a New Arrival at the fixed now
+  // because isNewArrival reads dateAdded first ("2026-10" -> 2026-10-01, inside the 30-day window; created_at is only the
+  // fallback), so 18 -> 19 = the previous 18 + 95895 (causal audit: none removed)
+  chk('data: 833 products, unique item codes', fixed.length === 833 && new Set(fixed.map(x => String(x.item_code))).size === 833);
   const naCount = fixed.filter(x => !x.disabled && isNA(x)).length;
-  chk('data: 18 New Arrivals after the correction (fixed now 2026-10-14 15:00Z)', naCount === 18, naCount);
+  chk('data: 19 New Arrivals after the correction (fixed now 2026-10-14 15:00Z)', naCount === 19, naCount);
   // Exactly the approved 33 keys differ (key presence aware) between the current data and the corrected data.
   const diffs = [];
   data.forEach((q, i) => { const r = fixed[i]; new Set([...Object.keys(q), ...Object.keys(r)]).forEach(k => {
@@ -297,7 +300,7 @@ const STRIP_25683 = ['previousSRP','priceChangeSRP','srpChangeDate','previousDP'
   }
   for (const c of ['55988C', '25919C', '75646A'])
     chk(`dup-badge: ${c} keeps its genuine 2026-10-01 price-change badge and history`, byC[c] && byC[c].srpChangeDate === '2026-10-01' && pcRecent(byC[c]) && (byC[c].priceHistory || []).length === 1 && byC[c].priceHistory[0].source === 'scheduled');
-  chk('dup-badge: New Arrivals still 18 at fixed now 2026-10-14 15:00Z', fixed.filter(x => !x.disabled && isNA(x)).length === 18);
+  chk('dup-badge: New Arrivals still 19 at fixed now 2026-10-14 15:00Z', fixed.filter(x => !x.disabled && isNA(x)).length === 19);
   const diffs = [];
   data.forEach((q, i) => { const r = fixed[i]; new Set([...Object.keys(q), ...Object.keys(r)]).forEach(k => {
     if (has(q, k) !== has(r, k) || JSON.stringify(q[k]) !== JSON.stringify(r[k])) diffs.push(q.item_code + '.' + k); }); });

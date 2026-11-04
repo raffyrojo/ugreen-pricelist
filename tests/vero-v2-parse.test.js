@@ -797,7 +797,10 @@ function c2fExecFingerprint(VPm,opts){ const h=require('crypto').createHash('sha
   /* re-baseline 3582714b (2026-10-16, CMS Publish +16746 / 16748-16752): causal audit on 23436231 vs 3582714b trees with identical code -- 3 / 75
      frames differ, only in catalogue-size counters (+6: "keyboard" flood / ladder 812 -> 818, alsoUnconfirmed of "retractable cable" 804 -> 810
      and "usb-c to dp alt mode" 809 -> 815); 0 route / kind / code changes; was 07fb267d…d31b on 6672902d */
-  chk('C2F.X2 executeFrame output byte-identical to the 99dd595 behaviour on catalogue 3582714b over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='c62549e027bac7cb72b96728b94412ebaafae74b1dd3dae6693faab02088235a', fp);
+  /* re-baseline 71633cfc (2026-11-03, CMS Publish 2026-10-28 +95895 Smart Finder): causal audit on f6b0181c vs 71633cfc trees with identical
+     code -- 3 / 75 frames differ, only in catalogue-size counters (+1: "keyboard" flood / ladder 818 -> 819, alsoUnconfirmed of "retractable
+     cable" 810 -> 811 and "usb-c to dp alt mode" 815 -> 816); 0 route / kind / code changes; was c62549e0…235a on 3582714b */
+  chk('C2F.X2 executeFrame output byte-identical to the 99dd595 behaviour on catalogue 71633cfc over '+C2F_SINGLE.length+' frames (sha256 '+fp.slice(0,12)+'…)', fp==='d5cad5fdbed4d5a9d52427bb4c7935257c7353d724752bf521ac4388adcba7e8', fp);
   /* X3 G3 same-span binding survives the discourse store (source span -> provenance { turn, span }); never across turns */
   const fr=TF('hub with 2 usb-c gen 1'), hubs=famCodes('hub_dock');
   const asStored=(f,turnOf)=>Object.assign({},f,{ constraints:f.constraints.map(c=>{ const x=JSON.parse(JSON.stringify(c)); delete x.source; x.provenance={ turn:turnOf(c), span:c.source&&c.source.span, act:'SELECT' }; return x; }) });

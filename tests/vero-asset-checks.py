@@ -16,7 +16,7 @@ INFO checks are reported separately and never counted in the gate (known, non-li
 History: the p2r3a release version (baseline 8f3982b, 38/38) hardcoded that release's tags, files and data fixes; see git history."""
 import hashlib, os, re, subprocess, sys
 R = sys.argv[1]
-BASE = sys.argv[2] if len(sys.argv) > 2 else '7099e79d'
+BASE = sys.argv[2] if len(sys.argv) > 2 else '71633cfc'
 
 # Production baselines (deployed Workers + live config; change only with an approved Worker / config release)
 VERO_WORKER_SHA = '1412d77b59605c943be560c0974677e99247f600f262423b578c51dd3248ba0e'   # Worker ugreen-vero, B2a source (/events + uno_* cleanup; B1b auth and prompt v5 unchanged); deployed baseline a048460c…ae58 (B1b, version 82458fff, live verified 2026-10-21) until the approved B2a dashboard deploy
@@ -37,10 +37,11 @@ AI_ENDPOINT = 'https://ugreen-vero.raffyortega-rojo.workers.dev'
 # Files this release is allowed to change vs the baseline (everything else must be byte-identical). The gate itself is
 # always allowed so that a reviewed gate edit can travel with its release.
 RELEASE_SCOPE = {'tests/vero-asset-checks.py',
-                 # R1 power-oracle re-baseline after the owner CMS Publish 7099e79d (baseline 7099e79d = live; DB3a C11 / C12 / C18;
-                 # owner approval 2026-10-26, manifest A1-A3 / B1-B3 / C1-C3, OD-E caveated YES): 45763 / 75701SR oracle labels, label
-                 # ledger and the catalogue-bound pins in the evidence suite. Tests only: no runtime, data, config or backend change. NO data.
-                 'tests/vero-evidence-power-oracle.json', 'tests/vero-evidence-power-oracle.labels.tsv', 'tests/vero-evidence.test.js'}
+                 # R1-CATALOGUE-REBASELINE-4 after the owner CMS Publish 71633cfc (baseline 71633cfc = live; 2026-10-28, +95895 Smart Finder;
+                 # owner approval 2026-11-03): catalogue-bound pins re-pinned after a causal audit (counts +1, New Arrivals +95895, oracle
+                 # binding only, C2F.X2 / F1 freezes +95895). Tests only: no runtime, data, config or backend change. NO data.
+                 'tests/cms-post-publish-state.test.js', 'tests/new-arrival.test.js', 'tests/vero-evidence-power-oracle.json',
+                 'tests/vero-evidence.test.js', 'tests/vero-v2-parse.test.js', 'tests/vero-v2-shadow.js'}
 # Approved data/products.json field changes for this release: {(item_code, field): (old, new)}. Empty = no data change.
 # ABSENT marks a key that does not exist on that side (key removal / addition); it never equals a stored null ('None').
 ABSENT = '<absent>'

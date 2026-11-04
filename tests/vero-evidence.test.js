@@ -1259,15 +1259,20 @@ chk('G5.11 a category-only catalogue word is a product word ("does the tripod su
   /* re-baseline 3582714b (2026-10-16, CMS Publish of 16746 / 16748-16752, Screen Protector): binding only — the 6 SKUs are outside the
      power-family inventory scope, so inventory, oracle rows and the label ledger are unchanged; the 6672902d baseline is kept one level down */
   /* re-baseline 7099e79d (2026-10-26, owner CMS Publish of DB3a C11 / C12 / C18: 45763, 75701SR): the 3582714b binding is kept one level down */
-  const RB=ORA.baseline && ORA.baseline.rebaselinedFrom, B3=RB && RB.previous, R1=B3 && B3.rebaselinedFrom, B6=R1 && R1.previous, PREV=B6 && B6.rebaselinedFrom && B6.rebaselinedFrom.previous;
-  chk('P2M1.1 oracle schema / milestone / baseline (re-baselined on live main 7099e79d after the 2026-10-26 CMS Publish; history kept)', ORA.schema==='uno-power-oracle/1' && ORA.milestone==='P2-M1' && ORA.baseline &&
-    ORA.baseline.r1ProvisionalFingerprint==='d72aa8ada2795eb4a1b9261e45c0db677dd3f309a7129894e940aee7cbab440b' && ORA.baseline.liveMain==='7099e79dd4fac75f5cacd26e192350e0370450a6' &&
+  /* re-baseline 71633cfc (2026-11-03, owner CMS Publish 2026-10-28 of 95895, Smart Finder): binding only — outside the power-family inventory
+     scope, so inventory, oracle rows and the label ledger are unchanged (pipeline re-run, identical); the 7099e79d baseline is kept one level down */
+  const R7=ORA.baseline && ORA.baseline.rebaselinedFrom, B7=R7 && R7.previous;
+  const RB=B7 && B7.rebaselinedFrom, B3=RB && RB.previous, R1=B3 && B3.rebaselinedFrom, B6=R1 && R1.previous, PREV=B6 && B6.rebaselinedFrom && B6.rebaselinedFrom.previous;
+  chk('P2M1.1 oracle schema / milestone / baseline (re-baselined on live main 71633cfc after the 2026-10-28 CMS Publish; history kept)', ORA.schema==='uno-power-oracle/1' && ORA.milestone==='P2-M1' && ORA.baseline &&
+    ORA.baseline.r1ProvisionalFingerprint==='d72aa8ada2795eb4a1b9261e45c0db677dd3f309a7129894e940aee7cbab440b' && ORA.baseline.liveMain==='71633cfc0cabd08851d46a89efd09cb100a68a2f' &&
+    !!R7 && R7.liveMain==='7099e79dd4fac75f5cacd26e192350e0370450a6' && R7.catalogueSha256==='f4be991603ddb42e7bfb019cf997275003de8571b47e924f8f13e6294ceca596' && R7.oracleBlob==='a6b4cc6d937adcd13be7b08ac2a15377faac6f16' &&
+    !!B7 && B7.liveMain==='7099e79dd4fac75f5cacd26e192350e0370450a6' &&
     !!RB && RB.liveMain==='3582714bac3f4fd09f19ae58001646ea87ff12c9' && RB.catalogueSha256==='ce4f93203b484dd579f5a361be59122a95b3de37ff1c5e370d848f742676a36b' && RB.oracleBlob==='7864778db8445818958ed8fa795b97d610c1f076' &&
     !!B3 && B3.liveMain==='3582714bac3f4fd09f19ae58001646ea87ff12c9' &&
     !!R1 && R1.liveMain==='6672902d7dd7c5f7f74c4772e20de935dd14ff4c' && R1.catalogueSha256==='bb86570ce249ae328e8b2a97ce9376894c687ac9a5e2b2d0df8a6e07b82f0782' && R1.oracleBlob==='7f65930abb5c770789a0ec6fb0d3e3cb18ba2d7a' &&
     !!B6 && B6.liveMain==='6672902d7dd7c5f7f74c4772e20de935dd14ff4c' && B6.rebaselinedFrom && B6.rebaselinedFrom.liveMain==='d87c6e99eff4c9da164031bba5b69fcc0a57d9b1' && B6.rebaselinedFrom.oracleBlob==='5f5e91a4f65c4275e95f2e0d09c02c15a344b759' &&
     !!PREV && PREV.liveMain==='1164f6be45f728297a4b8a5ad1a0cb4b94e00f9e' && PREV.rebaselinedFrom && PREV.rebaselinedFrom.liveMain==='56296068b12aa22b2a88396cfa52b3b1a7f4a6d9' &&
-    PREV.rebaselinedFrom.p2m1Fingerprint==='19110698a7b70b198c03a02604e68486ec9ff83230e27f70f78e08a958607dfa' && /fix round 1/.test(ORA.revision||'') && /re-baseline to 6672902d/.test(ORA.revision||'') && /re-baseline to 3582714b/.test(ORA.revision||'') && /re-baseline to 7099e79d/.test(ORA.revision||''), [ORA.baseline, ORA.revision]);
+    PREV.rebaselinedFrom.p2m1Fingerprint==='19110698a7b70b198c03a02604e68486ec9ff83230e27f70f78e08a958607dfa' && /fix round 1/.test(ORA.revision||'') && /re-baseline to 6672902d/.test(ORA.revision||'') && /re-baseline to 3582714b/.test(ORA.revision||'') && /re-baseline to 7099e79d/.test(ORA.revision||'') && /re-baseline to 71633cfc/.test(ORA.revision||''), [ORA.baseline, ORA.revision]);
   chk('P2M1.2 oracle is bound to this exact catalogue (re-build the inventory after any data/products.json change)', ORA.catalogue && ORA.catalogue.sha256===CAT, [ORA.catalogue && ORA.catalogue.sha256, CAT]);
   /* inventory scope: every published record of the power families, each exactly once; no disabled or unknown item code */
   const famOf=c=>{ const f=RF.byCode && RF.byCode[c]; return f && f.type && f.type.family; };
